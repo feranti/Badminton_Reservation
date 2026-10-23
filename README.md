@@ -34,12 +34,11 @@ Les montants sont stockés en centimes. Le calcul est fait par la vue `balances`
 2. Dans **SQL Editor**, collez et exécutez le contenu de `supabase/migrations/0001_init.sql`.
 3. Dans **Authentication > Sign In / Providers**, désactivez **Allow new users to sign up** : seuls les amis invités pourront se connecter.
 4. Dans **Authentication > URL Configuration**, mettez l'adresse du site dans **Site URL** (`http://localhost:3000` en local, puis l'adresse Vercel) et ajoutez-la aussi dans **Redirect URLs**.
-5. Dans **Authentication > Emails**, modifiez deux modèles pour que le lien fonctionne même s'il s'ouvre dans un autre navigateur que celui de la demande :
-   - **Magic Link** : remplacez le lien par `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`
-   - **Invite user** : remplacez le lien par `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite`
-6. Invitez les joueurs dans **Authentication > Users > Add user > Send invitation**.
+5. Ajoutez les joueurs dans **Authentication > Users > Add user > Create new user**, en cochant **Auto Confirm User** (le mot de passe ne sert pas). Aucun e-mail n'est envoyé : chacun se connecte ensuite depuis la page de connexion du site.
 
-À savoir : sur l'offre gratuite, l'envoi d'e-mails par Supabase est limité à quelques messages par heure. Pour un groupe plus grand, branchez un service d'envoi (SMTP) dans **Authentication > Emails > SMTP Settings**.
+Par défaut, le lien de connexion doit être ouvert dans le même navigateur que celui où on l'a demandé.
+
+Pour plus tard (étape 4) : l'envoi d'e-mails intégré à Supabase est limité à quelques messages par heure, et les modèles d'e-mail ne sont modifiables qu'avec un service d'envoi à vous. Branchez un service SMTP gratuit (Resend, Brevo…) dans **Authentication > Emails > SMTP Settings**, puis remplacez le lien du modèle **Magic Link** par `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` : le lien marchera alors dans n'importe quel navigateur.
 
 ### 2. Lancer le site en local
 
