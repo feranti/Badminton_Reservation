@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useFormAction } from "@/components/use-form-action";
 import { createSession, type FormState } from "@/app/soirees/actions";
 import { COURTS } from "@/lib/courts";
 import type { Player } from "@/lib/data";
+import { PayerFields } from "./payer-fields";
 import { SlotFields } from "./slot-fields";
 import { inputClass, labelClass, primaryButton } from "./ui";
 
@@ -18,10 +19,10 @@ export function NewSessionForm({
   defaultVenue: string;
   defaultPrice: string;
 }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(createSession, {});
+  const { state, pending, onSubmit } = useFormAction<FormState>(createSession, {});
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <label className={labelClass}>
         Gymnase
         <input name="venue" required defaultValue={defaultVenue} className={inputClass} placeholder="Gymnase Jean Moulin" />
@@ -42,24 +43,14 @@ export function NewSessionForm({
         </div>
       </fieldset>
 
-      <div className="grid grid-cols-2 gap-3">
-        <label className={labelClass}>
-          Prix par terrain (€)
-          <input name="price" required inputMode="decimal" defaultValue={defaultPrice} className={inputClass} placeholder="12,50" />
-        </label>
-        <label className={labelClass}>
-          Réservés et payés par
-          <select name="booked_by" defaultValue={userId} className={inputClass}>
-            {players.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.display_name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <label className={labelClass}>
+        Prix par terrain (€)
+        <input name="price" required inputMode="decimal" defaultValue={defaultPrice} className={inputClass} placeholder="12,50" />
+      </label>
+      <PayerFields players={players} userId={userId} />
       <p className="-mt-2 text-xs text-zinc-500">
-        Si plusieurs personnes ont réservé, ajoutez leurs terrains ensuite depuis la page de la soirée.
+        Avec un second payeur, chacun avance la moitié du prix. Si d&apos;autres personnes ont payé d&apos;autres terrains,
+        ajoutez-les ensuite depuis la page de la soirée.
       </p>
 
       <label className="flex items-center gap-2 text-sm">

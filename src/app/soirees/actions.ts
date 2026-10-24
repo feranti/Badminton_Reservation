@@ -6,7 +6,7 @@ import { COURTS } from "@/lib/courts";
 import { parisToIso, parseEurosToCents } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
 
-export type FormState = { error?: string };
+export type FormState = { error?: string; added?: boolean };
 
 // Lit et vérifie les champs communs d'une soirée. Les heures saisies sont celles de Paris.
 function readSessionFields(formData: FormData) {
@@ -26,6 +26,14 @@ function readSessionFields(formData: FormData) {
   return { values: { venue, notes, starts_at: startsAt, ends_at: endsAt } } as const;
 }
 
+// Payeur principal et second payeur optionnel (le site du gymnase en accepte deux).
+function readPayers(formData: FormData, userId: string) {
+  const bookedBy = String(formData.get("booked_by") ?? "") || userId;
+  const coPayer = String(formData.get("co_payer") ?? "") || null;
+  if (coPayer === bookedBy) return { error: "Choisissez deux payeurs différents." } as const;
+  return { payers: { booked_by: bookedBy, co_payer: coPayer } } as const;
+}
+
 function readCourt(value: FormDataEntryValue | null) {
   const court = Number(value);
   return (COURTS as readonly number[]).includes(court) ? court : null;
@@ -42,13 +50,15 @@ export async function createSession(_prev: FormState, formData: FormData): Promi
   }
   const priceCents = parseEurosToCents(String(formData.get("price") ?? ""));
   if (priceCents === null) return { error: "Le prix doit être un montant en euros, par exemple 12,50." };
-  const bookedBy = String(formData.get("booked_by") ?? "") || userId;
+  const payerFields = readPayers(formData, userId);
+  if ("error" in payerFields) return { error: payerFields.error };
+  const { payers } = payerFields;
 
   const { data: session, error } = await supabase.from("sessions").insert(fields.values).select("id").single();
   if (error) return { error: "La soirée n'a pas pu être enregistrée." };
 
   const { error: courtsError } = await supabase.from("court_bookings").insert(
-    courts.map((court) => ({ session_id: session.id, court: court!, price_cents: priceCents, booked_by: bookedBy })),
+    courts.map((court) => ({ session_id: session.id, court: court!, price_cents: priceCents, ...payers })),
   );
   if (courtsError) {
     await supabase.from("sessions").delete().eq("id", session.id);
@@ -83,16 +93,18 @@ export async function addCourt(sessionId: string, _prev: FormState, formData: Fo
   if (court === null) return { error: "Choisissez un terrain." };
   const priceCents = parseEurosToCents(String(formData.get("price") ?? ""));
   if (priceCents === null) return { error: "Le prix doit être un montant en euros, par exemple 12,50." };
-  const bookedBy = String(formData.get("booked_by") ?? "") || userId;
+  const payerFields = readPayers(formData, userId);
+  if ("error" in payerFields) return { error: payerFields.error };
+  const { payers } = payerFields;
 
   const { error } = await supabase
     .from("court_bookings")
-    .insert({ session_id: sessionId, court, price_cents: priceCents, booked_by: bookedBy });
+    .insert({ session_id: sessionId, court, price_cents: priceCents, ...payers });
   if (error) {
     return { error: error.code === "23505" ? `Le terrain ${court} est déjà dans cette soirée.` : "Le terrain n'a pas pu être ajouté." };
   }
   refresh();
-  return {};
+  return { added: true };
 }
 
 export async function removeCourt(courtBookingId: string) {

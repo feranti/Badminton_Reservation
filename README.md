@@ -19,20 +19,20 @@ Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site
 
 ## Règles de calcul
 
-- Une **soirée** regroupe un ou plusieurs **terrains** (numérotés de 6 à 14). Chaque terrain est réservé et payé par un joueur, qui avance son prix.
+- Une **soirée** regroupe un ou plusieurs **terrains** (numérotés de 6 à 14). Chaque terrain est réservé et payé par un joueur, ou par deux (comme le permet le site du gymnase) : chacun avance alors la moitié du prix.
 - Les joueurs s'inscrivent à la soirée, pas à un terrain.
 - Le prix total des terrains de la soirée est partagé à parts égales entre les joueurs inscrits.
 - Un remboursement compte dans les soldes une fois confirmé par celui qui le reçoit.
 - Solde d'un joueur = ce qu'il a avancé − sa part des soirées + remboursements envoyés − remboursements reçus. Positif : on lui doit de l'argent.
 
-Les montants sont stockés en centimes, les heures sont saisies et affichées à l'heure de Paris. Le calcul est fait par la vue `balances` (voir `supabase/migrations/0002_soirees.sql`).
+Les montants sont stockés en centimes, les heures sont saisies et affichées à l'heure de Paris. Le calcul est fait par la vue `balances` (voir `supabase/migrations/0003_second_payeur.sql`).
 
 ## Mise en route
 
 ### 1. Créer le projet Supabase
 
 1. Créez un compte et un projet gratuit sur [supabase.com](https://supabase.com) (région Europe, par exemple Paris ou Francfort).
-2. Dans **SQL Editor**, exécutez l'un après l'autre le contenu de `supabase/migrations/0001_init.sql` puis de `supabase/migrations/0002_soirees.sql` (bouton « Raw » sur GitHub pour copier le fichier brut). Si vous aviez déjà exécuté `0001`, lancez seulement `0002`.
+2. Dans **SQL Editor**, exécutez l'un après l'autre le contenu de chaque fichier de `supabase/migrations/` dans l'ordre (`0001`, `0002`, `0003`…), avec le bouton « Raw » de GitHub pour copier le fichier brut. Ne relancez pas ceux déjà exécutés.
 3. Dans **Authentication > Sign In / Providers**, désactivez **Allow new users to sign up** : seuls les amis invités pourront se connecter.
 4. Dans **Authentication > URL Configuration**, mettez l'adresse du site dans **Site URL** (`http://localhost:3000` en local, puis l'adresse Vercel) et ajoutez-la aussi dans **Redirect URLs**.
 5. Ajoutez les joueurs dans **Authentication > Users > Add user > Create new user**, en cochant **Auto Confirm User** (le mot de passe ne sert pas). Aucun e-mail n'est envoyé : chacun se connecte ensuite depuis la page de connexion du site.

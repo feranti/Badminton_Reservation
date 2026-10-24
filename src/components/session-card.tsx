@@ -36,6 +36,7 @@ export function SessionCard({
         {s.courts.map((c) => (
           <li key={c.id} className="rounded-lg border border-zinc-200 px-2 py-1 dark:border-zinc-700">
             <strong>Terrain {c.court}</strong> · {name(c.booked_by)}
+            {c.co_payer && <> et {name(c.co_payer)}</>}
           </li>
         ))}
       </ul>

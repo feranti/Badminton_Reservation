@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useFormAction } from "@/components/use-form-action";
 import { updateDisplayName, type ProfileState } from "./actions";
 import { inputClass, labelClass, primaryButton } from "@/components/ui";
 
 export function ProfileForm({ displayName }: { displayName: string }) {
-  const [state, action, pending] = useActionState<ProfileState, FormData>(updateDisplayName, {});
+  const { state, pending, onSubmit } = useFormAction<ProfileState>(updateDisplayName, {});
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <label className={labelClass}>
         Nom affiché aux autres joueurs
         <input name="display_name" required maxLength={40} defaultValue={displayName} className={inputClass} />

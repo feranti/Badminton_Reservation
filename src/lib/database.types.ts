@@ -38,6 +38,7 @@ export type Database = {
           court: number;
           price_cents: number;
           booked_by: string;
+          co_payer: string | null;
           created_by: string;
           created_at: string;
         };
@@ -47,9 +48,10 @@ export type Database = {
           court: number;
           price_cents: number;
           booked_by: string;
+          co_payer?: string | null;
           created_by?: string;
         };
-        Update: { court?: number; price_cents?: number; booked_by?: string };
+        Update: { court?: number; price_cents?: number; booked_by?: string; co_payer?: string | null };
         Relationships: [];
       };
       session_participants: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useFormAction } from "@/components/use-form-action";
 import { updateSession, type FormState } from "@/app/soirees/actions";
 import { SlotFields } from "./slot-fields";
 import { inputClass, labelClass, primaryButton } from "./ui";
@@ -20,10 +20,10 @@ export function EditSessionForm({
   end: string;
   notes: string;
 }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(updateSession, {});
+  const { state, pending, onSubmit } = useFormAction<FormState>(updateSession, {});
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={id} />
       <label className={labelClass}>
         Gymnase

@@ -62,6 +62,7 @@ async function SessionDetails({ params }: { params: PageProps<"/soirees/[id]">["
             <li key={c.id} className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
               <span>
                 <strong>Terrain {c.court}</strong> · {formatEuros(c.price_cents)} · payé par {name(c.booked_by)}
+                {c.co_payer && <> et {name(c.co_payer)} (moitié chacun)</>}
               </span>
               <form action={removeCourt.bind(null, c.id)}>
                 <button type="submit" className="text-sm text-red-700 hover:underline dark:text-red-400">

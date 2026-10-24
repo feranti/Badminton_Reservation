@@ -1,15 +1,15 @@
 "use client";
 
-import { useActionState } from "react";
+import { useFormAction } from "@/components/use-form-action";
 import { sendMagicLink, type LoginState } from "./actions";
 
 export function LoginForm() {
-  const [state, action, pending] = useActionState<LoginState, FormData>(sendMagicLink, {
+  const { state, pending, onSubmit } = useFormAction<LoginState>(sendMagicLink, {
     status: "idle",
   });
 
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <label htmlFor="email" className="text-sm font-medium">
         Adresse e-mail
       </label>
