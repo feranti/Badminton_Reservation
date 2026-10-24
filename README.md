@@ -2,7 +2,7 @@
 
 Application web pour un groupe d'amis qui joue au badminton :
 
-- mettre en commun qui a réservé quel terrain ;
+- mettre en commun les soirées, les terrains réservés (6 à 14) et qui les a payés ;
 - tenir les comptes en temps réel (qui doit combien à qui) ;
 - signaler un remboursement, que le bénéficiaire confirme.
 
@@ -13,25 +13,26 @@ Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site
 | Étape | Contenu | État |
 | --- | --- | --- |
 | 1 | Socle : projet Next.js, schéma de la base, connexion par lien e-mail | Fait |
-| 2 | Réservations partagées : ajouter, voir, modifier, s'inscrire comme participant | À faire |
+| 2 | Soirées partagées : plusieurs terrains par soirée, inscription des joueurs, temps réel | Fait |
 | 3 | Comptes en temps réel, liste « qui doit à qui », remboursements confirmés | À faire |
 | 4 | Mise en ligne et invitation du groupe | À faire |
 
 ## Règles de calcul
 
-- Le prix d'une réservation est avancé par la personne qui a réservé (`booked_by`).
-- Il est partagé à parts égales entre les joueurs inscrits sur la réservation.
+- Une **soirée** regroupe un ou plusieurs **terrains** (numérotés de 6 à 14). Chaque terrain est réservé et payé par un joueur, qui avance son prix.
+- Les joueurs s'inscrivent à la soirée, pas à un terrain.
+- Le prix total des terrains de la soirée est partagé à parts égales entre les joueurs inscrits.
 - Un remboursement compte dans les soldes une fois confirmé par celui qui le reçoit.
-- Solde d'un joueur = ce qu'il a avancé − sa part des terrains + remboursements envoyés − remboursements reçus. Positif : on lui doit de l'argent.
+- Solde d'un joueur = ce qu'il a avancé − sa part des soirées + remboursements envoyés − remboursements reçus. Positif : on lui doit de l'argent.
 
-Les montants sont stockés en centimes. Le calcul est fait par la vue `balances` (voir `supabase/migrations/0001_init.sql`).
+Les montants sont stockés en centimes, les heures sont saisies et affichées à l'heure de Paris. Le calcul est fait par la vue `balances` (voir `supabase/migrations/0002_soirees.sql`).
 
 ## Mise en route
 
 ### 1. Créer le projet Supabase
 
 1. Créez un compte et un projet gratuit sur [supabase.com](https://supabase.com) (région Europe, par exemple Paris ou Francfort).
-2. Dans **SQL Editor**, collez et exécutez le contenu de `supabase/migrations/0001_init.sql`.
+2. Dans **SQL Editor**, exécutez l'un après l'autre le contenu de `supabase/migrations/0001_init.sql` puis de `supabase/migrations/0002_soirees.sql` (bouton « Raw » sur GitHub pour copier le fichier brut). Si vous aviez déjà exécuté `0001`, lancez seulement `0002`.
 3. Dans **Authentication > Sign In / Providers**, désactivez **Allow new users to sign up** : seuls les amis invités pourront se connecter.
 4. Dans **Authentication > URL Configuration**, mettez l'adresse du site dans **Site URL** (`http://localhost:3000` en local, puis l'adresse Vercel) et ajoutez-la aussi dans **Redirect URLs**.
 5. Ajoutez les joueurs dans **Authentication > Users > Add user > Create new user**, en cochant **Auto Confirm User** (le mot de passe ne sert pas). Aucun e-mail n'est envoyé : chacun se connecte ensuite depuis la page de connexion du site.
@@ -52,6 +53,8 @@ npm run dev
 
 Ouvrez http://localhost:3000, saisissez votre e-mail et cliquez sur le lien reçu.
 
+Pour développer sans toucher au vrai projet, on peut aussi lancer une copie locale de Supabase avec Docker : `npx supabase start` applique les migrations, et les e-mails de connexion arrivent sur http://127.0.0.1:54324.
+
 ### 3. Mettre en ligne sur Vercel
 
 1. Sur [vercel.com](https://vercel.com), importez ce dépôt GitHub.
@@ -61,11 +64,17 @@ Ouvrez http://localhost:3000, saisissez votre e-mail et cliquez sur le lien reç
 ## Structure
 
 ```
-supabase/migrations/   Schéma de la base (tables, vue des soldes, règles d'accès, temps réel)
-src/proxy.ts           Rafraîchit la session et renvoie vers /login si besoin
-src/lib/supabase/      Clients Supabase (navigateur, serveur, proxy)
-src/lib/database.types.ts  Types TypeScript de la base
-src/app/login/         Page de connexion par lien e-mail
-src/app/auth/confirm/  Arrivée du lien de connexion
-src/app/page.tsx       Accueil
+supabase/migrations/       Schéma de la base (tables, vue des soldes, règles d'accès, temps réel)
+supabase/config.toml       Réglages de la copie locale de Supabase (npx supabase start)
+src/proxy.ts               Rafraîchit la session et renvoie vers /login si besoin
+src/lib/supabase/          Clients Supabase (navigateur, serveur, proxy)
+src/lib/data.ts            Lecture des soirées, terrains et joueurs
+src/lib/format.ts          Montants, dates et heure de Paris
+src/lib/courts.ts          Numéros des terrains du gymnase
+src/app/page.tsx           Accueil : soirées à venir ou passées
+src/app/soirees/           Nouvelle soirée, détail d'une soirée et actions (ajout, inscription…)
+src/app/profil/            Changer son nom affiché
+src/app/login/             Connexion par lien e-mail
+src/app/auth/confirm/      Arrivée du lien de connexion
+src/components/            Éléments d'interface (carte de soirée, formulaires, temps réel)
 ```

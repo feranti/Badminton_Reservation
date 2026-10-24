@@ -10,15 +10,12 @@ export type Database = {
         Update: { display_name?: string };
         Relationships: [];
       };
-      reservations: {
+      sessions: {
         Row: {
           id: string;
           venue: string;
-          court: string | null;
           starts_at: string;
           ends_at: string;
-          price_cents: number;
-          booked_by: string;
           notes: string | null;
           created_by: string;
           created_at: string;
@@ -26,20 +23,38 @@ export type Database = {
         Insert: {
           id?: string;
           venue: string;
-          court?: string | null;
           starts_at: string;
           ends_at: string;
-          price_cents: number;
-          booked_by: string;
           notes?: string | null;
           created_by?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["reservations"]["Insert"]>;
+        Update: Partial<Database["public"]["Tables"]["sessions"]["Insert"]>;
         Relationships: [];
       };
-      reservation_participants: {
-        Row: { reservation_id: string; player_id: string; added_at: string };
-        Insert: { reservation_id: string; player_id: string };
+      court_bookings: {
+        Row: {
+          id: string;
+          session_id: string;
+          court: number;
+          price_cents: number;
+          booked_by: string;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          court: number;
+          price_cents: number;
+          booked_by: string;
+          created_by?: string;
+        };
+        Update: { court?: number; price_cents?: number; booked_by?: string };
+        Relationships: [];
+      };
+      session_participants: {
+        Row: { session_id: string; player_id: string; added_at: string };
+        Insert: { session_id: string; player_id: string };
         Update: never;
         Relationships: [];
       };

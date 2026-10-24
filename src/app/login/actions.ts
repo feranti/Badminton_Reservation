@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export type LoginState = { status: "idle" | "sent" | "error"; message?: string };
@@ -29,4 +30,5 @@ export async function sendMagicLink(_prev: LoginState, formData: FormData): Prom
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  redirect("/login");
 }
