@@ -56,6 +56,7 @@ try {
 
   // Soirée avec deux terrains
   await alice.click("text=+ Ajouter");
+  if ((await alice.inputValue('input[name="venue"]')) !== "Le Prisme, Bobigny") throw new Error("Gymnase par défaut incorrect");
   await alice.fill('input[name="venue"]', VENUE);
   await alice.fill('input[type="date"]', new Date(Date.now() + 2 * 86400e3).toISOString().slice(0, 10));
   await alice.click('label:has(input[value="6"])');
@@ -63,9 +64,9 @@ try {
   await alice.fill('input[name="price"]', "12,50");
   await alice.click("text=Ajouter la soirée");
   const aliceCard = alice.locator("li", { hasText: VENUE });
-  await aliceCard.getByText("19:00 – 21:00").waitFor();
+  await aliceCard.getByText("20:00 – 22:00").waitFor();
   await aliceCard.getByText("Terrain 9").waitFor();
-  ok("alice crée une soirée avec les terrains 6 et 9, à la bonne heure");
+  ok("alice crée une soirée avec les terrains 6 et 9, à l'heure par défaut (20:00 – 22:00), gymnase par défaut Le Prisme");
 
   const bobCard = bob.locator("li", { hasText: VENUE });
   await bobCard.waitFor({ timeout: 10000 });

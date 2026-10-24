@@ -13,10 +13,18 @@ PROD_PORT=3000
 DEV_PORT=3001
 LOG_DIR=$(mktemp -d)
 PIDS=()
-cleanup() { for pid in "${PIDS[@]:-}"; do kill "$pid" 2>/dev/null || true; done; }
+# Chaque serveur est lancé dans son propre groupe de processus pour pouvoir tout arrêter à la fin.
+cleanup() { for pid in "${PIDS[@]:-}"; do [ -n "$pid" ] && kill -- "-$pid" 2>/dev/null || true; done; }
 trap cleanup EXIT
 
 step() { echo; echo "▶ $1"; }
+
+for port in $PROD_PORT $DEV_PORT; do
+  if curl -s -o /dev/null "http://127.0.0.1:$port"; then
+    echo "✗ Le port $port est déjà utilisé : arrêtez le serveur qui l'occupe."
+    exit 1
+  fi
+done
 
 step "Lint et types"
 npm run lint
@@ -45,13 +53,13 @@ step "Build de production"
 npm run build >"$LOG_DIR/build.log" 2>&1 || { cat "$LOG_DIR/build.log"; exit 1; }
 
 step "Test de bout en bout (build de production)"
-npx next start -p $PROD_PORT -H 127.0.0.1 >"$LOG_DIR/prod.log" 2>&1 &
+setsid npx next start -p $PROD_PORT -H 127.0.0.1 >"$LOG_DIR/prod.log" 2>&1 &
 PIDS+=($!)
 sleep 4
 APP_URL="http://127.0.0.1:$PROD_PORT" node tests/e2e/run.mjs
 
 step "Visite des pages avec next dev"
-npx next dev -p $DEV_PORT -H 127.0.0.1 >"$LOG_DIR/dev.log" 2>&1 &
+setsid npx next dev -p $DEV_PORT -H 127.0.0.1 >"$LOG_DIR/dev.log" 2>&1 &
 PIDS+=($!)
 sleep 8
 APP_URL="http://127.0.0.1:$DEV_PORT" node tests/e2e/visit-pages.mjs

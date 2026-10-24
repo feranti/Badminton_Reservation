@@ -2,7 +2,7 @@
 
 import { useFormAction } from "@/components/use-form-action";
 import { createSession, type FormState } from "@/app/soirees/actions";
-import { COURTS } from "@/lib/courts";
+import { COURTS, DEFAULT_END, DEFAULT_START } from "@/lib/courts";
 import type { Player } from "@/lib/data";
 import { PayerFields } from "./payer-fields";
 import { SlotFields } from "./slot-fields";
@@ -25,9 +25,9 @@ export function NewSessionForm({
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <label className={labelClass}>
         Gymnase
-        <input name="venue" required defaultValue={defaultVenue} className={inputClass} placeholder="Gymnase Jean Moulin" />
+        <input name="venue" required defaultValue={defaultVenue} className={inputClass} placeholder="Le Prisme, Bobigny" />
       </label>
-      <SlotFields date="" start="19:00" end="21:00" />
+      <SlotFields date="" start={DEFAULT_START} end={DEFAULT_END} />
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-sm font-medium">Terrains réservés</legend>

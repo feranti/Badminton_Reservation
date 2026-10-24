@@ -1,3 +1,4 @@
+import { DEFAULT_VENUE } from "@/lib/courts";
 import type { Tables } from "@/lib/database.types";
 import { requirePlayer } from "@/lib/session";
 
@@ -69,7 +70,7 @@ export async function getLastDefaults() {
     supabase.from("sessions").select("venue").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("court_bookings").select("price_cents").order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
-  return { venue: session?.venue ?? "", priceCents: court?.price_cents ?? null };
+  return { venue: session?.venue ?? DEFAULT_VENUE, priceCents: court?.price_cents ?? null };
 }
 
 export async function getBalances() {
