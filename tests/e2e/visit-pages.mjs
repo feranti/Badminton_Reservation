@@ -16,8 +16,8 @@ await new Promise((r) => setTimeout(r, 1500));
 const list = await (await fetch(`${MAIL}/api/v1/search?query=to:alice@test.fr`)).json();
 const msg = await (await fetch(`${MAIL}/api/v1/message/${list.messages[0].ID}`)).json();
 await page.goto(msg.HTML.match(/href="([^"]+)"/)[1].replaceAll("&amp;", "&"));
-await page.waitForSelector("text=Prochaines soirées");
-for (const path of ["/", "/?passees=1", "/comptes", "/profil", "/soirees/nouvelle"]) {
+await page.waitForSelector("text=Prochaines sessions");
+for (const path of ["/", "/?passees=1", "/comptes", "/profil", "/sessions/nouvelle"]) {
   await page.goto(APP + path);
   await page.waitForTimeout(1500);
 }

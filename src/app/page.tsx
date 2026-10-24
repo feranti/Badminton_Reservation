@@ -33,10 +33,10 @@ async function SessionList({ searchParams }: { searchParams: PageProps<"/">["sea
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">Bonjour {me?.display_name}</p>
-          <h1 className="text-2xl font-semibold">{past ? "Soirées passées" : "Prochaines soirées"}</h1>
+          <h1 className="text-2xl font-semibold">{past ? "Sessions passées" : "Prochaines sessions"}</h1>
         </div>
-        <Link href="/soirees/nouvelle" className={primaryButton}>
-          + Ajouter
+        <Link href="/sessions/nouvelle" className={primaryButton}>
+          + Réservation
         </Link>
       </div>
 
@@ -55,12 +55,12 @@ async function SessionList({ searchParams }: { searchParams: PageProps<"/">["sea
       )}
 
       <Link href={past ? "/" : "/?passees=1"} className="text-sm text-emerald-700 hover:underline dark:text-emerald-400">
-        {past ? "← Voir les soirées à venir" : "Voir les soirées passées"}
+        {past ? "← Voir les sessions à venir" : "Voir les sessions passées"}
       </Link>
 
       {sessions.length === 0 ? (
         <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-zinc-500 dark:border-zinc-700">
-          {past ? "Aucune soirée passée." : "Aucune soirée prévue. Ajoutez la prochaine !"}
+          {past ? "Aucune session passée." : "Aucune session prévue. Ajoutez la prochaine réservation !"}
         </p>
       ) : (
         <ul className="flex flex-col gap-3">

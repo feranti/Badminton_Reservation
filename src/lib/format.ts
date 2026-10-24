@@ -26,6 +26,11 @@ export function formatSlot(startsAt: string, endsAt: string) {
   return `${day.charAt(0).toUpperCase()}${day.slice(1)}, ${timeFormat.format(start)} – ${timeFormat.format(new Date(endsAt))}`;
 }
 
+// « 20:00 – 22:00 »
+export function formatTimes(startsAt: string, endsAt: string) {
+  return `${timeFormat.format(new Date(startsAt))} – ${timeFormat.format(new Date(endsAt))}`;
+}
+
 // Valeurs pour pré-remplir les champs <input type="date"> et <input type="time">.
 export function toDateAndTime(iso: string) {
   const parts = Object.fromEntries(

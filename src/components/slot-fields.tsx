@@ -1,6 +1,6 @@
 import { inputClass, labelClass } from "./ui";
 
-// Date, heure de début et heure de fin d'une soirée (heure de Paris).
+// Date, heure de début et heure de fin d'une réservation (heure de Paris).
 export function SlotFields({ date, start, end }: { date: string; start: string; end: string }) {
   return (
     <>

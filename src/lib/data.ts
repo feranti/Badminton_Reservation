@@ -3,10 +3,12 @@ import type { Tables } from "@/lib/database.types";
 import { requirePlayer } from "@/lib/session";
 
 export type Player = Tables<"profiles">;
-export type CourtBooking = Tables<"court_bookings">;
+export type CourtBooking = Tables<"court_bookings"> & { qrUrl: string | null };
+export type SessionPlayer = { player_id: string; position: number; is_playing: boolean };
 export type Session = Tables<"sessions"> & {
-  courts: CourtBooking[];
-  participantIds: string[];
+  bookings: CourtBooking[];
+  players: SessionPlayer[];
+  capacity: number;
   totalCents: number;
 };
 
@@ -17,24 +19,35 @@ export async function getPlayers() {
   return data;
 }
 
-async function withDetails(sessions: Tables<"sessions">[]): Promise<Session[]> {
+async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = {}): Promise<Session[]> {
   if (sessions.length === 0) return [];
   const { supabase } = await requirePlayer();
   const ids = sessions.map((s) => s.id);
-  const [courts, participants] = await Promise.all([
-    supabase.from("court_bookings").select("*").in("session_id", ids).order("court"),
-    supabase.from("session_participants").select("session_id, player_id").in("session_id", ids).order("added_at"),
+  const [bookings, players] = await Promise.all([
+    supabase.from("court_bookings").select("*").in("session_id", ids).order("court").order("starts_at"),
+    supabase.from("session_players").select("session_id, player_id, position, is_playing").in("session_id", ids).order("position"),
   ]);
-  if (courts.error) throw courts.error;
-  if (participants.error) throw participants.error;
+  if (bookings.error) throw bookings.error;
+  if (players.error) throw players.error;
+
+  // Liens temporaires vers les QR codes (stockage privé), seulement quand la page les affiche.
+  const urls = new Map<string, string>();
+  const paths = bookings.data.map((b) => b.qr_path).filter((p): p is string => Boolean(p));
+  if (qrUrls && paths.length > 0) {
+    const { data } = await supabase.storage.from("qr-codes").createSignedUrls(paths, 60 * 60);
+    for (const item of data ?? []) if (item.path && item.signedUrl) urls.set(item.path, item.signedUrl);
+  }
 
   return sessions.map((s) => {
-    const sessionCourts = courts.data.filter((c) => c.session_id === s.id);
+    const sessionBookings = bookings.data
+      .filter((b) => b.session_id === s.id)
+      .map((b) => ({ ...b, qrUrl: b.qr_path ? (urls.get(b.qr_path) ?? null) : null }));
     return {
       ...s,
-      courts: sessionCourts,
-      participantIds: participants.data.filter((p) => p.session_id === s.id).map((p) => p.player_id),
-      totalCents: sessionCourts.reduce((sum, c) => sum + c.price_cents, 0),
+      bookings: sessionBookings,
+      players: players.data.filter((p) => p.session_id === s.id),
+      capacity: 4 * new Set(sessionBookings.map((b) => b.court)).size,
+      totalCents: sessionBookings.reduce((sum, b) => sum + b.price_cents, 0),
     };
   });
 }
@@ -59,11 +72,11 @@ export async function getSession(id: string) {
   const { data, error } = await supabase.from("sessions").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const [session] = await withDetails([data]);
+  const [session] = await withDetails([data], { qrUrls: true });
   return session;
 }
 
-// Valeurs par défaut d'une nouvelle soirée : reprises de la dernière saisie.
+// Valeurs par défaut d'une nouvelle réservation : reprises de la dernière saisie.
 export async function getLastDefaults() {
   const { supabase } = await requirePlayer();
   const [{ data: session }, { data: court }] = await Promise.all([
@@ -89,4 +102,8 @@ export async function getPayments() {
     .limit(100);
   if (error) throw error;
   return data;
+}
+
+export function isPast(session: { ends_at: string }) {
+  return Date.parse(session.ends_at) < Date.now();
 }

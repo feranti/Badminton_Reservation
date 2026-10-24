@@ -39,6 +39,9 @@ export type Database = {
           price_cents: number;
           booked_by: string;
           co_payer: string | null;
+          starts_at: string;
+          ends_at: string;
+          qr_path: string | null;
           created_by: string;
           created_at: string;
         };
@@ -51,7 +54,7 @@ export type Database = {
           co_payer?: string | null;
           created_by?: string;
         };
-        Update: { court?: number; price_cents?: number; booked_by?: string; co_payer?: string | null };
+        Update: { qr_path?: string | null };
         Relationships: [];
       };
       session_participants: {
@@ -86,12 +89,37 @@ export type Database = {
       };
     };
     Views: {
+      session_players: {
+        Row: {
+          session_id: string;
+          player_id: string;
+          added_at: string;
+          position: number;
+          is_playing: boolean;
+          capacity: number;
+        };
+        Relationships: [];
+      };
       balances: {
         Row: { player_id: string; display_name: string; balance_cents: number };
         Relationships: [];
       };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      add_court_booking: {
+        Args: {
+          p_venue: string;
+          p_court: number;
+          p_starts_at: string;
+          p_ends_at: string;
+          p_price_cents: number;
+          p_booked_by: string;
+          p_co_payer?: string | null;
+        };
+        Returns: string;
+      };
+      remove_court_booking: { Args: { p_booking: string }; Returns: undefined };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

@@ -1,8 +1,14 @@
 import Link from "next/link";
-import { addParticipant, removeParticipant } from "@/app/soirees/actions";
-import type { Player, Session } from "@/lib/data";
-import { formatEuros, formatSlot, shareCents } from "@/lib/format";
-import { primaryButton, secondaryButton } from "./ui";
+import type { CourtBooking, Player, Session } from "@/lib/data";
+import { formatEuros, formatSlot, formatTimes, shareCents } from "@/lib/format";
+import { SessionPlayers } from "./session-players";
+
+// Réservations regroupées par terrain : « Terrain 7 · 20:00 – 21:00, 21:00 – 22:00 ».
+export function groupByCourt(bookings: CourtBooking[]) {
+  const map = new Map<number, CourtBooking[]>();
+  for (const b of bookings) map.set(b.court, [...(map.get(b.court) ?? []), b]);
+  return [...map.entries()].sort(([a], [b]) => a - b);
+}
 
 export function SessionCard({
   session,
@@ -17,8 +23,9 @@ export function SessionCard({
 }) {
   const s = session;
   const name = (id: string) => (id === userId ? "vous" : (players.get(id)?.display_name ?? "?"));
-  const iPlay = s.participantIds.includes(userId);
-  const count = s.participantIds.length;
+  const courts = groupByCourt(s.bookings);
+  const playingCount = s.players.filter((p) => p.is_playing).length;
+  const sameSlot = s.bookings.every((b) => b.starts_at === s.starts_at && b.ends_at === s.ends_at);
 
   return (
     <li className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
@@ -27,52 +34,33 @@ export function SessionCard({
           <p className="font-semibold">{formatSlot(s.starts_at, s.ends_at)}</p>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">{s.venue}</p>
         </div>
-        <Link href={`/soirees/${s.id}`} className="text-sm text-emerald-700 hover:underline dark:text-emerald-400">
+        <Link href={`/sessions/${s.id}`} className="text-sm text-emerald-700 hover:underline dark:text-emerald-400">
           Détails
         </Link>
       </div>
 
       <ul className="mt-3 flex flex-wrap gap-2 text-sm">
-        {s.courts.map((c) => (
-          <li key={c.id} className="rounded-lg border border-zinc-200 px-2 py-1 dark:border-zinc-700">
-            <strong>Terrain {c.court}</strong> · {name(c.booked_by)}
-            {c.co_payer && <> et {name(c.co_payer)}</>}
+        {courts.map(([court, list]) => (
+          <li key={court} className="rounded-lg border border-zinc-200 px-2 py-1 dark:border-zinc-700">
+            <strong>Terrain {court}</strong>
+            {!sameSlot && <> · {list.map((b) => formatTimes(b.starts_at, b.ends_at)).join(", ")}</>} ·{" "}
+            {[...new Set(list.flatMap((b) => [b.booked_by, b.co_payer]).filter((id): id is string => Boolean(id)))]
+              .map(name)
+              .join(" et ")}
+            {list.every((b) => b.qr_path) && <span title="QR code disponible"> · QR ✓</span>}
           </li>
         ))}
       </ul>
 
       <p className="mt-2 text-sm">
-        {s.courts.length} terrain{s.courts.length > 1 ? "s" : ""} · {formatEuros(s.totalCents)}
-        {count > 0 && <> · {formatEuros(shareCents(s.totalCents, count))} par joueur</>}
+        {courts.length} terrain{courts.length > 1 ? "s" : ""} · {formatEuros(s.totalCents)}
+        {playingCount > 0 && <> · {formatEuros(shareCents(s.totalCents, playingCount))} par joueur</>}
       </p>
       {s.notes && <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{s.notes}</p>}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-sm text-zinc-500">{count} joueur{count > 1 ? "s" : ""} :</span>
-        {s.participantIds.map((id) => (
-          <span
-            key={id}
-            className={`rounded-full px-2.5 py-0.5 text-sm ${
-              id === userId
-                ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100"
-                : "bg-zinc-100 dark:bg-zinc-800"
-            }`}
-          >
-            {players.get(id)?.display_name ?? "?"}
-          </span>
-        ))}
+      <div className="mt-3">
+        <SessionPlayers session={s} players={players} userId={userId} canJoin={!past} />
       </div>
-
-      {!past && (
-        <form
-          action={iPlay ? removeParticipant.bind(null, s.id, userId) : addParticipant.bind(null, s.id, userId)}
-          className="mt-3"
-        >
-          <button type="submit" className={iPlay ? secondaryButton : primaryButton}>
-            {iPlay ? "Je ne joue plus" : "Je joue"}
-          </button>
-        </form>
-      )}
     </li>
   );
 }

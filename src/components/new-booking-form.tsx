@@ -1,14 +1,14 @@
 "use client";
 
-import { useFormAction } from "@/components/use-form-action";
-import { createSession, type FormState } from "@/app/soirees/actions";
+import { createBookings, type FormState } from "@/app/sessions/actions";
 import { COURTS, DEFAULT_END, DEFAULT_START } from "@/lib/courts";
 import type { Player } from "@/lib/data";
 import { PayerFields } from "./payer-fields";
 import { SlotFields } from "./slot-fields";
 import { inputClass, labelClass, primaryButton } from "./ui";
+import { useFormAction } from "./use-form-action";
 
-export function NewSessionForm({
+export function NewBookingForm({
   players,
   userId,
   defaultVenue,
@@ -19,7 +19,7 @@ export function NewSessionForm({
   defaultVenue: string;
   defaultPrice: string;
 }) {
-  const { state, pending, onSubmit } = useFormAction<FormState>(createSession, {});
+  const { state, pending, onSubmit } = useFormAction<FormState>(createBookings, {});
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -30,7 +30,7 @@ export function NewSessionForm({
       <SlotFields date="" start={DEFAULT_START} end={DEFAULT_END} />
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-sm font-medium">Terrains réservés</legend>
+        <legend className="mb-1 text-sm font-medium">Terrains réservés sur ce créneau</legend>
         <div className="grid grid-cols-5 gap-2 sm:grid-cols-9">
           {COURTS.map((court) => (
             <label key={court} className="cursor-pointer">
@@ -49,17 +49,13 @@ export function NewSessionForm({
       </label>
       <PayerFields players={players} userId={userId} />
       <p className="-mt-2 text-xs text-zinc-500">
-        Avec un second payeur, chacun avance la moitié du prix. Si d&apos;autres personnes ont payé d&apos;autres terrains,
-        ajoutez-les ensuite depuis la page de la soirée.
+        Les réservations dont les créneaux se suivent sont regroupées dans la même session. Vous pourrez ajouter
+        le QR code de chaque réservation ensuite.
       </p>
 
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="i_play" defaultChecked className="size-4" />
-        Je joue à cette soirée
-      </label>
-      <label className={labelClass}>
-        Remarques
-        <textarea name="notes" rows={2} className={inputClass} placeholder="Volants à apporter…" />
+        Je m&apos;inscris à cette session
       </label>
 
       {state.error && (
@@ -68,7 +64,7 @@ export function NewSessionForm({
         </p>
       )}
       <button type="submit" disabled={pending} className={primaryButton}>
-        {pending ? "Enregistrement…" : "Ajouter la soirée"}
+        {pending ? "Enregistrement…" : "Ajouter la réservation"}
       </button>
     </form>
   );

@@ -31,14 +31,15 @@ npm run lint
 npx tsc --noEmit
 
 step "Copie locale de Supabase"
-$SUPABASE start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,storage-api,postgres-meta >/dev/null
+$SUPABASE start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta >/dev/null
 $SUPABASE db reset >/dev/null
 eval "$($SUPABASE status -o env 2>/dev/null)"
 # Un projet Supabase en ligne n'ouvre pas les tables à l'API par défaut : on retire les droits
 # accordés par la copie locale, puis on remet uniquement ceux de nos migrations.
 psql "$DB_URL" -q -c "revoke all on all tables in schema public from anon, authenticated;" \
-  -f supabase/migrations/0006_droits_api.sql
-for player in alice bob; do
+  -f supabase/migrations/0006_droits_api.sql \
+  -c "$(ls supabase/migrations/*.sql | sed -n '/0007_/,$p' | xargs grep -h '^grant .* on public\.')"
+for player in alice bob carol dave eve frank; do
   curl -sf -o /dev/null -X POST "$API_URL/auth/v1/admin/users" \
     -H "apikey: $SECRET_KEY" -H "Authorization: Bearer $SECRET_KEY" -H "Content-Type: application/json" \
     -d "{\"email\":\"$player@test.fr\",\"email_confirm\":true}"
@@ -48,6 +49,8 @@ sleep 15 # le service temps réel redémarre après la remise à zéro
 export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
 export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$PUBLISHABLE_KEY"
 export MAIL_URL="$MAILPIT_URL"
+# E-mails de liste d'attente : envoyés au serveur de test (Mailpit) de la copie locale.
+export SUPABASE_SECRET_KEY="$SECRET_KEY" SMTP_HOST=127.0.0.1 SMTP_PORT=54325 MAIL_FROM="resas@test.fr"
 
 step "Build de production"
 npm run build >"$LOG_DIR/build.log" 2>&1 || { cat "$LOG_DIR/build.log"; exit 1; }
