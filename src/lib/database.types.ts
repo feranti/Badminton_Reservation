@@ -79,6 +79,7 @@ export type Database = {
           amount_cents: number;
           paid_on?: string;
           note?: string | null;
+          confirmed_at?: string | null;
         };
         Update: { confirmed_at?: string | null };
         Relationships: [];

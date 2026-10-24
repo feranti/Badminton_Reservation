@@ -71,3 +71,21 @@ export async function getLastDefaults() {
   ]);
   return { venue: session?.venue ?? "", priceCents: court?.price_cents ?? null };
 }
+
+export async function getBalances() {
+  const { supabase } = await requirePlayer();
+  const { data, error } = await supabase.from("balances").select("*").order("balance_cents", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function getPayments() {
+  const { supabase } = await requirePlayer();
+  const { data, error } = await supabase
+    .from("payments")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return data;
+}

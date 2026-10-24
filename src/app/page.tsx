@@ -4,7 +4,8 @@ import { AppHeader } from "@/components/app-header";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { SessionCard } from "@/components/session-card";
 import { primaryButton } from "@/components/ui";
-import { getPlayers, getSessions } from "@/lib/data";
+import { getBalances, getPlayers, getSessions } from "@/lib/data";
+import { formatEuros } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
 
 export default function Home({ searchParams }: PageProps<"/">) {
@@ -22,7 +23,8 @@ export default function Home({ searchParams }: PageProps<"/">) {
 async function SessionList({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
   const past = (await searchParams).passees === "1";
   const { userId } = await requirePlayer();
-  const [sessions, players] = await Promise.all([getSessions(past), getPlayers()]);
+  const [sessions, players, balances] = await Promise.all([getSessions(past), getPlayers(), getBalances()]);
+  const myBalance = balances.find((b) => b.player_id === userId)?.balance_cents ?? 0;
   const playersById = new Map(players.map((p) => [p.id, p]));
   const me = playersById.get(userId);
 
@@ -37,6 +39,20 @@ async function SessionList({ searchParams }: { searchParams: PageProps<"/">["sea
           + Ajouter
         </Link>
       </div>
+
+      {Math.abs(myBalance) > 1 && (
+        <Link
+          href="/comptes"
+          className={`rounded-lg px-3 py-2 text-sm ${
+            myBalance > 0
+              ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100"
+              : "bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+          }`}
+        >
+          {myBalance > 0 ? `On vous doit ${formatEuros(myBalance)}` : `Vous devez ${formatEuros(-myBalance)}`} · Voir les
+          comptes →
+        </Link>
+      )}
 
       <Link href={past ? "/" : "/?passees=1"} className="text-sm text-emerald-700 hover:underline dark:text-emerald-400">
         {past ? "← Voir les soirées à venir" : "Voir les soirées passées"}

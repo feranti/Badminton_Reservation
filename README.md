@@ -14,7 +14,7 @@ Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site
 | --- | --- | --- |
 | 1 | Socle : projet Next.js, schéma de la base, connexion par lien e-mail | Fait |
 | 2 | Soirées partagées : plusieurs terrains par soirée, inscription des joueurs, temps réel | Fait |
-| 3 | Comptes en temps réel, liste « qui doit à qui », remboursements confirmés | À faire |
+| 3 | Comptes en temps réel, liste « qui doit à qui », remboursements confirmés | Fait |
 | 4 | Mise en ligne et invitation du groupe | À faire |
 
 ## Règles de calcul
@@ -22,7 +22,8 @@ Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site
 - Une **soirée** regroupe un ou plusieurs **terrains** (numérotés de 6 à 14). Chaque terrain est réservé et payé par un joueur, ou par deux (comme le permet le site du gymnase) : chacun avance alors la moitié du prix.
 - Les joueurs s'inscrivent à la soirée, pas à un terrain.
 - Le prix total des terrains de la soirée est partagé à parts égales entre les joueurs inscrits.
-- Un remboursement compte dans les soldes une fois confirmé par celui qui le reçoit.
+- Un remboursement compte dans les soldes une fois confirmé par celui qui le reçoit. S'il est signalé par celui qui reçoit l'argent, il est confirmé d'office.
+- La page Comptes propose la liste de virements la plus courte pour remettre tout le monde à zéro.
 - Solde d'un joueur = ce qu'il a avancé − sa part des soirées + remboursements envoyés − remboursements reçus. Positif : on lui doit de l'argent.
 
 Les montants sont stockés en centimes, les heures sont saisies et affichées à l'heure de Paris. Le calcul est fait par la vue `balances` (voir `supabase/migrations/0003_second_payeur.sql`).
@@ -73,6 +74,8 @@ src/lib/format.ts          Montants, dates et heure de Paris
 src/lib/courts.ts          Numéros des terrains du gymnase
 src/app/page.tsx           Accueil : soirées à venir ou passées
 src/app/soirees/           Nouvelle soirée, détail d'une soirée et actions (ajout, inscription…)
+src/app/comptes/           Soldes, « qui doit à qui », remboursements à signaler et confirmer
+src/lib/settle.ts          Calcul des virements pour équilibrer les comptes
 src/app/profil/            Changer son nom affiché
 src/app/login/             Connexion par lien e-mail
 src/app/auth/confirm/      Arrivée du lien de connexion
