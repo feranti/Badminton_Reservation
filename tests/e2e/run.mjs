@@ -150,10 +150,14 @@ try {
   await addBooking.getByRole("button", { name: "Ajouter le terrain" }).click();
   await bob.waitForSelector("text=et alice (moitié chacun)");
   await bob.waitForSelector("text=Joueurs · 2 / 12");
-  await bob.click('a:text-is("OK")');
+  // OK enregistre le lieu et la note sans passer par « Enregistrer », puis revient à la session
+  await bob.fill('input[name="notes"]', "Volants fournis");
+  await bob.getByRole("button", { name: "OK", exact: true }).click();
   await stat(bob, "Par joueur", "17,50 €").waitFor();
   await stat(bob, "Joueurs", "2 / 12").waitFor();
+  await bob.waitForSelector("text=Volants fournis");
   ok("terrain 10 payé par bob et alice : 17,50 € chacun, 12 places");
+  ok("le bouton OK de Gérer enregistre la note et revient à la session");
 
   // QR code
   const png = Buffer.from(
