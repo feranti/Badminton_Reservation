@@ -11,7 +11,7 @@ chaque page avec `next dev` en échouant si le serveur affiche une erreur.
 Ne livrer que si tout est vert. Ajouter au test de bout en bout chaque nouvelle fonctionnalité.
 
 Dans le conteneur cloud, lancer `dockerd` s'il ne tourne pas, et passer
-`CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
+`CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`.
 
 ## Base de données
 

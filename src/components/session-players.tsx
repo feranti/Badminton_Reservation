@@ -1,70 +1,64 @@
 import { addParticipant, removeParticipant } from "@/app/sessions/actions";
 import type { Player, Session } from "@/lib/data";
+import { sessionStatus } from "./session-card";
 import { primaryButton, secondaryButton } from "./ui";
 
 function Chip({ name, me }: { name: string; me: boolean }) {
   return (
-    <span
-      className={`rounded-full px-2.5 py-0.5 text-sm ${
-        me ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100" : "bg-zinc-100 dark:bg-zinc-800"
-      }`}
-    >
+    <li className={`rounded-full px-3.5 py-2 text-[15px] ${me ? "bg-accent-tint font-medium text-accent-ink" : "bg-chip"}`}>
       {name}
-    </span>
+    </li>
   );
 }
 
-// Joueurs inscrits, liste d'attente et bouton d'inscription d'une session.
-export function SessionPlayers({
-  session,
-  players,
-  userId,
-  canJoin,
-}: {
-  session: Session;
-  players: Map<string, Player>;
-  userId: string;
-  canJoin: boolean;
-}) {
-  const s = session;
+// Joueurs inscrits et liste d'attente d'une session, en pastilles.
+export function SessionPlayers({ session: s, players, userId }: { session: Session; players: Map<string, Player>; userId: string }) {
   const name = (id: string) => players.get(id)?.display_name ?? "?";
   const playing = s.players.filter((p) => p.is_playing);
   const waiting = s.players.filter((p) => !p.is_playing);
-  const me = s.players.find((p) => p.player_id === userId);
-  const full = playing.length >= s.capacity;
+  const free = Math.max(s.capacity - playing.length, 0);
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-zinc-500">
-          {playing.length}/{s.capacity} joueurs :
-        </span>
+    <div className="flex flex-col gap-3">
+      <ul className="flex flex-wrap gap-2" aria-label="Joueurs inscrits">
         {playing.map((p) => (
           <Chip key={p.player_id} name={name(p.player_id)} me={p.player_id === userId} />
         ))}
-      </div>
+        {free > 0 && (
+          <li className="rounded-full border border-dashed border-dash px-3.5 py-2 text-[15px] text-muted">
+            {free} place{free > 1 ? "s" : ""} libre{free > 1 ? "s" : ""}
+          </li>
+        )}
+      </ul>
       {waiting.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-zinc-500">Liste d&apos;attente :</span>
-          {waiting.map((p) => (
-            <Chip key={p.player_id} name={name(p.player_id)} me={p.player_id === userId} />
-          ))}
+        <div className="flex flex-col gap-2">
+          <span className="text-sm text-muted">Liste d&apos;attente</span>
+          <ul className="flex flex-wrap gap-2" aria-label="Liste d'attente">
+            {waiting.map((p) => (
+              <Chip key={p.player_id} name={name(p.player_id)} me={p.player_id === userId} />
+            ))}
+          </ul>
         </div>
       )}
-      {me && !me.is_playing && (
-        <p className="text-sm text-amber-800 dark:text-amber-300">
-          Vous êtes n°{me.position - s.capacity} sur la liste d&apos;attente. Vous recevrez un e-mail si une place se libère.
+    </div>
+  );
+}
+
+// Bouton principal de la session : s'inscrire, se mettre en attente ou se désinscrire.
+export function JoinButton({ session: s, userId }: { session: Session; userId: string }) {
+  const status = sessionStatus(s, userId);
+  return (
+    <>
+      {status.me === "waiting" && (
+        <p className="text-center text-sm text-warn">
+          Vous êtes n°{status.rank} sur la liste d&apos;attente. Un e-mail vous préviendra si une place se libère.
         </p>
       )}
-      {canJoin && (
-        <form
-          action={me ? removeParticipant.bind(null, s.id, userId) : addParticipant.bind(null, s.id, userId)}
-        >
-          <button type="submit" className={me ? secondaryButton : primaryButton}>
-            {me ? "Me désinscrire" : full ? "M'inscrire en liste d'attente" : "Je m'inscris"}
-          </button>
-        </form>
-      )}
-    </div>
+      <form action={status.me ? removeParticipant.bind(null, s.id, userId) : addParticipant.bind(null, s.id, userId)}>
+        <button type="submit" className={`${status.me ? secondaryButton : primaryButton} min-h-13 w-full text-base`}>
+          {status.me ? "Me désinscrire" : status.free > 0 ? "Je m'inscris" : "M'inscrire en liste d'attente"}
+        </button>
+      </form>
+    </>
   );
 }

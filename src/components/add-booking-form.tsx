@@ -5,7 +5,7 @@ import { addBooking, type FormState } from "@/app/sessions/actions";
 import { COURTS } from "@/lib/courts";
 import type { Player } from "@/lib/data";
 import { PayerFields } from "./payer-fields";
-import { inputClass, labelClass, secondaryButton } from "./ui";
+import { errorText, inputClass, labelClass, primaryButton } from "./ui";
 import { useFormAction } from "./use-form-action";
 
 // Ajoute une réservation (un terrain sur un créneau) à une session existante.
@@ -34,8 +34,7 @@ export function AddBookingForm({
   }, [state]);
 
   return (
-    <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-3 rounded-lg border border-dashed border-zinc-300 p-3 dark:border-zinc-700">
-      <p className="text-sm font-medium">Ajouter une réservation</p>
+    <form ref={formRef} onSubmit={onSubmit} aria-label="Ajouter un terrain" className="flex flex-col gap-4 pt-2">
       <input type="hidden" name="date" value={date} />
       <div className="grid grid-cols-3 gap-2">
         <label className={labelClass}>
@@ -60,18 +59,19 @@ export function AddBookingForm({
           <input type="time" name="end" required defaultValue={end} className={inputClass} />
         </label>
       </div>
-      <label className={labelClass}>
-        Prix (€)
-        <input name="price" required inputMode="decimal" defaultValue={defaultPrice} placeholder="12,50" className={inputClass} />
-      </label>
-      <PayerFields players={players} userId={userId} />
+      <PayerFields players={players} userId={userId}>
+        <label className={labelClass}>
+          Prix
+          <input name="price" required inputMode="decimal" defaultValue={defaultPrice} placeholder="12,50" className={inputClass} />
+        </label>
+      </PayerFields>
       {state.error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className={errorText}>
           {state.error}
         </p>
       )}
-      <button type="submit" disabled={pending} className={secondaryButton}>
-        {pending ? "Ajout…" : "Ajouter"}
+      <button type="submit" disabled={pending} className={primaryButton}>
+        {pending ? "Ajout…" : "Ajouter le terrain"}
       </button>
     </form>
   );

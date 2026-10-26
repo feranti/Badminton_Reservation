@@ -19,6 +19,20 @@ const timeFormat = new Intl.DateTimeFormat("fr-FR", {
   minute: "2-digit",
 });
 
+const shortDayFormat = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: APP_TIMEZONE,
+  weekday: "long",
+  day: "numeric",
+  month: "short",
+});
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+// « Jeudi 29 octobre » ou, en version courte, « Jeudi 29 oct. »
+export function formatDay(iso: string, short = false) {
+  return capitalize((short ? shortDayFormat : dayFormat).format(new Date(iso)));
+}
+
 // « samedi 25 octobre, 19:00 – 20:00 »
 export function formatSlot(startsAt: string, endsAt: string) {
   const start = new Date(startsAt);
@@ -94,4 +108,20 @@ export function parisToIso(date: string, time: string): string | null {
   let ms = asUtc - parisOffsetMs(asUtc);
   ms = asUtc - parisOffsetMs(ms); // second passage pour les jours de changement d'heure
   return new Date(ms).toISOString();
+}
+
+const chipWeekday = new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC", weekday: "short" });
+
+// Prochaines dates (à Paris) tombant un des jours donnés, aujourd'hui compris, pour les raccourcis de date.
+export function nextDates(weekdays: number[], count: number, now = new Date()) {
+  const today = toDateAndTime(now.toISOString()).date;
+  const [y, m, d] = today.split("-").map(Number);
+  const dates: { value: string; weekday: string; day: number }[] = [];
+  for (let i = 0; dates.length < count && i < 60; i++) {
+    const day = new Date(Date.UTC(y, m - 1, d + i, 12));
+    if (weekdays.includes(day.getUTCDay())) {
+      dates.push({ value: day.toISOString().slice(0, 10), weekday: chipWeekday.format(day), day: day.getUTCDate() });
+    }
+  }
+  return dates;
 }

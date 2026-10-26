@@ -1,24 +1,18 @@
 import { Suspense } from "react";
-import { AppHeader } from "@/components/app-header";
+import { Loading, SubPage } from "@/components/app-shell";
 import { NewBookingForm } from "@/components/new-booking-form";
+import { USUAL_WEEKDAYS } from "@/lib/courts";
 import { getLastDefaults, getPlayers } from "@/lib/data";
-import { formatPriceInput } from "@/lib/format";
+import { formatPriceInput, nextDates } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
 
 export default function NewBookingPage() {
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-6">
-      <AppHeader />
-      <div>
-        <h1 className="text-2xl font-semibold">Nouvelle réservation</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Les terrains réservés sur des créneaux qui se suivent sont regroupés dans la même session.
-        </p>
-      </div>
-      <Suspense fallback={<p className="text-zinc-500">Chargement…</p>}>
+    <SubPage back="/" close title="Nouvelle réservation" withFooter>
+      <Suspense fallback={<Loading />}>
         <Form />
       </Suspense>
-    </main>
+    </SubPage>
   );
 }
 
@@ -29,6 +23,7 @@ async function Form() {
     <NewBookingForm
       players={players}
       userId={userId}
+      dates={nextDates(USUAL_WEEKDAYS, 3)}
       defaultVenue={defaults.venue}
       defaultPrice={defaults.priceCents === null ? "" : formatPriceInput(defaults.priceCents)}
     />

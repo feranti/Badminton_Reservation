@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { setQrPath } from "@/app/sessions/actions";
 import { createClient } from "@/lib/supabase/client";
+import { UploadIcon } from "./icons";
 
 // Bouton « Ajouter le QR code » : ouvre les photos ou captures d'écran du téléphone
 // et envoie l'image directement dans le stockage privé de Supabase.
@@ -42,11 +43,16 @@ export function QrUpload({ bookingId, hasQr }: { bookingId: string; hasQr: boole
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={status === "uploading"}
-        className="text-sm text-emerald-700 hover:underline disabled:opacity-60 dark:text-emerald-400"
+        className={
+          hasQr
+            ? "inline-flex min-h-11 items-center text-sm text-muted hover:text-ink disabled:opacity-60"
+            : "flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-dash text-[15px] disabled:opacity-60"
+        }
       >
-        {status === "uploading" ? "Envoi…" : hasQr ? "Remplacer le QR code" : "Ajouter le QR code"}
+        {!hasQr && <UploadIcon />}
+        {status === "uploading" ? "Envoi…" : hasQr ? "Remplacer" : "Ajouter le QR code"}
       </button>
-      {status === "error" && <span className="text-sm text-red-600">Envoi impossible, réessayez.</span>}
+      {status === "error" && <span className="text-sm text-danger">Envoi impossible, réessayez.</span>}
     </>
   );
 }

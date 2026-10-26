@@ -1,9 +1,9 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { refresh } from "next/cache";
 import { requirePlayer } from "@/lib/session";
 
-export type ProfileState = { error?: string };
+export type ProfileState = { error?: string; done?: boolean };
 
 export async function updateDisplayName(_prev: ProfileState, formData: FormData): Promise<ProfileState> {
   const { supabase, userId } = await requirePlayer();
@@ -12,5 +12,6 @@ export async function updateDisplayName(_prev: ProfileState, formData: FormData)
   if (name.length > 40) return { error: "40 caractères maximum." };
   const { error } = await supabase.from("profiles").update({ display_name: name }).eq("id", userId);
   if (error) return { error: "Le nom n'a pas pu être enregistré." };
-  redirect("/");
+  refresh();
+  return { done: true };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { errorText, inputClass, labelClass, primaryButton } from "@/components/ui";
 import { useFormAction } from "@/components/use-form-action";
 import { sendMagicLink, type LoginState } from "./actions";
 
@@ -10,8 +11,8 @@ export function LoginForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
-      <label htmlFor="email" className="text-sm font-medium">
-        Adresse e-mail
+      <label htmlFor="email" className={labelClass}>
+        E-mail
       </label>
       <input
         id="email"
@@ -20,20 +21,13 @@ export function LoginForm() {
         required
         autoComplete="email"
         placeholder="vous@exemple.fr"
-        className="rounded-lg border border-zinc-300 px-3 py-2 text-base dark:border-zinc-700 dark:bg-zinc-900"
+        className={`${inputClass} min-h-13`}
       />
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white disabled:opacity-60"
-      >
+      <button type="submit" disabled={pending} className={`${primaryButton} min-h-13`}>
         {pending ? "Envoi…" : "Recevoir un lien de connexion"}
       </button>
       {state.message && (
-        <p
-          role="status"
-          className={state.status === "error" ? "text-sm text-red-600" : "text-sm text-emerald-700"}
-        >
+        <p role="status" className={state.status === "error" ? errorText : "text-sm text-accent-ink"}>
           {state.message}
         </p>
       )}

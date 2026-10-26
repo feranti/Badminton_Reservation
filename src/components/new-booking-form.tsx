@@ -1,41 +1,113 @@
 "use client";
 
+import { useState } from "react";
 import { createBookings, type FormState } from "@/app/sessions/actions";
 import { COURTS, DEFAULT_END, DEFAULT_START } from "@/lib/courts";
 import type { Player } from "@/lib/data";
+import { formatEuros, parseEurosToCents } from "@/lib/format";
+import { StickyFooter } from "./app-shell";
+import { CalendarIcon } from "./icons";
 import { PayerFields } from "./payer-fields";
-import { SlotFields } from "./slot-fields";
-import { inputClass, labelClass, primaryButton } from "./ui";
+import { errorText, inputClass, labelClass, primaryButton, textButton } from "./ui";
 import { useFormAction } from "./use-form-action";
+
+const chip = (on: boolean) =>
+  `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border ${
+    on ? "border-accent bg-accent text-on-accent" : "border-edge bg-surface text-ink"
+  }`;
 
 export function NewBookingForm({
   players,
   userId,
+  dates,
   defaultVenue,
   defaultPrice,
 }: {
   players: Player[];
   userId: string;
+  dates: { value: string; weekday: string; day: number }[];
   defaultVenue: string;
   defaultPrice: string;
 }) {
   const { state, pending, onSubmit } = useFormAction<FormState>(createBookings, {});
+  const [date, setDate] = useState(dates[0]?.value ?? "");
+  const [otherDate, setOtherDate] = useState(false);
+  const [editSlot, setEditSlot] = useState(false);
+  const [slot, setSlot] = useState({ start: DEFAULT_START, end: DEFAULT_END, venue: defaultVenue });
+  const [courts, setCourts] = useState<number[]>([]);
+  const [price, setPrice] = useState(defaultPrice);
+  const priceCents = parseEurosToCents(price);
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <label className={labelClass}>
-        Gymnase
-        <input name="venue" required defaultValue={defaultVenue} className={inputClass} placeholder="Le Prisme, Bobigny" />
-      </label>
-      <SlotFields date="" start={DEFAULT_START} end={DEFAULT_END} />
+    <form onSubmit={onSubmit} className="flex flex-col gap-6">
+      <fieldset className="flex flex-col gap-2.5">
+        <legend className="mb-2.5 text-sm font-medium text-muted">Quand</legend>
+        <div className="flex gap-2">
+          {dates.map((d) => (
+            <button
+              key={d.value}
+              type="button"
+              aria-pressed={!otherDate && date === d.value}
+              onClick={() => {
+                setOtherDate(false);
+                setDate(d.value);
+              }}
+              className={chip(!otherDate && date === d.value)}
+            >
+              <span className="text-xs">{d.weekday}</span>
+              <span className="font-semibold">{d.day}</span>
+            </button>
+          ))}
+          <button type="button" aria-pressed={otherDate} aria-label="Autre date" onClick={() => setOtherDate(true)} className={chip(otherDate)}>
+            <CalendarIcon className="size-5" />
+          </button>
+        </div>
+        {otherDate ? (
+          <input type="date" name="date" required value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} aria-label="Date" />
+        ) : (
+          <input type="hidden" name="date" value={date} />
+        )}
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-sm font-medium">Terrains réservés sur ce créneau</legend>
-        <div className="grid grid-cols-5 gap-2 sm:grid-cols-9">
+        <div className={editSlot ? "hidden" : "flex min-h-12 items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3.5"}>
+          <span className="truncate">
+            {slot.start} – {slot.end} · <span className="text-muted">{slot.venue}</span>
+          </span>
+          <button type="button" onClick={() => setEditSlot(true)} className={textButton}>
+            Modifier
+          </button>
+        </div>
+        <div className={editSlot ? "flex flex-col gap-3" : "hidden"}>
+          <div className="grid grid-cols-2 gap-3">
+            <label className={labelClass}>
+              Début
+              <input type="time" name="start" required value={slot.start} onChange={(e) => setSlot({ ...slot, start: e.target.value })} className={inputClass} />
+            </label>
+            <label className={labelClass}>
+              Fin
+              <input type="time" name="end" required value={slot.end} onChange={(e) => setSlot({ ...slot, end: e.target.value })} className={inputClass} />
+            </label>
+          </div>
+          <label className={labelClass}>
+            Gymnase
+            <input name="venue" required value={slot.venue} onChange={(e) => setSlot({ ...slot, venue: e.target.value })} className={inputClass} />
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend className="mb-2.5 text-sm font-medium text-muted">Terrains réservés</legend>
+        <div className="grid grid-cols-5 gap-2">
           {COURTS.map((court) => (
             <label key={court} className="cursor-pointer">
-              <input type="checkbox" name="courts" value={court} className="peer sr-only" />
-              <span className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 font-medium peer-checked:border-emerald-600 peer-checked:bg-emerald-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500 dark:border-zinc-700">
+              <input
+                type="checkbox"
+                name="courts"
+                value={court}
+                checked={courts.includes(court)}
+                onChange={(e) => setCourts(e.target.checked ? [...courts, court] : courts.filter((c) => c !== court))}
+                className="peer sr-only"
+              />
+              <span className="flex h-12 items-center justify-center rounded-xl border border-edge bg-surface font-medium peer-checked:border-accent peer-checked:bg-accent peer-checked:font-semibold peer-checked:text-on-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
                 {court}
               </span>
             </label>
@@ -43,29 +115,43 @@ export function NewBookingForm({
         </div>
       </fieldset>
 
-      <label className={labelClass}>
-        Prix par terrain (€)
-        <input name="price" required inputMode="decimal" defaultValue={defaultPrice} className={inputClass} placeholder="12,50" />
-      </label>
-      <PayerFields players={players} userId={userId} />
-      <p className="-mt-2 text-xs text-zinc-500">
-        Les réservations dont les créneaux se suivent sont regroupées dans la même session. Vous pourrez ajouter
-        le QR code de chaque réservation ensuite.
-      </p>
+      <PayerFields players={players} userId={userId}>
+        <label className={labelClass}>
+          Prix par terrain (€)
+          <input
+            name="price"
+            required
+            inputMode="decimal"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className={inputClass}
+            placeholder="12,50"
+          />
+        </label>
+      </PayerFields>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="i_play" defaultChecked className="size-4" />
-        Je m&apos;inscris à cette session
+      <label className="flex min-h-13 cursor-pointer items-center justify-between rounded-xl border border-line bg-surface px-3.5">
+        Je joue
+        <input type="checkbox" name="i_play" defaultChecked className="size-5 accent-accent" />
       </label>
 
       {state.error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className={errorText}>
           {state.error}
         </p>
       )}
-      <button type="submit" disabled={pending} className={primaryButton}>
-        {pending ? "Enregistrement…" : "Ajouter la réservation"}
-      </button>
+
+      <StickyFooter>
+        <button type="submit" disabled={pending} className={`${primaryButton} min-h-13 w-full text-base`}>
+          {pending
+            ? "Enregistrement…"
+            : courts.length === 0
+              ? "Réserver"
+              : `Réserver ${courts.length} terrain${courts.length > 1 ? "s" : ""}${
+                  priceCents === null ? "" : ` · ${formatEuros(priceCents * courts.length)}`
+                }`}
+        </button>
+      </StickyFooter>
     </form>
   );
 }
