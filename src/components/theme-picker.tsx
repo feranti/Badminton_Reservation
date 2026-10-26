@@ -40,7 +40,7 @@ export function ThemePicker() {
   }
 
   return (
-    <fieldset className="flex flex-col gap-1.5">
+    <fieldset className="flex min-w-0 flex-col gap-1.5">
       <legend className="mb-1.5 text-sm font-medium text-muted">Apparence</legend>
       <div className="grid grid-cols-3 gap-1 rounded-xl bg-chip p-1">
         {OPTIONS.map(([value, label]) => (
