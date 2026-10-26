@@ -58,9 +58,9 @@ export type Database = {
         Relationships: [];
       };
       session_participants: {
-        Row: { session_id: string; player_id: string; added_at: string };
-        Insert: { session_id: string; player_id: string };
-        Update: never;
+        Row: { session_id: string; player_id: string; added_at: string; guests: number };
+        Insert: { session_id: string; player_id: string; guests?: number };
+        Update: { guests?: number };
         Relationships: [];
       };
       payments: {
@@ -97,6 +97,8 @@ export type Database = {
           position: number;
           is_playing: boolean;
           capacity: number;
+          guests: number;
+          spots: number;
         };
         Relationships: [];
       };

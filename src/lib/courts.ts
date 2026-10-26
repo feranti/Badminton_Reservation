@@ -8,3 +8,6 @@ export const COURTS = [6, 7, 8, 9, 10, 11, 12, 13, 14] as const;
 
 // Jours habituels, proposés en raccourci pour une nouvelle réservation (0 = dimanche) : lundi et jeudi.
 export const USUAL_WEEKDAYS = [1, 4];
+
+// Invités extérieurs (sans compte) qu'un joueur peut amener à une session : +1 à +7.
+export const MAX_GUESTS = 7;

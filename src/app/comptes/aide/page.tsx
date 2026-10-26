@@ -22,6 +22,10 @@ export default function AccountsHelpPage() {
         </p>
         <ul className="flex list-disc flex-col gap-1.5 pl-5 text-muted">
           <li>Les joueurs en liste d&apos;attente ne paient rien tant qu&apos;ils n&apos;ont pas de place.</li>
+          <li>
+            Un joueur peut venir avec des invités extérieurs (+1, +2…). Chaque invité prend une place et sa part est payée
+            par le joueur qui l&apos;amène.
+          </li>
           <li>Si quelqu&apos;un se désinscrit, la part des autres est recalculée tout de suite.</li>
           <li>Une session sans aucun joueur inscrit ne compte pas dans les comptes.</li>
           <li>Les sessions à venir comptent aussi : votre solde tient compte des inscriptions en cours.</li>
