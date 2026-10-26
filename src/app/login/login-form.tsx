@@ -49,7 +49,7 @@ function CodeForm({ email, onRestart }: { email: string; onRestart: () => void }
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <p role="status" className="text-sm text-accent-ink">
-        E-mail envoyé à {email}. Ouvrez le lien qu&apos;il contient, ou saisissez ici le code à 6 chiffres.
+        E-mail envoyé à {email}. Ouvrez le lien qu&apos;il contient, ou saisissez ici le code indiqué.
       </p>
       <input type="hidden" name="email" value={email} />
       <label htmlFor="code" className={labelClass}>
@@ -62,8 +62,8 @@ function CodeForm({ email, onRestart }: { email: string; onRestart: () => void }
         inputMode="numeric"
         autoComplete="one-time-code"
         pattern="[0-9 ]*"
-        maxLength={7}
-        placeholder="123456"
+        maxLength={12}
+        placeholder="12345678"
         className={`${inputClass} min-h-13 text-center text-xl tracking-[0.3em]`}
       />
       <button type="submit" disabled={pending} className={`${primaryButton} min-h-13`}>

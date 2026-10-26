@@ -44,7 +44,7 @@ Les montants sont stockés en centimes, les heures sont saisies et affichées à
 
 Par défaut, le lien de connexion doit être ouvert dans le même navigateur que celui où on l'a demandé.
 
-Pour plus tard (étape 4) : l'envoi d'e-mails intégré à Supabase est limité à quelques messages par heure, et les modèles d'e-mail ne sont modifiables qu'avec un service d'envoi à vous. Branchez un service SMTP (Gmail avec un mot de passe d'application, Resend, Brevo…) dans **Authentication > Emails > SMTP Settings**, puis collez le contenu de `supabase/templates/magic_link.html` dans le modèle **Magic Link** : l'e-mail contiendra un lien qui marche dans n'importe quel navigateur et un code à 6 chiffres à saisir dans l'appli (pratique depuis l'icône de l'écran d'accueil).
+Pour plus tard (étape 4) : l'envoi d'e-mails intégré à Supabase est limité à quelques messages par heure, et les modèles d'e-mail ne sont modifiables qu'avec un service d'envoi à vous. Branchez un service SMTP (Gmail avec un mot de passe d'application, Resend, Brevo…) dans **Authentication > Emails > SMTP Settings**, puis collez le contenu de `supabase/templates/magic_link.html` dans le modèle **Magic Link** : l'e-mail contiendra un lien qui marche dans n'importe quel navigateur et un code à saisir dans l'appli (pratique depuis l'icône de l'écran d'accueil).
 
 ### 2. Lancer le site en local
 
