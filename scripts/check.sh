@@ -66,7 +66,8 @@ setsid npx next dev -p $DEV_PORT -H 127.0.0.1 >"$LOG_DIR/dev.log" 2>&1 &
 PIDS+=($!)
 sleep 8
 APP_URL="http://127.0.0.1:$DEV_PORT" node tests/e2e/visit-pages.mjs
-if grep -E "Error|⨯" "$LOG_DIR/dev.log"; then
+# (la ligne « ⨯ turbopackFileSystemCacheForBuild » est la liste des réglages désactivés, pas une erreur)
+if grep -E "Error|⨯" "$LOG_DIR/dev.log" | grep -v "⨯ turbopackFileSystemCacheForBuild$"; then
   echo "✗ Le serveur de développement a affiché des erreurs (voir ci-dessus)."
   exit 1
 fi

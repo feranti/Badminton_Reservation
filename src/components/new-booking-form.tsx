@@ -12,7 +12,7 @@ import { errorText, inputClass, labelClass, primaryButton, textButton } from "./
 import { useFormAction } from "./use-form-action";
 
 const chip = (on: boolean) =>
-  `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border ${
+  `flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border ${
     on ? "border-accent bg-accent text-on-accent" : "border-edge bg-surface text-ink"
   }`;
 
@@ -40,7 +40,7 @@ export function NewBookingForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6">
-      <fieldset className="flex flex-col gap-2.5">
+      <fieldset className="flex min-w-0 flex-col gap-2.5">
         <legend className="mb-2.5 text-sm font-medium text-muted">Quand</legend>
         <div className="flex gap-2">
           {dates.map((d) => (
@@ -58,7 +58,7 @@ export function NewBookingForm({
               <span className="font-semibold">{d.day}</span>
             </button>
           ))}
-          <button type="button" aria-pressed={otherDate} aria-label="Autre date" onClick={() => setOtherDate(true)} className={chip(otherDate)}>
+          <button type="button" aria-pressed={otherDate} aria-label="Autre date" onClick={() => setOtherDate(true)} className={`${chip(otherDate)} max-w-16`}>
             <CalendarIcon className="size-5" />
           </button>
         </div>
@@ -69,7 +69,7 @@ export function NewBookingForm({
         )}
 
         <div className={editSlot ? "hidden" : "flex min-h-12 items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3.5"}>
-          <span className="truncate">
+          <span className="min-w-0 truncate">
             {slot.start} – {slot.end} · <span className="text-muted">{slot.venue}</span>
           </span>
           <button type="button" onClick={() => setEditSlot(true)} className={textButton}>
@@ -94,7 +94,7 @@ export function NewBookingForm({
         </div>
       </fieldset>
 
-      <fieldset>
+      <fieldset className="min-w-0">
         <legend className="mb-2.5 text-sm font-medium text-muted">Terrains réservés</legend>
         <div className="grid grid-cols-5 gap-2">
           {COURTS.map((court) => (

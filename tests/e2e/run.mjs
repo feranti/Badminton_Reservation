@@ -82,6 +82,8 @@ try {
   await alice.click('label:has(input[value="9"])');
   await alice.fill('input[name="price"]', "12,50");
   await alice.getByRole("button", { name: "Réserver 2 terrains · 25,00 €" }).waitFor();
+  if (await alice.evaluate(() => document.documentElement.scrollWidth > window.innerWidth))
+    throw new Error("La page Nouvelle réservation déborde sur la largeur d'un téléphone");
   ok("nouvelle réservation : 20:00 – 22:00 au Prisme par défaut, total affiché sur le bouton");
   const evening = await newBooking(alice, { courts: [6, 9], price: "12,50" });
   await alice.waitForSelector(`text=20:00 – 22:00 · ${VENUE}`);
