@@ -12,7 +12,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
         <LinkError searchParams={searchParams} />
       </Suspense>
       <LoginForm />
-      <p className="text-center text-sm text-muted">Pas de mot de passe : un lien de connexion arrive par e-mail.</p>
+      <p className="text-center text-sm text-muted">Pas de mot de passe : un lien et un code de connexion arrivent par e-mail.</p>
     </main>
   );
 }

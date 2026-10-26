@@ -44,7 +44,7 @@ Les montants sont stockés en centimes, les heures sont saisies et affichées à
 
 Par défaut, le lien de connexion doit être ouvert dans le même navigateur que celui où on l'a demandé.
 
-Pour plus tard (étape 4) : l'envoi d'e-mails intégré à Supabase est limité à quelques messages par heure, et les modèles d'e-mail ne sont modifiables qu'avec un service d'envoi à vous. Branchez un service SMTP gratuit (Resend, Brevo…) dans **Authentication > Emails > SMTP Settings**, puis remplacez le lien du modèle **Magic Link** par `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` : le lien marchera alors dans n'importe quel navigateur.
+Pour plus tard (étape 4) : l'envoi d'e-mails intégré à Supabase est limité à quelques messages par heure, et les modèles d'e-mail ne sont modifiables qu'avec un service d'envoi à vous. Branchez un service SMTP (Gmail avec un mot de passe d'application, Resend, Brevo…) dans **Authentication > Emails > SMTP Settings**, puis collez le contenu de `supabase/templates/magic_link.html` dans le modèle **Magic Link** : l'e-mail contiendra un lien qui marche dans n'importe quel navigateur et un code à 6 chiffres à saisir dans l'appli (pratique depuis l'icône de l'écran d'accueil).
 
 ### 2. Lancer le site en local
 
@@ -97,7 +97,7 @@ src/app/sessions/          Nouvelle réservation, détail d'une session et actio
 src/app/comptes/           Soldes, « qui doit à qui », remboursements à signaler et confirmer
 src/lib/settle.ts          Calcul des virements pour équilibrer les comptes
 src/app/profil/            Changer son nom affiché
-src/app/login/             Connexion par lien e-mail
+src/app/login/             Connexion par lien ou code reçu par e-mail
 src/app/auth/confirm/      Arrivée du lien de connexion
 src/components/            Éléments d'interface (carte de soirée, formulaires, temps réel)
 ```
