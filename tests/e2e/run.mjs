@@ -194,6 +194,10 @@ try {
   }
   await alice.waitForSelector("text=Joueurs · 4 / 4");
   await bob.goto(midday);
+  const joinBox = await bob.getByRole("button", { name: "M'inscrire en liste d'attente" }).boundingBox();
+  const guestsBox = await bob.locator('select[aria-label="Invités extérieurs"]').boundingBox();
+  if (!(joinBox.x < guestsBox.x && joinBox.width > 2 * guestsBox.width))
+    throw new Error("Le bouton d'inscription doit être à gauche et plus large que la liste des invités");
   await bob.selectOption('select[aria-label="Invités extérieurs"]', "1");
   await bob.click("text=M'inscrire en liste d'attente");
   await bob.waitForSelector("text=Vous êtes n°1 sur la liste d'attente");
