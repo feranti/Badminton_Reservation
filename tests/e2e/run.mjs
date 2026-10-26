@@ -101,6 +101,23 @@ try {
   await bobCard.getByText("Inscrit").waitFor();
   ok("bob s'inscrit, alice voit la part passer à 12,50 € en temps réel, l'accueil l'affiche inscrit");
 
+  // Désinscription : une confirmation est demandée ; si bob annule, il reste inscrit.
+  await bobCard.click();
+  let question = "";
+  bob.once("dialog", (d) => ((question = d.message()), d.dismiss()));
+  await bob.getByRole("button", { name: "Me désinscrire" }).click();
+  if (!question.includes("Vous désinscrire")) throw new Error(`confirmation inattendue : « ${question} »`);
+  await sleep(1000);
+  await stat(bob, "Joueurs", "2 / 8").waitFor();
+  bob.once("dialog", (d) => d.accept());
+  await bob.getByRole("button", { name: "Me désinscrire" }).click();
+  await bob.getByRole("button", { name: "Je m'inscris" }).waitFor();
+  await stat(alice, "Par joueur", "25,00 €").waitFor({ timeout: 10000 });
+  await bob.getByRole("button", { name: "Je m'inscris" }).click();
+  await stat(alice, "Par joueur", "12,50 €").waitFor({ timeout: 10000 });
+  await bob.goto(APP + "/");
+  ok("bob se désinscrit après confirmation (alice repasse à 25,00 €), puis se réinscrit");
+
   // Réservation à deux payeurs, depuis l'écran Gérer
   await bobCard.click();
   await bob.click('a:text-is("Gérer")');

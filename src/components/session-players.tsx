@@ -1,4 +1,5 @@
 import { addParticipant, removeParticipant } from "@/app/sessions/actions";
+import { ConfirmButton } from "./confirm-button";
 import type { Player, Session } from "@/lib/data";
 import { sessionStatus } from "./session-card";
 import { primaryButton, secondaryButton } from "./ui";
@@ -54,11 +55,28 @@ export function JoinButton({ session: s, userId }: { session: Session; userId: s
           Vous êtes n°{status.rank} sur la liste d&apos;attente. Un e-mail vous préviendra si une place se libère.
         </p>
       )}
-      <form action={status.me ? removeParticipant.bind(null, s.id, userId) : addParticipant.bind(null, s.id, userId)}>
-        <button type="submit" className={`${status.me ? secondaryButton : primaryButton} min-h-13 w-full text-base`}>
-          {status.me ? "Me désinscrire" : status.free > 0 ? "Je m'inscris" : "M'inscrire en liste d'attente"}
-        </button>
-      </form>
+      {status.me ? (
+        <form action={removeParticipant.bind(null, s.id, userId)}>
+          <ConfirmButton message={leaveMessage(s, status.me)} className={`${secondaryButton} min-h-13 w-full text-base`}>
+            Me désinscrire
+          </ConfirmButton>
+        </form>
+      ) : (
+        <form action={addParticipant.bind(null, s.id, userId)}>
+          <button type="submit" className={`${primaryButton} min-h-13 w-full text-base`}>
+            {status.free > 0 ? "Je m'inscris" : "M'inscrire en liste d'attente"}
+          </button>
+        </form>
+      )}
     </>
   );
+}
+
+// Texte de la confirmation avant de se désinscrire.
+function leaveMessage(s: Session, me: "playing" | "waiting") {
+  if (me === "waiting") return "Quitter la liste d'attente de cette session ?";
+  const waiting = s.players.some((p) => !p.is_playing);
+  return waiting
+    ? "Vous désinscrire de cette session ? Votre place ira au premier de la liste d'attente."
+    : "Vous désinscrire de cette session ? La part des autres joueurs sera recalculée.";
 }
