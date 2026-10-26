@@ -11,7 +11,7 @@ await fetch(`${MAIL}/api/v1/messages`, { method: "DELETE" });
 await page.goto(APP + "/login");
 await page.fill("#email", "alice@test.fr");
 await page.click("text=Recevoir un lien de connexion");
-await page.waitForSelector("text=Lien envoyé");
+await page.waitForSelector("text=E-mail envoyé");
 await new Promise((r) => setTimeout(r, 1500));
 const list = await (await fetch(`${MAIL}/api/v1/search?query=to:alice@test.fr`)).json();
 const msg = await (await fetch(`${MAIL}/api/v1/message/${list.messages[0].ID}`)).json();

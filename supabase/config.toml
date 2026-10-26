@@ -244,6 +244,11 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# Lien de connexion + code à 6 chiffres (même modèle à copier dans le projet en ligne).
+[auth.email.template.magic_link]
+subject = "Votre connexion à Badminton Résas"
+content_path = "./supabase/templates/magic_link.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"
