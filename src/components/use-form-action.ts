@@ -12,7 +12,9 @@ export function useFormAction<S extends object>(
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    // Le bouton qui a envoyé le formulaire (name/value) fait partie des données, comme en HTML classique.
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const formData = new FormData(event.currentTarget, submitter);
     startTransition(() => action(formData));
   }
 

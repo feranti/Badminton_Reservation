@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { addParticipantFromForm, deleteSession, removeBooking, removeParticipant, setQrPath } from "@/app/sessions/actions";
 import { AddBookingForm } from "@/components/add-booking-form";
 import { Loading, SubPage } from "@/components/app-shell";
 import { ConfirmButton } from "@/components/confirm-button";
-import { EditSessionForm } from "@/components/edit-session-form";
+import { EditSessionForm, SessionDoneButton } from "@/components/edit-session-form";
 import { CheckIcon, TrashIcon } from "@/components/icons";
 import { QrUpload } from "@/components/qr-upload";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -44,11 +43,7 @@ async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/ger
     <SubPage
       back={back}
       title={`Gérer · ${formatDay(s.starts_at, true)}`}
-      right={
-        <Link href={back} className="flex min-h-11 items-center px-3 text-[15px] font-semibold text-accent">
-          OK
-        </Link>
-      }
+      right={<SessionDoneButton />}
     >
       <RealtimeRefresh />
       <section className="flex flex-col gap-2">

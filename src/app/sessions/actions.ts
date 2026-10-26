@@ -115,6 +115,8 @@ export async function updateSession(_prev: FormState, formData: FormData): Promi
   if (!venue) return { error: "Indiquez le gymnase." };
   const { error } = await supabase.from("sessions").update({ venue, notes }).eq("id", id);
   if (error) return { error: "La modification n'a pas pu être enregistrée." };
+  // Le bouton OK de l'écran Gérer enregistre puis revient à la session.
+  if (formData.get("done")) redirect(`/sessions/${id}`);
   refresh();
   return { added: true };
 }

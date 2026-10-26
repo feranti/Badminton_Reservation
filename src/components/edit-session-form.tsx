@@ -4,12 +4,15 @@ import { updateSession, type FormState } from "@/app/sessions/actions";
 import { errorText, inputClass, labelClass, secondaryButton } from "./ui";
 import { useFormAction } from "./use-form-action";
 
+export const editSessionFormId = "edit-session";
+
 // Lieu et note d'une session. Les horaires découlent de ses réservations.
+// Le bouton OK de l'en-tête (SessionDoneButton) envoie aussi ce formulaire, puis revient à la session.
 export function EditSessionForm({ id, venue, notes }: { id: string; venue: string; notes: string }) {
   const { state, pending, onSubmit } = useFormAction<FormState>(updateSession, {});
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <form id={editSessionFormId} onSubmit={onSubmit} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={id} />
       <label className={labelClass}>
         Gymnase
@@ -31,5 +34,19 @@ export function EditSessionForm({ id, venue, notes }: { id: string; venue: strin
         {state.added && !pending && <span className="text-sm text-accent-ink">Enregistré.</span>}
       </div>
     </form>
+  );
+}
+
+export function SessionDoneButton() {
+  return (
+    <button
+      type="submit"
+      form={editSessionFormId}
+      name="done"
+      value="1"
+      className="flex min-h-11 items-center px-3 text-[15px] font-semibold text-accent"
+    >
+      OK
+    </button>
   );
 }
