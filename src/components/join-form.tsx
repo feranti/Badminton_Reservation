@@ -6,6 +6,9 @@ import { MAX_GUESTS } from "@/lib/courts";
 import { errorText, inputClass, primaryButton } from "./ui";
 import { useFormAction } from "./use-form-action";
 
+// Champ de saisie sans la pleine largeur (w-full l'emporterait sur la largeur voulue).
+const narrowSelect = inputClass.replace("w-full ", "");
+
 const COUNTS = Array.from({ length: MAX_GUESTS + 1 }, (_, i) => i);
 
 function guestsLabel(n: number) {
@@ -31,12 +34,15 @@ export function JoinForm({ sessionId, free }: { sessionId: string; free: number 
         </p>
       )}
       <div className="flex gap-2">
+        <button type="submit" disabled={pending} className={`${primaryButton} min-h-13 min-w-0 flex-1 text-base`}>
+          {fits ? (guests > 0 ? `Je m'inscris +${guests}` : "Je m'inscris") : "M'inscrire en liste d'attente"}
+        </button>
         <select
           name="guests"
           value={guests}
           onChange={(e) => setCount(Number(e.target.value))}
           aria-label="Invités extérieurs"
-          className={`${inputClass} min-h-13 w-auto shrink-0`}
+          className={`${narrowSelect} min-h-13 w-24 shrink-0`}
         >
           {COUNTS.map((n) => (
             <option key={n} value={n}>
@@ -44,9 +50,6 @@ export function JoinForm({ sessionId, free }: { sessionId: string; free: number 
             </option>
           ))}
         </select>
-        <button type="submit" disabled={pending} className={`${primaryButton} min-h-13 flex-1 text-base`}>
-          {fits ? (guests > 0 ? `Je m'inscris +${guests}` : "Je m'inscris") : "M'inscrire en liste d'attente"}
-        </button>
       </div>
     </form>
   );
@@ -72,7 +75,7 @@ export function GuestsForm({ sessionId, guests }: { sessionId: string; guests: n
           defaultValue={guests}
           disabled={pending}
           onChange={(e) => e.currentTarget.form?.requestSubmit()}
-          className={`${inputClass} w-auto`}
+          className={`${narrowSelect} w-auto`}
         >
           {COUNTS.map((n) => (
             <option key={n} value={n}>
