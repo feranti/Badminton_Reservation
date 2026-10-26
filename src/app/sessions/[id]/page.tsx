@@ -5,6 +5,7 @@ import { Loading, StickyFooter, SubPage } from "@/components/app-shell";
 import { QrIcon } from "@/components/icons";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { groupByCourt, sessionStatus } from "@/components/session-card";
+import { GuestsForm } from "@/components/join-form";
 import { JoinButton, SessionPlayers } from "@/components/session-players";
 import { card, sectionTitle } from "@/components/ui";
 import { getPlayers, getSession, isPast } from "@/lib/data";
@@ -28,7 +29,8 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
   const s = session;
   const playersById = new Map(players.map((p) => [p.id, p]));
   const name = (pid: string) => (pid === userId ? "vous" : (playersById.get(pid)?.display_name ?? "?"));
-  const { playing } = sessionStatus(s, userId);
+  const { playing, me, guests } = sessionStatus(s, userId);
+  const share = playing > 0 ? shareCents(s.totalCents, playing) : 0;
   const courts = groupByCourt(s.bookings);
   const past = isPast(s);
   const payers = [...new Set(s.bookings.flatMap((b) => [b.booked_by, b.co_payer]).filter((p): p is string => Boolean(p)))];
@@ -58,7 +60,7 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
         {[
           [courts.length > 1 ? "Terrains" : "Terrain", courts.map(([c]) => c).join(" · ")],
           ["Joueurs", `${playing} / ${s.capacity}`],
-          ["Par joueur", playing > 0 ? formatEuros(shareCents(s.totalCents, playing)) : "–"],
+          ["Par joueur", playing > 0 ? formatEuros(share) : "–"],
         ].map(([label, value]) => (
           <div key={label} className={`${card} flex flex-col gap-1 rounded-xl p-3`}>
             <dt className="text-xs text-muted">{label}</dt>
@@ -70,6 +72,13 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
       <section className="flex flex-col gap-3">
         <h2 className={sectionTitle}>Joueurs</h2>
         <SessionPlayers session={s} players={playersById} userId={userId} />
+        {me && !past && <GuestsForm sessionId={s.id} guests={guests} />}
+        {me === "playing" && guests > 0 && (
+          <p className="text-sm text-muted">
+            Vous payez aussi la part de vos invités : {1 + guests} × {formatEuros(share)} ={" "}
+            {formatEuros(share * (1 + guests))}.
+          </p>
+        )}
       </section>
 
       {qrs.length > 0 && (

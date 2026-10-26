@@ -194,14 +194,25 @@ try {
   }
   await alice.waitForSelector("text=Joueurs · 4 / 4");
   await bob.goto(midday);
+  await bob.selectOption('select[aria-label="Invités extérieurs"]', "1");
   await bob.click("text=M'inscrire en liste d'attente");
   await bob.waitForSelector("text=Vous êtes n°1 sur la liste d'attente");
-  ok("la session de midi est pleine (4/4) : bob passe en liste d'attente");
+  await alice.waitForSelector("text=+1 invité", { timeout: 10000 });
+  ok("la session de midi est pleine (4/4) : bob s'inscrit avec un invité (+1), le groupe passe en liste d'attente");
 
+  // Une place libre ne suffit pas à bob et son invité : ils attendent ensemble.
   await fetch(`${MAIL}/api/v1/messages`, { method: "DELETE" });
   await alice.click('button[aria-label="Retirer carol"]');
-  await bob.waitForSelector("button:has-text('Me désinscrire')", { timeout: 10000 });
-  await bob.locator("text=sur la liste d'attente").waitFor({ state: "detached" });
+  await alice.waitForSelector("text=Joueurs · 3 / 4");
+  await sleep(1500);
+  await bob.waitForSelector("text=Vous êtes n°1 sur la liste d'attente");
+  ok("carol se désiste : une seule place, bob et son invité restent en attente");
+
+  await alice.click('button[aria-label="Retirer eve"]');
+  await bob.locator("text=sur la liste d'attente").waitFor({ state: "detached", timeout: 10000 });
+  await stat(bob, "Joueurs", "4 / 4").waitFor();
+  await bob.getByRole("list", { name: "Joueurs inscrits" }).getByText("bob +1").waitFor();
+  await bob.waitForSelector("text=Vous payez aussi la part de vos invités : 2 × 2,00 € = 4,00 €");
   let promoted = null;
   for (let i = 0; i < 20 && !promoted; i++) {
     const list = await (await fetch(`${MAIL}/api/v1/search?query=to:bob@test.fr`)).json();
@@ -209,22 +220,28 @@ try {
     if (!promoted) await sleep(500);
   }
   if (!promoted) throw new Error("bob n'a pas reçu l'e-mail de place libérée");
-  ok("carol se désiste : bob passe joueur et reçoit un e-mail");
+  ok("eve se désiste aussi : bob et son invité jouent (4/4), bob paie 2 parts et reçoit un e-mail");
+
+  await bob.selectOption('select[name="guests"]', "2");
+  await bob.waitForSelector("text=La session est complète : impossible d'ajouter un invité.");
+  if ((await bob.inputValue('select[name="guests"]')) !== "1") throw new Error("Le nombre d'invités refusé est resté affiché");
+  await stat(bob, "Joueurs", "4 / 4").waitFor();
+  ok("bob ne peut pas ajouter un 2e invité dans une session complète");
 
   // Comptes. Soir : 40 € pour alice et bob, 20 € chacun ; alice a avancé 35 €, bob 5 €.
-  // Midi : 8 € pour dave, eve, frank et bob, 2 € chacun, avancés par alice.
-  // → bob doit 15 + 2 = 17 € à alice ; dave, eve et frank lui doivent 2 € chacun.
+  // Midi : 8 € pour dave, frank, bob et son invité, 2 € la place, avancés par alice.
+  // → bob doit 15 + 2 × 2 = 19 € à alice ; dave et frank lui doivent 2 € chacun.
   await bob.goto(APP + "/");
-  await bob.waitForSelector("text=Vous devez 17,00 € à alice");
+  await bob.waitForSelector("text=Vous devez 19,00 € à alice");
   await bob.click('nav >> text=Comptes');
-  await bob.waitForSelector("text=Rembourser 17,00 € à alice");
-  ok("comptes : bob doit 17,00 € à alice (seuls les joueurs inscrits paient)");
-  await bob.click("text=C'est fait, j'ai payé 17,00 €");
+  await bob.waitForSelector("text=Rembourser 19,00 € à alice");
+  ok("comptes : bob doit 19,00 € à alice (seuls les joueurs inscrits paient, bob paie la part de son invité)");
+  await bob.click("text=C'est fait, j'ai payé 19,00 €");
   await bob.waitForSelector("text=en attente de confirmation");
   await alice.goto(APP + "/comptes");
   await alice.waitForSelector("text=dit vous avoir remboursé");
   await alice.click("text=Bien reçu");
-  await alice.waitForSelector("text=On vous doit 6,00 €");
+  await alice.waitForSelector("text=On vous doit 4,00 €");
   await bob.waitForSelector("text=Vous êtes à jour", { timeout: 10000 });
   ok("bob signale son remboursement, alice le confirme, bob est à jour");
 
@@ -233,7 +250,7 @@ try {
   await alice.selectOption('select[name="to_player"]', { label: "Moi" });
   await alice.fill('input[name="amount"]', "2");
   await alice.click("text=Signaler le remboursement");
-  await alice.waitForSelector("text=On vous doit 4,00 €");
+  await alice.waitForSelector("text=On vous doit 2,00 €");
   await bob.waitForSelector("text=On vous doit 2,00 €", { timeout: 10000 });
   ok("un remboursement signalé par celui qui le reçoit est confirmé d'office");
 

@@ -4,7 +4,8 @@ import { requirePlayer } from "@/lib/session";
 
 export type Player = Tables<"profiles">;
 export type CourtBooking = Tables<"court_bookings"> & { qrUrl: string | null };
-export type SessionPlayer = { player_id: string; position: number; is_playing: boolean };
+// guests = invités extérieurs amenés par le joueur ; spots = places prises (lui compris).
+export type SessionPlayer = { player_id: string; position: number; is_playing: boolean; guests: number; spots: number };
 export type Session = Tables<"sessions"> & {
   bookings: CourtBooking[];
   players: SessionPlayer[];
@@ -25,7 +26,7 @@ async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = 
   const ids = sessions.map((s) => s.id);
   const [bookings, players] = await Promise.all([
     supabase.from("court_bookings").select("*").in("session_id", ids).order("court").order("starts_at"),
-    supabase.from("session_players").select("session_id, player_id, position, is_playing").in("session_id", ids).order("position"),
+    supabase.from("session_players").select("session_id, player_id, position, is_playing, guests, spots").in("session_id", ids).order("position"),
   ]);
   if (bookings.error) throw bookings.error;
   if (players.error) throw players.error;

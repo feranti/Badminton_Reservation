@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
-import { COURTS } from "@/lib/courts";
+import { COURTS, MAX_GUESTS } from "@/lib/courts";
 import { parisToIso, parseEurosToCents } from "@/lib/format";
 import { notifyPromotions, snapshot } from "@/lib/notify";
 import { requirePlayer } from "@/lib/session";
@@ -130,12 +130,65 @@ export async function deleteSession(id: string) {
   redirect("/");
 }
 
-export async function addParticipant(sessionId: string, playerId: string) {
+export async function addParticipant(sessionId: string, playerId: string, guests = 0) {
   const { supabase } = await requirePlayer();
   await supabase
     .from("session_participants")
-    .upsert({ session_id: sessionId, player_id: playerId }, { onConflict: "session_id,player_id", ignoreDuplicates: true });
+    .upsert({ session_id: sessionId, player_id: playerId, guests }, { onConflict: "session_id,player_id", ignoreDuplicates: true });
   refresh();
+}
+
+function readGuests(formData: FormData) {
+  const guests = Number(formData.get("guests") ?? 0);
+  return Number.isInteger(guests) && guests >= 0 && guests <= MAX_GUESTS ? guests : null;
+}
+
+// Inscription du joueur connecté, seul ou avec des invités extérieurs (+1, +2…).
+// Si toutes les places du groupe ne tiennent pas, le groupe entier passe en liste d'attente.
+export async function joinSession(sessionId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const { userId } = await requirePlayer();
+  const guests = readGuests(formData);
+  if (guests === null) return { error: "Nombre d'invités incorrect." };
+  await addParticipant(sessionId, userId, guests);
+  return {};
+}
+
+// Change le nombre d'invités du joueur connecté. Un joueur qui a déjà sa place ne peut ajouter
+// des invités que dans les places libres : il ne fait pas passer les autres en liste d'attente.
+export async function setGuests(sessionId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const { supabase, userId } = await requirePlayer();
+  const guests = readGuests(formData);
+  if (guests === null) return { error: "Nombre d'invités incorrect." };
+  const { data: players } = await supabase
+    .from("session_players")
+    .select("player_id, is_playing, guests, spots, capacity")
+    .eq("session_id", sessionId);
+  const me = players?.find((p) => p.player_id === userId);
+  if (!players || !me) return { error: "Vous n'êtes plus inscrit à cette session." };
+  if (me.is_playing && guests > me.guests) {
+    const used = players.filter((p) => p.is_playing).reduce((sum, p) => sum + p.spots, 0);
+    const free = Math.max(me.capacity - used, 0);
+    if (guests - me.guests > free) {
+      return {
+        error:
+          free === 0
+            ? "La session est complète : impossible d'ajouter un invité."
+            : `Il ne reste que ${free} place${free > 1 ? "s" : ""} libre${free > 1 ? "s" : ""}.`,
+      };
+    }
+  }
+
+  const before = await snapshot(supabase, sessionId);
+  const { error } = await supabase
+    .from("session_participants")
+    .update({ guests })
+    .eq("session_id", sessionId)
+    .eq("player_id", userId);
+  if (error) return { error: "Le nombre d'invités n'a pas pu être modifié." };
+  // Moins d'invités = des places libérées pour la liste d'attente.
+  await notifyPromotions(supabase, sessionId, before, userId);
+  refresh();
+  return {};
 }
 
 // Désinscription : le premier de la liste d'attente prend la place et reçoit un e-mail.

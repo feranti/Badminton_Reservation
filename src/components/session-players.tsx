@@ -1,13 +1,16 @@
-import { addParticipant, removeParticipant } from "@/app/sessions/actions";
+import { removeParticipant } from "@/app/sessions/actions";
 import { ConfirmButton } from "./confirm-button";
+import { JoinForm } from "./join-form";
 import type { Player, Session } from "@/lib/data";
 import { sessionStatus } from "./session-card";
-import { primaryButton, secondaryButton } from "./ui";
+import { secondaryButton } from "./ui";
 
-function Chip({ name, me }: { name: string; me: boolean }) {
+// « bob +2 » : un joueur et ses invités extérieurs.
+function Chip({ name, guests, me }: { name: string; guests: number; me: boolean }) {
   return (
     <li className={`rounded-full px-3.5 py-2 text-[15px] ${me ? "bg-accent-tint font-medium text-accent-ink" : "bg-chip"}`}>
       {name}
+      {guests > 0 && <span className={me ? "" : "text-muted"}> +{guests}</span>}
     </li>
   );
 }
@@ -17,13 +20,13 @@ export function SessionPlayers({ session: s, players, userId }: { session: Sessi
   const name = (id: string) => players.get(id)?.display_name ?? "?";
   const playing = s.players.filter((p) => p.is_playing);
   const waiting = s.players.filter((p) => !p.is_playing);
-  const free = Math.max(s.capacity - playing.length, 0);
+  const { free } = sessionStatus(s, userId);
 
   return (
     <div className="flex flex-col gap-3">
       <ul className="flex flex-wrap gap-2" aria-label="Joueurs inscrits">
         {playing.map((p) => (
-          <Chip key={p.player_id} name={name(p.player_id)} me={p.player_id === userId} />
+          <Chip key={p.player_id} name={name(p.player_id)} guests={p.guests} me={p.player_id === userId} />
         ))}
         {free > 0 && (
           <li className="rounded-full border border-dashed border-dash px-3.5 py-2 text-[15px] text-muted">
@@ -36,7 +39,7 @@ export function SessionPlayers({ session: s, players, userId }: { session: Sessi
           <span className="text-sm text-muted">Liste d&apos;attente</span>
           <ul className="flex flex-wrap gap-2" aria-label="Liste d'attente">
             {waiting.map((p) => (
-              <Chip key={p.player_id} name={name(p.player_id)} me={p.player_id === userId} />
+              <Chip key={p.player_id} name={name(p.player_id)} guests={p.guests} me={p.player_id === userId} />
             ))}
           </ul>
         </div>
@@ -57,24 +60,21 @@ export function JoinButton({ session: s, userId }: { session: Session; userId: s
       )}
       {status.me ? (
         <form action={removeParticipant.bind(null, s.id, userId)}>
-          <ConfirmButton message={leaveMessage(s, status.me)} className={`${secondaryButton} min-h-13 w-full text-base`}>
+          <ConfirmButton message={leaveMessage(s, status.me, status.guests)} className={`${secondaryButton} min-h-13 w-full text-base`}>
             Me désinscrire
           </ConfirmButton>
         </form>
       ) : (
-        <form action={addParticipant.bind(null, s.id, userId)}>
-          <button type="submit" className={`${primaryButton} min-h-13 w-full text-base`}>
-            {status.free > 0 ? "Je m'inscris" : "M'inscrire en liste d'attente"}
-          </button>
-        </form>
+        <JoinForm sessionId={s.id} free={status.free} />
       )}
     </>
   );
 }
 
 // Texte de la confirmation avant de se désinscrire.
-function leaveMessage(s: Session, me: "playing" | "waiting") {
-  if (me === "waiting") return "Quitter la liste d'attente de cette session ?";
+function leaveMessage(s: Session, me: "playing" | "waiting", guests: number) {
+  if (me === "waiting") return guests > 0 ? "Quitter la liste d'attente avec vos invités ?" : "Quitter la liste d'attente de cette session ?";
+  if (guests > 0) return "Vous désinscrire de cette session avec vos invités ? La part des autres joueurs sera recalculée.";
   const waiting = s.players.some((p) => !p.is_playing);
   return waiting
     ? "Vous désinscrire de cette session ? Votre place ira au premier de la liste d'attente."

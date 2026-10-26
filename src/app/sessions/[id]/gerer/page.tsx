@@ -116,6 +116,12 @@ async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/ger
             <li key={p.player_id} className="flex min-h-12 items-center justify-between border-b border-line">
               <span>
                 {name(p.player_id)}
+                {p.guests > 0 && (
+                  <span className="text-muted">
+                    {" "}
+                    +{p.guests} invité{p.guests > 1 ? "s" : ""}
+                  </span>
+                )}
                 {p.player_id === userId && <span className="text-muted"> (vous)</span>}
                 {!p.is_playing && <span className="text-sm text-warn"> · en attente</span>}
               </span>

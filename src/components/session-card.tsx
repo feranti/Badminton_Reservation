@@ -12,14 +12,17 @@ export function groupByCourt(bookings: CourtBooking[]) {
 }
 
 // Où en est le joueur pour une session : inscrit, en attente (avec son rang), ou pas inscrit.
+// Les places comptent les invités : « playing » est le nombre de places prises, pas d'inscrits.
 export function sessionStatus(s: Session, userId: string) {
-  const playing = s.players.filter((p) => p.is_playing).length;
+  const playing = s.players.filter((p) => p.is_playing).reduce((sum, p) => sum + p.spots, 0);
   const me = s.players.find((p) => p.player_id === userId);
+  const waiting = s.players.filter((p) => !p.is_playing);
   return {
     playing,
     free: Math.max(s.capacity - playing, 0),
     me: me ? (me.is_playing ? ("playing" as const) : ("waiting" as const)) : null,
-    rank: me && !me.is_playing ? me.position - s.capacity : 0,
+    rank: me && !me.is_playing ? waiting.indexOf(me) + 1 : 0,
+    guests: me?.guests ?? 0,
   };
 }
 
