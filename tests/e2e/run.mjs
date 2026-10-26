@@ -16,7 +16,7 @@ async function loginMail(email) {
       const msg = await (await fetch(`${MAIL}/api/v1/message/${list.messages[0].ID}`)).json();
       return {
         link: msg.HTML.match(/href="([^"]+)"/)[1].replaceAll("&amp;", "&"),
-        code: msg.Text.match(/\b\d{6}\b/)[0],
+        code: msg.Text.match(/\b\d{6,10}\b/)[0],
       };
     }
     await sleep(500);
@@ -35,7 +35,7 @@ async function login(browser, email, { withCode = false } = {}) {
   await page.waitForSelector("text=E-mail envoyé");
   const mail = await loginMail(email);
   if (withCode) {
-    await page.fill("#code", "000000");
+    await page.fill("#code", "00000000");
     await page.click("button:text-is('Se connecter')");
     await page.waitForSelector("text=Code incorrect");
     await page.fill("#code", mail.code);
@@ -65,7 +65,7 @@ try {
 
   const alice = await login(browser, "alice@test.fr");
   const bob = await login(browser, "bob@test.fr", { withCode: true });
-  ok("alice se connecte par le lien de l'e-mail, bob avec le code à 6 chiffres (un mauvais code est refusé)");
+  ok("alice se connecte par le lien de l'e-mail, bob avec le code reçu (8 chiffres comme en ligne) (un mauvais code est refusé)");
 
   // Session du soir avec deux terrains
   const DATE = new Date(Date.now() + 2 * 86400e3).toISOString().slice(0, 10);

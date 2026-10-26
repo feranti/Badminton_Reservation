@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export type LoginState = { status: "idle" | "sent" | "error"; email?: string; message?: string };
 
-// Envoie un e-mail de connexion (lien + code à 6 chiffres). Seuls les joueurs invités peuvent se connecter.
+// Envoie un e-mail de connexion (lien + code à usage unique). Seuls les joueurs invités peuvent se connecter.
 export async function sendMagicLink(_prev: LoginState, formData: FormData): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email) return { status: "error", message: "Indiquez votre adresse e-mail." };
@@ -27,12 +27,15 @@ export async function sendMagicLink(_prev: LoginState, formData: FormData): Prom
   return { status: "sent", email, message: `E-mail envoyé à ${email}.` };
 }
 
-// Connexion avec le code à 6 chiffres reçu par e-mail : la session s'ouvre dans ce navigateur-ci,
+// Connexion avec le code reçu par e-mail : la session s'ouvre dans ce navigateur-ci,
 // sans avoir à ouvrir le lien (pratique depuis l'icône de l'écran d'accueil ou l'appli Gmail).
 export async function verifyCode(prev: LoginState, formData: FormData): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const token = String(formData.get("code") ?? "").replace(/\D/g, "");
-  if (token.length !== 6) return { ...prev, status: "sent", email, message: "Le code fait 6 chiffres." };
+  // La longueur du code dépend du réglage Supabase « Email OTP Length » (6 à 10 chiffres).
+  if (token.length < 6 || token.length > 10) {
+    return { ...prev, status: "sent", email, message: "Saisissez le code reçu par e-mail, sans espace." };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
