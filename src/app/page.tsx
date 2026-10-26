@@ -1,22 +1,23 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { AppHeader } from "@/components/app-header";
+import { Loading, TabPage } from "@/components/app-shell";
+import { ChevronIcon } from "@/components/icons";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
-import { SessionCard } from "@/components/session-card";
-import { primaryButton } from "@/components/ui";
+import { NextSessionCard, SessionRow } from "@/components/session-card";
+import { primaryButton, quietButton, sectionTitle } from "@/components/ui";
 import { getBalances, getPlayers, getSessions } from "@/lib/data";
 import { formatEuros } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
+import { simplifyDebts } from "@/lib/settle";
 
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-6">
-      <AppHeader />
+    <TabPage title="Résas" tab="sessions">
       <RealtimeRefresh />
-      <Suspense fallback={<p className="text-zinc-500">Chargement…</p>}>
+      <Suspense fallback={<Loading />}>
         <SessionList searchParams={searchParams} />
       </Suspense>
-    </main>
+    </TabPage>
   );
 }
 
@@ -25,50 +26,86 @@ async function SessionList({ searchParams }: { searchParams: PageProps<"/">["sea
   const { userId } = await requirePlayer();
   const [sessions, players, balances] = await Promise.all([getSessions(past), getPlayers(), getBalances()]);
   const myBalance = balances.find((b) => b.player_id === userId)?.balance_cents ?? 0;
-  const playersById = new Map(players.map((p) => [p.id, p]));
-  const me = playersById.get(userId);
+  const name = (id: string) => players.find((p) => p.id === id)?.display_name ?? "?";
+  const myDebts = simplifyDebts(balances).filter((t) => t.from === userId);
 
+  if (past) {
+    return (
+      <>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">Sessions passées</h1>
+          <Link href="/" className={quietButton}>
+            À venir
+          </Link>
+        </div>
+        {sessions.length === 0 ? (
+          <p className="py-10 text-center text-muted">Aucune session passée.</p>
+        ) : (
+          <ul className="flex flex-col">
+            {sessions.map((s) => (
+              <SessionRow key={s.id} session={s} userId={userId} past />
+            ))}
+          </ul>
+        )}
+      </>
+    );
+  }
+
+  const [next, ...later] = sessions;
   return (
     <>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Bonjour {me?.display_name}</p>
-          <h1 className="text-2xl font-semibold">{past ? "Sessions passées" : "Prochaines sessions"}</h1>
-        </div>
-        <Link href="/sessions/nouvelle" className={primaryButton}>
-          + Réservation
-        </Link>
-      </div>
-
+      <h1 className="sr-only">Prochaines sessions</h1>
       {Math.abs(myBalance) > 1 && (
         <Link
           href="/comptes"
-          className={`rounded-lg px-3 py-2 text-sm ${
-            myBalance > 0
-              ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100"
-              : "bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+          className={`flex min-h-12 items-center justify-between gap-3 rounded-xl px-4 py-3 text-[15px] ${
+            myBalance > 0 ? "bg-accent-tint text-accent-ink" : "bg-warn-bg text-warn-ink"
           }`}
         >
-          {myBalance > 0 ? `On vous doit ${formatEuros(myBalance)}` : `Vous devez ${formatEuros(-myBalance)}`} · Voir les
-          comptes →
+          <span>
+            {myBalance > 0 ? (
+              <>
+                On vous doit <strong className="font-semibold">{formatEuros(myBalance)}</strong>
+              </>
+            ) : (
+              <>
+                Vous devez <strong className="font-semibold">{formatEuros(-myBalance)}</strong>
+                {myDebts.length === 1 && <> à {name(myDebts[0].to)}</>}
+              </>
+            )}
+          </span>
+          <ChevronIcon />
         </Link>
       )}
 
-      <Link href={past ? "/" : "/?passees=1"} className="text-sm text-emerald-700 hover:underline dark:text-emerald-400">
-        {past ? "← Voir les sessions à venir" : "Voir les sessions passées"}
-      </Link>
-
-      {sessions.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-zinc-500 dark:border-zinc-700">
-          {past ? "Aucune session passée." : "Aucune session prévue. Ajoutez la prochaine réservation !"}
-        </p>
+      {!next ? (
+        <div className="flex flex-col items-center gap-4 py-12 text-center">
+          <p className="text-muted">Aucune session prévue.</p>
+          <Link href="/sessions/nouvelle" className={primaryButton}>
+            Réserver un terrain
+          </Link>
+        </div>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {sessions.map((s) => (
-            <SessionCard key={s.id} session={s} players={playersById} userId={userId} past={past} />
-          ))}
-        </ul>
+        <section className="flex flex-col gap-3">
+          <h2 className={sectionTitle}>Prochaine session</h2>
+          <NextSessionCard session={next} userId={userId} />
+        </section>
       )}
+
+      {later.length > 0 && (
+        <section className="flex flex-col">
+          <h2 className={`${sectionTitle} mb-2`}>Ensuite</h2>
+          <ul className="flex flex-col">
+            {later.map((s) => (
+              <SessionRow key={s.id} session={s} userId={userId} past={false} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <Link href="/?passees=1" className={`${quietButton} self-center`}>
+        Sessions passées
+      </Link>
     </>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { declarePayment, type PaymentState } from "@/app/comptes/actions";
 import type { Player } from "@/lib/data";
-import { inputClass, labelClass, secondaryButton } from "./ui";
+import { errorText, inputClass, labelClass, primaryButton } from "./ui";
 import { useFormAction } from "./use-form-action";
 
 export function PaymentForm({ players, userId }: { players: Player[]; userId: string }) {
@@ -16,7 +16,7 @@ export function PaymentForm({ players, userId }: { players: Player[]; userId: st
 
   const options = players.map((p) => (
     <option key={p.id} value={p.id}>
-      {p.display_name}
+      {p.id === userId ? "Moi" : p.display_name}
     </option>
   ));
 
@@ -50,11 +50,11 @@ export function PaymentForm({ players, userId }: { players: Player[]; userId: st
         </label>
       </div>
       {state.error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className={errorText}>
           {state.error}
         </p>
       )}
-      <button type="submit" disabled={pending} className={secondaryButton}>
+      <button type="submit" disabled={pending} className={primaryButton}>
         {pending ? "Enregistrement…" : "Signaler le remboursement"}
       </button>
     </form>

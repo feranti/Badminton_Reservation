@@ -1,10 +1,14 @@
-// Classes Tailwind partagées par les formulaires.
+// Classes Tailwind partagées. Les couleurs viennent des variables de globals.css (clair et sombre).
 export const inputClass =
-  "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base dark:border-zinc-700 dark:bg-zinc-900";
-export const labelClass = "flex flex-col gap-1 text-sm font-medium";
+  "w-full min-h-12 rounded-xl border border-edge bg-surface px-3 text-base text-ink placeholder:text-faint";
+export const labelClass = "flex flex-col gap-1.5 text-sm font-medium text-muted";
 export const primaryButton =
-  "rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700 disabled:opacity-60";
+  "inline-flex min-h-12 items-center justify-center rounded-xl bg-accent px-4 font-semibold text-on-accent hover:opacity-90 disabled:opacity-60";
 export const secondaryButton =
-  "rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800";
-export const dangerButton =
-  "rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950";
+  "inline-flex min-h-11 items-center justify-center rounded-xl border border-edge bg-surface px-4 font-medium text-ink hover:bg-chip disabled:opacity-60";
+export const textButton = "inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline";
+export const quietButton = "inline-flex min-h-11 items-center text-sm text-muted hover:text-ink";
+export const dangerText = "inline-flex min-h-11 items-center text-sm font-medium text-danger hover:underline";
+export const sectionTitle = "text-[13px] font-medium uppercase tracking-wider text-muted";
+export const card = "rounded-2xl border border-line bg-surface";
+export const errorText = "text-sm text-danger";
