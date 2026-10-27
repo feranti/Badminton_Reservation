@@ -138,7 +138,7 @@ try {
   await stat(alice, "Terrains", "6 · 9").waitFor();
   await stat(alice, "Joueurs", "1 / 8").waitFor();
   ok("alice réserve les terrains 6 et 9 (20:00 – 22:00 par défaut) et s'inscrit : 1/8 joueurs");
-  const first = await waitWhatsApp("🏸 alice a réservé les terrains 6 et 9\n", VENUE, "Terrains : 6 · 9", "Places restantes : 7\n", evening);
+  const first = await waitWhatsApp("🏸 *NOUVELLE RÉSERVATION*\nalice a réservé les terrains 6 et 9\n", VENUE, "Terrains : 6 · 9", "Places restantes : 7\n", evening);
   if (whatsapp.length !== 1) throw new Error(`Un seul message attendu pour deux terrains, reçu ${whatsapp.length}`);
   if (!first.includes(", 20:00 – 22:00 · ")) throw new Error(`Créneau absent du message : ${first}`);
   ok("le groupe WhatsApp reçoit un seul message : terrains 6 et 9, créneau, gymnase, 7 places restantes et le lien");
@@ -154,8 +154,9 @@ try {
   await bob.goto(APP + "/");
   await bobCard.getByText("Inscrit").waitFor();
   ok("bob s'inscrit, alice voit la part passer à 12,50 € en temps réel, l'accueil l'affiche inscrit");
-  await waitWhatsApp("🙋 bob s'inscrit\n", ", 20:00 – 22:00 · " + VENUE, "Places restantes : 6\n", evening);
-  ok("le groupe WhatsApp est prévenu de l'inscription de bob, avec les places restantes");
+  const joined = await waitWhatsApp("🙋 bob s'inscrit\n", ", 20:00 – 22:00 · " + VENUE + "\nPlaces restantes : 6\n", evening);
+  if (joined.includes("Terrains")) throw new Error(`Le message d'inscription ne doit pas lister les terrains : ${joined}`);
+  ok("le groupe WhatsApp est prévenu de l'inscription de bob, avec les places restantes et sans la liste des terrains");
 
   // Désinscription : une confirmation est demandée ; si bob annule, il reste inscrit.
   await bobCard.click();
@@ -202,7 +203,7 @@ try {
   await stat(bob, "Joueurs", "2 / 12").waitFor();
   await bob.waitForSelector("text=Volants fournis");
   ok("terrain 10 payé par bob et alice : 17,50 € chacun, 12 places");
-  await waitWhatsApp("🏸 bob et alice ont réservé le terrain 10\n", "Terrains : 6 · 9 · 10", "Places restantes : 10\n");
+  await waitWhatsApp("🏸 *NOUVELLE RÉSERVATION*\nbob et alice ont réservé le terrain 10\n", "Terrains : 6 · 9 · 10", "Places restantes : 10\n");
   ok("le groupe WhatsApp est prévenu du terrain 10, au nom de ses deux payeurs (bob et alice)");
   ok("le bouton OK de Gérer enregistre la note et revient à la session");
 
@@ -226,7 +227,7 @@ try {
   await stat(alice, "Par joueur", "20,00 €").waitFor();
   ok("le terrain 7 de 22:00 à 23:00 rejoint la session du soir (20:00 – 23:00)");
   await waitWhatsApp(
-    "🏸 alice a réservé le terrain 7 (22:00 – 23:00)\n",
+    "🏸 *NOUVELLE RÉSERVATION*\nalice a réservé le terrain 7 (22:00 – 23:00)\n",
     ", 20:00 – 23:00 · ",
     "Terrains :\n• 6 : 20:00 – 22:00\n• 7 : 22:00 – 23:00\n• 9 : 20:00 – 22:00\n• 10 : 20:00 – 22:00\n",
   );
@@ -352,12 +353,12 @@ try {
 
   // Annulation d'un terrain puis suppression de la session : le groupe WhatsApp est prévenu.
   const later = await newBooking(alice, { courts: [11, 12], start: "17:00", end: "18:00", price: "6" });
-  await waitWhatsApp("🏸 Alice a réservé les terrains 11 et 12\n", "Places restantes : 7\n");
+  await waitWhatsApp("🏸 *NOUVELLE RÉSERVATION*\nAlice a réservé les terrains 11 et 12\n", "Places restantes : 7\n");
   // 2 heures sur le terrain 11, 1 heure sur le 12 : chaque terrain avec ses horaires.
   if ((await newBooking(alice, { courts: [11], start: "18:00", end: "19:00", price: "6", payer: "bob" })) !== later)
     throw new Error("Le terrain 11 de 18:00 à 19:00 aurait dû rejoindre la session de 17:00");
   await waitWhatsApp(
-    "🏸 bob a réservé le terrain 11 (18:00 – 19:00)\n",
+    "🏸 *NOUVELLE RÉSERVATION*\nbob a réservé le terrain 11 (18:00 – 19:00)\n",
     ", 17:00 – 19:00 · ",
     "Terrains :\n• 11 : 17:00 – 19:00\n• 12 : 17:00 – 18:00\n",
   );
@@ -367,12 +368,12 @@ try {
   alice.once("dialog", (d) => d.accept());
   await alice.click('button[aria-label="Retirer le terrain 12 (17:00 – 18:00)"]');
   await alice.waitForSelector("text=Joueurs · 1 / 4");
-  await waitWhatsApp("❌ Alice a annulé le terrain 12 (17:00 – 18:00)\n", "Terrains : 11\n", "Places restantes : 3\n", later);
+  await waitWhatsApp("❌ *RÉSERVATION ANNULÉE*\nAlice a annulé le terrain 12 (17:00 – 18:00)\n", "Terrains : 11\n", "Places restantes : 3\n", later);
   ok("alice retire le terrain 12 : le groupe WhatsApp reçoit l'annulation et les places restantes");
   alice.once("dialog", (d) => d.accept());
   await alice.getByRole("button", { name: "Supprimer la session" }).click();
   await alice.waitForURL(APP + "/");
-  await waitWhatsApp("❌ Alice a supprimé la session\n", ", 17:00 – 19:00 · " + VENUE, "Terrains : 11");
+  await waitWhatsApp("❌ *SESSION SUPPRIMÉE*\nAlice a supprimé la session\n", ", 17:00 – 19:00 · " + VENUE, "Terrains : 11");
   ok("alice supprime la session : le groupe WhatsApp est prévenu");
 
   if (errors.length) throw new Error("Erreurs dans le navigateur :\n" + errors.join("\n"));
