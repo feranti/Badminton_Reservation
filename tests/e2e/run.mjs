@@ -138,7 +138,7 @@ try {
   await stat(alice, "Terrains", "6 · 9").waitFor();
   await stat(alice, "Joueurs", "1 / 8").waitFor();
   ok("alice réserve les terrains 6 et 9 (20:00 – 22:00 par défaut) et s'inscrit : 1/8 joueurs");
-  const first = await waitWhatsApp("🟢 *TERRAINS RÉSERVÉS*\n> *alice* · terrains 6 et 9\n> ", "\n> Terrains : 6 · 9\n> " + VENUE + " · 7 places restantes\n", evening);
+  const first = await waitWhatsApp("🟢 *TERRAINS RÉSERVÉS*\n▎ *alice* · terrains 6 et 9\n▎ ", "\n▎ Terrains : 6 · 9\n▎ " + VENUE + " · 7 places restantes\n", evening);
   if (whatsapp.length !== 1) throw new Error(`Un seul message attendu pour deux terrains, reçu ${whatsapp.length}`);
   if (!first.includes(", 20:00 – 22:00\n")) throw new Error(`Créneau absent du message : ${first}`);
   ok("le groupe WhatsApp reçoit un seul message : terrains 6 et 9, créneau, gymnase, 7 places restantes et le lien");
@@ -203,7 +203,7 @@ try {
   await stat(bob, "Joueurs", "2 / 12").waitFor();
   await bob.waitForSelector("text=Volants fournis");
   ok("terrain 10 payé par bob et alice : 17,50 € chacun, 12 places");
-  await waitWhatsApp("🟢 *TERRAIN RÉSERVÉ*\n> *bob et alice* · terrain 10\n", "> Terrains : 6 · 9 · 10\n", " · 10 places restantes\n");
+  await waitWhatsApp("🟢 *TERRAIN RÉSERVÉ*\n▎ *bob et alice* · terrain 10\n", "▎ Terrains : 6 · 9 · 10\n", " · 10 places restantes\n");
   ok("le groupe WhatsApp est prévenu du terrain 10, au nom de ses deux payeurs (bob et alice)");
   ok("le bouton OK de Gérer enregistre la note et revient à la session");
 
@@ -227,9 +227,9 @@ try {
   await stat(alice, "Par joueur", "20,00 €").waitFor();
   ok("le terrain 7 de 22:00 à 23:00 rejoint la session du soir (20:00 – 23:00)");
   await waitWhatsApp(
-    "🟢 *TERRAIN RÉSERVÉ*\n> *alice* · terrain 7 (22:00 – 23:00)\n",
+    "🟢 *TERRAIN RÉSERVÉ*\n▎ *alice* · terrain 7 (22:00 – 23:00)\n",
     ", 20:00 – 23:00\n",
-    "> Terrains :\n> • 6 : 20:00 – 22:00\n> • 7 : 22:00 – 23:00\n> • 9 : 20:00 – 22:00\n> • 10 : 20:00 – 22:00\n",
+    "▎ Terrains :\n▎ • 6 : 20:00 – 22:00\n▎ • 7 : 22:00 – 23:00\n▎ • 9 : 20:00 – 22:00\n▎ • 10 : 20:00 – 22:00\n",
   );
   ok("le message WhatsApp donne les horaires de chaque terrain quand ils ne sont pas tous les mêmes");
 
@@ -353,14 +353,14 @@ try {
 
   // Annulation d'un terrain puis suppression de la session : le groupe WhatsApp est prévenu.
   const later = await newBooking(alice, { courts: [11, 12], start: "17:00", end: "18:00", price: "6" });
-  await waitWhatsApp("🟢 *TERRAINS RÉSERVÉS*\n> *Alice* · terrains 11 et 12\n", " · 7 places restantes\n");
+  await waitWhatsApp("🟢 *TERRAINS RÉSERVÉS*\n▎ *Alice* · terrains 11 et 12\n", " · 7 places restantes\n");
   // 2 heures sur le terrain 11, 1 heure sur le 12 : chaque terrain avec ses horaires.
   if ((await newBooking(alice, { courts: [11], start: "18:00", end: "19:00", price: "6", payer: "bob" })) !== later)
     throw new Error("Le terrain 11 de 18:00 à 19:00 aurait dû rejoindre la session de 17:00");
   await waitWhatsApp(
-    "🟢 *TERRAIN RÉSERVÉ*\n> *bob* · terrain 11 (18:00 – 19:00)\n",
+    "🟢 *TERRAIN RÉSERVÉ*\n▎ *bob* · terrain 11 (18:00 – 19:00)\n",
     ", 17:00 – 19:00\n",
-    "> Terrains :\n> • 11 : 17:00 – 19:00\n> • 12 : 17:00 – 18:00\n",
+    "▎ Terrains :\n▎ • 11 : 17:00 – 19:00\n▎ • 12 : 17:00 – 18:00\n",
     " · 6 places restantes\n",
   );
   await stat(alice, "Joueurs", "2 / 8").waitFor();
@@ -372,7 +372,7 @@ try {
   alice.once("dialog", (d) => d.accept());
   await alice.click('button[aria-label="Retirer le terrain 12 (17:00 – 18:00)"]');
   await alice.waitForSelector("text=Joueurs · 2 / 4");
-  await waitWhatsApp("🔴 *TERRAIN ANNULÉ*\n> *Alice* · terrain 12 (17:00 – 18:00)\n", "> Terrains : 11\n", " · 2 places restantes\n", later);
+  await waitWhatsApp("🔴 *TERRAIN ANNULÉ*\n▎ *Alice* · terrain 12 (17:00 – 18:00)\n", "▎ Terrains : 11\n", " · 2 places restantes\n", later);
   ok("alice retire le terrain 12 : le groupe WhatsApp reçoit l'annulation et les places restantes");
   alice.once("dialog", (d) => d.accept());
   await alice.getByRole("button", { name: "Supprimer la session" }).click();
