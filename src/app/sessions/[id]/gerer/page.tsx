@@ -11,7 +11,7 @@ import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { groupByCourt, sessionStatus } from "@/components/session-card";
 import { card, dangerText, inputClass, quietButton, secondaryButton, sectionTitle, textButton } from "@/components/ui";
 import { getPlayers, getSession } from "@/lib/data";
-import { formatDay, formatEuros, formatPriceInput, formatTimes, toDateAndTime } from "@/lib/format";
+import { formatDay, formatEuros, formatTimes, toDateAndTime } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
 
 export default function ManageSessionPage({ params }: PageProps<"/sessions/[id]/gerer">) {
@@ -36,7 +36,6 @@ async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/ger
   const { playing } = sessionStatus(s, userId);
   const start = toDateAndTime(s.starts_at);
   const end = toDateAndTime(s.ends_at);
-  const lastPrice = s.bookings.at(-1)?.price_cents;
   const back = `/sessions/${s.id}`;
 
   return (
@@ -103,7 +102,6 @@ async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/ger
             end={end.time}
             players={players}
             userId={userId}
-            defaultPrice={lastPrice === undefined ? "" : formatPriceInput(lastPrice)}
           />
         </details>
       </section>

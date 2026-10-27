@@ -77,14 +77,16 @@ export async function getSession(id: string) {
   return session;
 }
 
-// Valeurs par défaut d'une nouvelle réservation : reprises de la dernière saisie.
-export async function getLastDefaults() {
+// Gymnase par défaut d'une nouvelle réservation : repris de la dernière saisie.
+export async function getLastVenue() {
   const { supabase } = await requirePlayer();
-  const [{ data: session }, { data: court }] = await Promise.all([
-    supabase.from("sessions").select("venue").order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("court_bookings").select("price_cents").order("created_at", { ascending: false }).limit(1).maybeSingle(),
-  ]);
-  return { venue: session?.venue ?? DEFAULT_VENUE, priceCents: court?.price_cents ?? null };
+  const { data: session } = await supabase
+    .from("sessions")
+    .select("venue")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return session?.venue ?? DEFAULT_VENUE;
 }
 
 export async function getBalances() {

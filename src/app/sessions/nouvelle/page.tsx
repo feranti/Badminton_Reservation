@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import { Loading, SubPage } from "@/components/app-shell";
 import { NewBookingForm } from "@/components/new-booking-form";
 import { USUAL_WEEKDAYS } from "@/lib/courts";
-import { getLastDefaults, getPlayers } from "@/lib/data";
-import { formatPriceInput, nextDates } from "@/lib/format";
+import { getLastVenue, getPlayers } from "@/lib/data";
+import { nextDates } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
 
 export default function NewBookingPage() {
@@ -18,14 +18,13 @@ export default function NewBookingPage() {
 
 async function Form() {
   const { userId } = await requirePlayer();
-  const [players, defaults] = await Promise.all([getPlayers(), getLastDefaults()]);
+  const [players, venue] = await Promise.all([getPlayers(), getLastVenue()]);
   return (
     <NewBookingForm
       players={players}
       userId={userId}
       dates={nextDates(USUAL_WEEKDAYS, 3)}
-      defaultVenue={defaults.venue}
-      defaultPrice={defaults.priceCents === null ? "" : formatPriceInput(defaults.priceCents)}
+      defaultVenue={venue}
     />
   );
 }
