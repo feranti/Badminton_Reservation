@@ -45,6 +45,23 @@ function payers(booking: { p_booked_by: string; p_co_payer: string | null }) {
   return booking.p_co_payer ? [booking.p_booked_by, booking.p_co_payer] : [booking.p_booked_by];
 }
 
+// Inscrit les payeurs de la réservation (sauf la personne qui la saisit, qui choisit avec « Je joue »)
+// et, s'il joue, le joueur connecté. Un joueur déjà inscrit garde sa place et ses invités.
+async function joinPayers(
+  supabase: Awaited<ReturnType<typeof requirePlayer>>["supabase"],
+  sessionId: string,
+  booking: { p_booked_by: string; p_co_payer: string | null },
+  userId: string,
+  iPlay: boolean,
+) {
+  const ids = [...new Set([...(iPlay ? [userId] : []), ...payers(booking).filter((id) => id !== userId)])];
+  if (ids.length === 0) return;
+  await supabase.from("session_participants").upsert(
+    ids.map((player_id) => ({ session_id: sessionId, player_id })),
+    { onConflict: "session_id,player_id", ignoreDuplicates: true },
+  );
+}
+
 // Ajoute une ou plusieurs réservations (un terrain chacune). L'appli les range dans la bonne session.
 export async function createBookings(_prev: FormState, formData: FormData): Promise<FormState> {
   const { supabase, userId } = await requirePlayer();
@@ -70,6 +87,7 @@ export async function createBookings(_prev: FormState, formData: FormData): Prom
   for (const court of courts) {
     const { data, error } = await supabase.rpc("add_court_booking", { ...fields.booking, p_venue: venue, p_court: court! });
     if (error) {
+      if (sessionId) await joinPayers(supabase, sessionId, fields.booking, userId, formData.get("i_play") === "on");
       await notify();
       return {
         error: error.code === "23505" ? `Le terrain ${court} est déjà réservé sur ce créneau.` : "La réservation n'a pas pu être enregistrée.",
@@ -79,11 +97,7 @@ export async function createBookings(_prev: FormState, formData: FormData): Prom
     booked.push(court!);
   }
 
-  if (formData.get("i_play") === "on") {
-    await supabase
-      .from("session_participants")
-      .upsert({ session_id: sessionId, player_id: userId }, { onConflict: "session_id,player_id", ignoreDuplicates: true });
-  }
+  await joinPayers(supabase, sessionId, fields.booking, userId, formData.get("i_play") === "on");
   await notify();
   redirect(`/sessions/${sessionId}`);
 }
@@ -109,6 +123,8 @@ export async function addBooking(sessionId: string, _prev: FormState, formData: 
   }
   // Plus de terrains = plus de places : des joueurs en attente peuvent passer joueurs.
   await notifyPromotions(supabase, newSessionId, before, userId);
+  // Après les promotions : un payeur qui arrive ne passe pas devant la liste d'attente.
+  await joinPayers(supabase, newSessionId, fields.booking, userId, false);
   await notifyGroup(supabase, userId, newSessionId, {
     kind: "added",
     courts: [court],
