@@ -121,11 +121,18 @@ try {
   await alice.waitForSelector("text=20:00 – 22:00 · Le Prisme, Bobigny");
   await alice.click('label:has(input[value="6"])');
   await alice.click('label:has(input[value="9"])');
+  if ((await alice.inputValue('input[name="price"]')) !== "18,00") throw new Error("Prix par défaut incorrect (9 € l'heure attendu)");
+  await alice.getByRole("button", { name: "Réserver 2 terrains · 36,00 €" }).waitFor();
+  await alice.getByRole("button", { name: "Modifier" }).click();
+  await alice.fill('input[name="end"]', "21:30");
+  if ((await alice.inputValue('input[name="price"]')) !== "13,50") throw new Error("Le prix par défaut ne suit pas la durée du créneau");
   await alice.fill('input[name="price"]', "12,50");
+  await alice.fill('input[name="end"]', "22:00");
+  if ((await alice.inputValue('input[name="price"]')) !== "12,50") throw new Error("Le prix saisi a été écrasé par le prix par défaut");
   await alice.getByRole("button", { name: "Réserver 2 terrains · 25,00 €" }).waitFor();
   if (await alice.evaluate(() => document.documentElement.scrollWidth > window.innerWidth))
     throw new Error("La page Nouvelle réservation déborde sur la largeur d'un téléphone");
-  ok("nouvelle réservation : 20:00 – 22:00 au Prisme par défaut, total affiché sur le bouton");
+  ok("nouvelle réservation : 20:00 – 22:00 au Prisme par défaut, prix prérempli à 9 € l'heure (suit la durée, sauf s'il est saisi), total affiché sur le bouton");
   const evening = await newBooking(alice, { courts: [6, 9], price: "12,50" });
   await alice.waitForSelector(`text=20:00 – 22:00 · ${VENUE}`);
   await stat(alice, "Terrains", "6 · 9").waitFor();
@@ -173,6 +180,10 @@ try {
   await bob.click("text=+ Ajouter un terrain");
   const addBooking = bob.locator('form[aria-label="Ajouter un terrain"]');
   await addBooking.locator('select[name="court"]').selectOption("10");
+  if ((await addBooking.locator('input[name="price"]').inputValue()) !== "18,00") throw new Error("Prix par défaut incorrect dans Ajouter un terrain");
+  await addBooking.locator('input[name="end"]').fill("21:00");
+  if ((await addBooking.locator('input[name="price"]').inputValue()) !== "9,00") throw new Error("Le prix d'Ajouter un terrain ne suit pas la durée");
+  await addBooking.locator('input[name="end"]').fill("22:00");
   await addBooking.locator('input[name="price"]').fill("10");
   await addBooking.locator('select[name="booked_by"]').selectOption({ label: "Moi" });
   await addBooking.getByText("+ Partager le paiement").click();

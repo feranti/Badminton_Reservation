@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { createBookings, type FormState } from "@/app/sessions/actions";
-import { COURTS, DEFAULT_END, DEFAULT_START } from "@/lib/courts";
+import { COURTS, DEFAULT_END, DEFAULT_START, defaultCourtPriceCents } from "@/lib/courts";
 import type { Player } from "@/lib/data";
-import { formatEuros, parseEurosToCents } from "@/lib/format";
+import { formatEuros, formatPriceInput, parseEurosToCents } from "@/lib/format";
 import { StickyFooter } from "./app-shell";
 import { CalendarIcon } from "./icons";
 import { PayerFields } from "./payer-fields";
@@ -21,13 +21,11 @@ export function NewBookingForm({
   userId,
   dates,
   defaultVenue,
-  defaultPrice,
 }: {
   players: Player[];
   userId: string;
   dates: { value: string; weekday: string; day: number }[];
   defaultVenue: string;
-  defaultPrice: string;
 }) {
   const { state, pending, onSubmit } = useFormAction<FormState>(createBookings, {});
   const [date, setDate] = useState(dates[0]?.value ?? "");
@@ -35,7 +33,10 @@ export function NewBookingForm({
   const [editSlot, setEditSlot] = useState(false);
   const [slot, setSlot] = useState({ start: DEFAULT_START, end: DEFAULT_END, venue: defaultVenue });
   const [courts, setCourts] = useState<number[]>([]);
-  const [price, setPrice] = useState(defaultPrice);
+  // Tant que le joueur n'a pas saisi de prix, il suit la durée du créneau (9 € l'heure).
+  const [typedPrice, setTypedPrice] = useState<string | null>(null);
+  const slotPrice = defaultCourtPriceCents(slot.start, slot.end);
+  const price = typedPrice ?? (slotPrice === null ? "" : formatPriceInput(slotPrice));
   const priceCents = parseEurosToCents(price);
 
   return (
@@ -123,7 +124,7 @@ export function NewBookingForm({
             required
             inputMode="decimal"
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            onChange={(e) => setTypedPrice(e.target.value)}
             className={inputClass}
             placeholder="12,50"
           />

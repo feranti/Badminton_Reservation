@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { addBooking, type FormState } from "@/app/sessions/actions";
-import { COURTS } from "@/lib/courts";
+import { COURTS, defaultCourtPriceCents } from "@/lib/courts";
 import type { Player } from "@/lib/data";
+import { formatPriceInput } from "@/lib/format";
 import { PayerFields } from "./payer-fields";
 import { errorText, inputClass, labelClass, primaryButton } from "./ui";
 import { useFormAction } from "./use-form-action";
@@ -16,7 +17,6 @@ export function AddBookingForm({
   end,
   players,
   userId,
-  defaultPrice,
 }: {
   sessionId: string;
   date: string;
@@ -24,10 +24,24 @@ export function AddBookingForm({
   end: string;
   players: Player[];
   userId: string;
-  defaultPrice: string;
 }) {
   const { state, pending, onSubmit } = useFormAction<FormState>(addBooking.bind(null, sessionId), {});
   const formRef = useRef<HTMLFormElement>(null);
+  const [slot, setSlot] = useState({ start, end });
+  // Tant que le joueur n'a pas saisi de prix, il suit la durée du créneau (9 € l'heure).
+  const [typedPrice, setTypedPrice] = useState<string | null>(null);
+  const slotPrice = defaultCourtPriceCents(slot.start, slot.end);
+  const price = typedPrice ?? (slotPrice === null ? "" : formatPriceInput(slotPrice));
+
+  // Terrain ajouté : le créneau et le prix reviennent à leurs valeurs par défaut.
+  const [handled, setHandled] = useState(state);
+  if (handled !== state) {
+    setHandled(state);
+    if (state.added) {
+      setSlot({ start, end });
+      setTypedPrice(null);
+    }
+  }
 
   useEffect(() => {
     if (state.added) formRef.current?.reset();
@@ -52,17 +66,25 @@ export function AddBookingForm({
         </label>
         <label className={labelClass}>
           Début
-          <input type="time" name="start" required defaultValue={start} className={inputClass} />
+          <input type="time" name="start" required value={slot.start} onChange={(e) => setSlot({ ...slot, start: e.target.value })} className={inputClass} />
         </label>
         <label className={labelClass}>
           Fin
-          <input type="time" name="end" required defaultValue={end} className={inputClass} />
+          <input type="time" name="end" required value={slot.end} onChange={(e) => setSlot({ ...slot, end: e.target.value })} className={inputClass} />
         </label>
       </div>
       <PayerFields players={players} userId={userId}>
         <label className={labelClass}>
           Prix
-          <input name="price" required inputMode="decimal" defaultValue={defaultPrice} placeholder="12,50" className={inputClass} />
+          <input
+            name="price"
+            required
+            inputMode="decimal"
+            value={price}
+            onChange={(e) => setTypedPrice(e.target.value)}
+            placeholder="9,00"
+            className={inputClass}
+          />
         </label>
       </PayerFields>
       {state.error && (
