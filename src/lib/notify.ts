@@ -160,7 +160,8 @@ function sessionLines(s: SessionState, link: string, { courts = true } = {}) {
 }
 
 // Texte du message envoyé au groupe ; null pour une session déjà passée. Les messages de terrains
-// commencent par un titre en gras (*…* dans WhatsApp) pour se distinguer des inscriptions.
+// commencent par un titre en gras (*…* dans WhatsApp) suivi d'un bloc citation, pour se distinguer
+// des inscriptions.
 // names : le ou les payeurs pour une réservation, sinon la personne qui annule ou supprime.
 export function groupMessage(names: string[], event: GroupEvent, current: SessionState | null, link: string, now = Date.now()) {
   const actor = names.join(" et ");
@@ -183,18 +184,23 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
   // Heures du terrain, seulement si elles diffèrent de celles de la session.
   const times =
     Date.parse(event.startsAt) !== Date.parse(ref.starts_at) || Date.parse(event.endsAt) !== Date.parse(ref.ends_at) ? ` (${formatTimes(event.startsAt, event.endsAt)})` : "";
-  const what = courtsLabel(event.courts) + times;
-  if (event.kind === "added")
-    return [
-      "🏸 *NOUVELLE RÉSERVATION*",
-      `${actor} ${names.length > 1 ? "ont" : "a"} réservé ${what}`,
-      ...sessionLines(ref, link),
-    ].join("\n");
-  if (current) return ["❌ *RÉSERVATION ANNULÉE*", `${actor} a annulé ${what}`, ...sessionLines(current, link)].join("\n");
+  // Format « bloc citation » : un titre avec une pastille de couleur, puis le détail en citation
+  // (lignes en « > ») pour que les réservations et annulations ressortent dans le fil.
+  const several = event.courts.length > 1;
+  const title = event.kind === "added" ? `🟢 *TERRAIN${several ? "S" : ""} RÉSERVÉ${several ? "S" : ""}*` : `🔴 *TERRAIN${several ? "S" : ""} ANNULÉ${several ? "S" : ""}*`;
+  const who = `> *${actor}* · ${courtsLabel(event.courts).replace(/^les? /, "")}${times}`;
+  const s = current ?? ref;
+  const free = Math.max(s.capacity - s.taken, 0);
+  const places = current
+    ? `${free} place${free > 1 ? "s" : ""} restante${free > 1 ? "s" : ""}` + (s.waiting ? ` (${s.waiting} en liste d'attente)` : "")
+    : "session supprimée";
   return [
-    "❌ *RÉSERVATION ANNULÉE*",
-    `${actor} a annulé ${what} : la session est supprimée`,
-    `${formatSlot(ref.starts_at, ref.ends_at)} · ${ref.venue}`,
+    title,
+    who,
+    `> ${formatSlot(s.starts_at, s.ends_at)}`,
+    ...(current ? courtLines(s).map((l) => `> ${l}`) : []),
+    `> ${s.venue} · ${places}`,
+    ...(current && link ? [link] : []),
   ].join("\n");
 }
 
