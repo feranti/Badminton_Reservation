@@ -75,6 +75,8 @@ export type SessionState = {
   starts_at: string;
   ends_at: string;
   courts: number[];
+  // Horaires de chaque terrain, triés par terrain puis par heure.
+  slots: { court: number; starts_at: string; ends_at: string }[];
   capacity: number;
   taken: number;
   waiting: number;
@@ -83,7 +85,12 @@ export type SessionState = {
 export async function sessionState(supabase: Client, sessionId: string): Promise<SessionState | null> {
   const [{ data: session }, { data: bookings }, { data: players }] = await Promise.all([
     supabase.from("sessions").select("*").eq("id", sessionId).maybeSingle(),
-    supabase.from("court_bookings").select("court").eq("session_id", sessionId),
+    supabase
+      .from("court_bookings")
+      .select("court, starts_at, ends_at")
+      .eq("session_id", sessionId)
+      .order("court")
+      .order("starts_at"),
     supabase.from("session_players").select("is_playing, spots").eq("session_id", sessionId),
   ]);
   if (!session) return null;
@@ -96,6 +103,7 @@ export async function sessionState(supabase: Client, sessionId: string): Promise
     starts_at: session.starts_at,
     ends_at: session.ends_at,
     courts,
+    slots: bookings ?? [],
     capacity: 4 * courts.length,
     taken: spots(true),
     waiting: spots(false),
@@ -114,11 +122,34 @@ export function courtsLabel(courts: number[]) {
   return `les terrains ${sorted.slice(0, -1).join(", ")} et ${sorted.at(-1)}`;
 }
 
+// « Terrains : 6 · 9 » quand tous les terrains suivent les heures de la session, sinon une ligne
+// par terrain avec ses horaires (deux créneaux qui se suivent sur un terrain n'en font qu'un).
+export function courtLines(s: Pick<SessionState, "starts_at" | "ends_at" | "slots" | "courts">) {
+  const same = (a: string, b: string) => Date.parse(a) === Date.parse(b);
+  const byCourt = s.courts.map((court) => {
+    const ranges: { starts_at: string; ends_at: string }[] = [];
+    for (const b of s.slots.filter((b) => b.court === court)) {
+      const last = ranges.at(-1);
+      if (last && same(last.ends_at, b.starts_at)) last.ends_at = b.ends_at;
+      else ranges.push({ starts_at: b.starts_at, ends_at: b.ends_at });
+    }
+    return { court, ranges };
+  });
+  const whole = byCourt.every(
+    ({ ranges }) => ranges.length === 1 && same(ranges[0].starts_at, s.starts_at) && same(ranges[0].ends_at, s.ends_at),
+  );
+  if (whole) return [`Terrains : ${s.courts.join(" · ")}`];
+  return [
+    "Terrains :",
+    ...byCourt.map(({ court, ranges }) => `• ${court} : ${ranges.map((r) => formatTimes(r.starts_at, r.ends_at)).join(", ")}`),
+  ];
+}
+
 function sessionLines(s: SessionState, link: string) {
   const free = Math.max(s.capacity - s.taken, 0);
   return [
     `${formatSlot(s.starts_at, s.ends_at)} · ${s.venue}`,
-    `Terrains : ${s.courts.join(" · ")}`,
+    ...courtLines(s),
     `Places restantes : ${free}` + (s.waiting ? ` (${s.waiting} en liste d'attente)` : ""),
     ...(link ? [link] : []),
   ];
@@ -133,7 +164,7 @@ export function groupMessage(actor: string, event: GroupEvent, current: SessionS
     return [
       `❌ ${actor} a supprimé la session`,
       `${formatSlot(s.starts_at, s.ends_at)} · ${s.venue}`,
-      `Terrains : ${s.courts.join(" · ")}`,
+      ...courtLines(s),
     ].join("\n");
   }
   // Heures du terrain, seulement si elles diffèrent de celles de la session.
