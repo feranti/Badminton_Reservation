@@ -148,11 +148,12 @@ export function courtLines(s: Pick<SessionState, "starts_at" | "ends_at" | "slot
   ];
 }
 
-function sessionLines(s: SessionState, link: string) {
+// Lignes communes : créneau, terrains (sauf pour une inscription), places restantes et lien.
+function sessionLines(s: SessionState, link: string, { courts = true } = {}) {
   const free = Math.max(s.capacity - s.taken, 0);
   return [
     `${formatSlot(s.starts_at, s.ends_at)} · ${s.venue}`,
-    ...courtLines(s),
+    ...(courts ? courtLines(s) : []),
     `Places restantes : ${free}` + (s.waiting ? ` (${s.waiting} en liste d'attente)` : ""),
     ...(link ? [link] : []),
   ];
@@ -175,7 +176,7 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
   if (event.kind === "joined") {
     const guests = event.guests ? ` avec ${event.guests} invité${event.guests > 1 ? "s" : ""}` : "";
     const waiting = event.playing ? "" : " (en liste d'attente)";
-    return [`🙋 ${actor} s'inscrit${guests}${waiting}`, ...sessionLines(ref, link)].join("\n");
+    return [`🙋 ${actor} s'inscrit${guests}${waiting}`, ...sessionLines(ref, link, { courts: false })].join("\n");
   }
   // Heures du terrain, seulement si elles diffèrent de celles de la session.
   const times =

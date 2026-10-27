@@ -147,8 +147,9 @@ try {
   await bob.goto(APP + "/");
   await bobCard.getByText("Inscrit").waitFor();
   ok("bob s'inscrit, alice voit la part passer à 12,50 € en temps réel, l'accueil l'affiche inscrit");
-  await waitWhatsApp("🙋 bob s'inscrit\n", ", 20:00 – 22:00 · " + VENUE, "Places restantes : 6\n", evening);
-  ok("le groupe WhatsApp est prévenu de l'inscription de bob, avec les places restantes");
+  const joined = await waitWhatsApp("🙋 bob s'inscrit\n", ", 20:00 – 22:00 · " + VENUE + "\nPlaces restantes : 6\n", evening);
+  if (joined.includes("Terrains")) throw new Error(`Le message d'inscription ne doit pas lister les terrains : ${joined}`);
+  ok("le groupe WhatsApp est prévenu de l'inscription de bob, avec les places restantes et sans la liste des terrains");
 
   // Désinscription : une confirmation est demandée ; si bob annule, il reste inscrit.
   await bobCard.click();
