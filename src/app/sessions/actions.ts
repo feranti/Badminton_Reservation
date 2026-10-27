@@ -172,11 +172,23 @@ export async function deleteSession(id: string) {
   redirect("/");
 }
 
+// Inscrit un joueur (lui-même ou un autre depuis la page de la session) et prévient le groupe.
 export async function addParticipant(sessionId: string, playerId: string, guests = 0) {
   const { supabase } = await requirePlayer();
-  await supabase
+  const { data: added } = await supabase
     .from("session_participants")
-    .upsert({ session_id: sessionId, player_id: playerId, guests }, { onConflict: "session_id,player_id", ignoreDuplicates: true });
+    .upsert({ session_id: sessionId, player_id: playerId, guests }, { onConflict: "session_id,player_id", ignoreDuplicates: true })
+    .select("player_id");
+  // Rien de renvoyé = le joueur était déjà inscrit : pas de nouveau message.
+  if (added?.length) {
+    const { data: me } = await supabase
+      .from("session_players")
+      .select("is_playing")
+      .eq("session_id", sessionId)
+      .eq("player_id", playerId)
+      .maybeSingle();
+    await notifyGroup(supabase, playerId, sessionId, { kind: "joined", guests, playing: me?.is_playing ?? true });
+  }
   refresh();
 }
 

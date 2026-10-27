@@ -114,7 +114,9 @@ export type GroupEvent =
   // payers : celui qui a payé la réservation, et le second payeur s'il y en a un.
   | { kind: "added"; courts: number[]; startsAt: string; endsAt: string; payers: string[] }
   | { kind: "removed"; courts: number[]; startsAt: string; endsAt: string; before: SessionState }
-  | { kind: "deleted"; before: SessionState };
+  | { kind: "deleted"; before: SessionState }
+  // Inscription d'un joueur, avec ses invités extérieurs ; playing = false s'il est en liste d'attente.
+  | { kind: "joined"; guests: number; playing: boolean };
 
 // « le terrain 7 », « les terrains 6 et 9 », « les terrains 6, 7 et 9 »
 export function courtsLabel(courts: number[]) {
@@ -160,7 +162,7 @@ function sessionLines(s: SessionState, link: string) {
 // names : le ou les payeurs pour une réservation, sinon la personne qui annule ou supprime.
 export function groupMessage(names: string[], event: GroupEvent, current: SessionState | null, link: string, now = Date.now()) {
   const actor = names.join(" et ");
-  const ref = current ?? (event.kind === "added" ? null : event.before);
+  const ref = current ?? (event.kind === "added" || event.kind === "joined" ? null : event.before);
   if (!ref || Date.parse(ref.ends_at) < now) return null;
   if (event.kind === "deleted") {
     const s = event.before;
@@ -169,6 +171,11 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
       `${formatSlot(s.starts_at, s.ends_at)} · ${s.venue}`,
       ...courtLines(s),
     ].join("\n");
+  }
+  if (event.kind === "joined") {
+    const guests = event.guests ? ` avec ${event.guests} invité${event.guests > 1 ? "s" : ""}` : "";
+    const waiting = event.playing ? "" : " (en liste d'attente)";
+    return [`🙋 ${actor} s'inscrit${guests}${waiting}`, ...sessionLines(ref, link)].join("\n");
   }
   // Heures du terrain, seulement si elles diffèrent de celles de la session.
   const times =
@@ -188,7 +195,8 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
 // réponse, pour ne pas ralentir l'action. Une erreur d'envoi est seulement journalisée.
 export async function notifyGroup(supabase: Client, actorId: string, sessionId: string, event: GroupEvent) {
   try {
-    // Une réservation est annoncée au nom de ses payeurs, pas de la personne qui l'a saisie.
+    // Une réservation est annoncée au nom de ses payeurs, pas de la personne qui l'a saisie ;
+    // une inscription au nom du joueur inscrit (actorId).
     const ids = event.kind === "added" ? event.payers : [actorId];
     const [state, { data: profiles }] = await Promise.all([
       event.kind === "deleted" ? Promise.resolve(null) : sessionState(supabase, sessionId),

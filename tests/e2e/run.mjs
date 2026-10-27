@@ -147,6 +147,8 @@ try {
   await bob.goto(APP + "/");
   await bobCard.getByText("Inscrit").waitFor();
   ok("bob s'inscrit, alice voit la part passer à 12,50 € en temps réel, l'accueil l'affiche inscrit");
+  await waitWhatsApp("🙋 bob s'inscrit\n", ", 20:00 – 22:00 · " + VENUE, "Places restantes : 6\n", evening);
+  ok("le groupe WhatsApp est prévenu de l'inscription de bob, avec les places restantes");
 
   // Désinscription : une confirmation est demandée ; si bob annule, il reste inscrit.
   await bobCard.click();
@@ -243,6 +245,14 @@ try {
   await bob.waitForSelector("text=Vous êtes n°1 sur la liste d'attente");
   await alice.waitForSelector("text=+1 invité", { timeout: 10000 });
   ok("la session de midi est pleine (4/4) : bob s'inscrit avec un invité (+1), le groupe passe en liste d'attente");
+  await waitWhatsApp("🙋 frank s'inscrit\n", ", 12:00 – 13:00 · ", "Places restantes : 0\n");
+  await waitWhatsApp(
+    "🙋 bob s'inscrit avec 1 invité (en liste d'attente)\n",
+    ", 12:00 – 13:00 · ",
+    "Places restantes : 0 (2 en liste d'attente)\n",
+    midday,
+  );
+  ok("le groupe WhatsApp annonce les inscriptions faites depuis Gérer, et celle de bob avec son invité en liste d'attente");
 
   // Une place libre ne suffit pas à bob et son invité : ils attendent ensemble.
   await fetch(`${MAIL}/api/v1/messages`, { method: "DELETE" });
