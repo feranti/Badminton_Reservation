@@ -7,7 +7,17 @@ Application web pour un groupe d'amis qui joue au badminton :
 - tenir les comptes en temps réel (qui doit combien à qui) ;
 - signaler un remboursement, que le bénéficiaire confirme.
 
-Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site, [Supabase](https://supabase.com) pour la base PostgreSQL, la connexion par e-mail et le temps réel, [Vercel](https://vercel.com) pour l'hébergement.
+Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site, [Supabase](https://supabase.com) pour la base PostgreSQL, la connexion par e-mail, le temps réel et le stockage des QR codes, [Vercel](https://vercel.com) pour l'hébergement. Les e-mails de liste d'attente partent par SMTP (Gmail) et les messages au groupe WhatsApp par [Green API](https://green-api.com).
+
+## Architecture
+
+![Architecture : les joueurs, le site sur Vercel, Supabase, Gmail, Green API et GitHub](docs/architecture.svg)
+
+- **Vercel** héberge le site Next.js. Les pages sont rendues sur le serveur et les formulaires passent par des Server Actions, qui envoient aussi les e-mails et les messages WhatsApp.
+- **Supabase** fournit la connexion par lien ou code e-mail (Auth), la base Postgres avec les règles d'accès par joueur (RLS), le temps réel et le stockage privé des QR codes.
+- Le **navigateur** parle directement à Supabase pour deux choses seulement : l'abonnement temps réel et l'envoi des photos de QR codes, avec le jeton du joueur.
+- **Gmail (SMTP)** envoie l'e-mail « une place s'est libérée ». **Green API** envoie au groupe WhatsApp les terrains réservés ou annulés.
+- **GitHub** garde le code ; Vercel reconstruit le site à chaque push.
 
 ## Avancement
 
@@ -110,6 +120,7 @@ src/proxy.ts               Rafraîchit la session et renvoie vers /login si beso
 src/lib/supabase/          Clients Supabase (navigateur, serveur, proxy)
 src/lib/data.ts            Lecture des sessions, réservations et joueurs
 src/lib/notify.ts          E-mail aux joueurs qui sortent de la liste d'attente
+src/lib/whatsapp.ts        Envoi d'un message au groupe WhatsApp par Green API
 src/lib/format.ts          Montants, dates et heure de Paris
 src/lib/courts.ts          Numéros des terrains du gymnase
 src/app/page.tsx           Accueil : sessions à venir ou passées
@@ -119,5 +130,6 @@ src/lib/settle.ts          Calcul des virements pour équilibrer les comptes
 src/app/profil/            Changer son nom affiché
 src/app/login/             Connexion par lien ou code reçu par e-mail
 src/app/auth/confirm/      Arrivée du lien de connexion
+docs/architecture.svg      Schéma de l'architecture (ci-dessus)
 src/components/            Éléments d'interface (carte de soirée, formulaires, temps réel)
 ```
