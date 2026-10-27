@@ -87,7 +87,7 @@ Sans ces variables, l'appli marche normalement mais n'envoie pas d'e-mail.
 
 ### Messages au groupe WhatsApp
 
-Chaque terrain réservé ou annulé, et chaque session supprimée, envoie un message au groupe WhatsApp du club
+Chaque terrain réservé ou annulé, chaque inscription (avec ses invités) et chaque session supprimée envoie un message au groupe WhatsApp du club
 (créneau, gymnase, terrains, places restantes et lien vers la session). Rien n'est envoyé pour une session déjà passée.
 L'envoi passe par [Green API](https://green-api.com), qui garde la connexion d'un numéro WhatsApp (de préférence
 un numéro dédié, membre du groupe) : l'appli n'a rien à héberger.

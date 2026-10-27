@@ -40,6 +40,11 @@ function readBooking(formData: FormData, userId: string) {
   } as const;
 }
 
+// Payeur de la réservation, puis le second payeur s'il y en a un.
+function payers(booking: { p_booked_by: string; p_co_payer: string | null }) {
+  return booking.p_co_payer ? [booking.p_booked_by, booking.p_co_payer] : [booking.p_booked_by];
+}
+
 // Ajoute une ou plusieurs réservations (un terrain chacune). L'appli les range dans la bonne session.
 export async function createBookings(_prev: FormState, formData: FormData): Promise<FormState> {
   const { supabase, userId } = await requirePlayer();
@@ -60,6 +65,7 @@ export async function createBookings(_prev: FormState, formData: FormData): Prom
       courts: booked,
       startsAt: fields.booking.p_starts_at,
       endsAt: fields.booking.p_ends_at,
+      payers: payers(fields.booking),
     });
   for (const court of courts) {
     const { data, error } = await supabase.rpc("add_court_booking", { ...fields.booking, p_venue: venue, p_court: court! });
@@ -108,6 +114,7 @@ export async function addBooking(sessionId: string, _prev: FormState, formData: 
     courts: [court],
     startsAt: fields.booking.p_starts_at,
     endsAt: fields.booking.p_ends_at,
+    payers: payers(fields.booking),
   });
   if (newSessionId !== sessionId) redirect(`/sessions/${newSessionId}`);
   refresh();
@@ -165,11 +172,23 @@ export async function deleteSession(id: string) {
   redirect("/");
 }
 
+// Inscrit un joueur (lui-même ou un autre depuis la page de la session) et prévient le groupe.
 export async function addParticipant(sessionId: string, playerId: string, guests = 0) {
   const { supabase } = await requirePlayer();
-  await supabase
+  const { data: added } = await supabase
     .from("session_participants")
-    .upsert({ session_id: sessionId, player_id: playerId, guests }, { onConflict: "session_id,player_id", ignoreDuplicates: true });
+    .upsert({ session_id: sessionId, player_id: playerId, guests }, { onConflict: "session_id,player_id", ignoreDuplicates: true })
+    .select("player_id");
+  // Rien de renvoyé = le joueur était déjà inscrit : pas de nouveau message.
+  if (added?.length) {
+    const { data: me } = await supabase
+      .from("session_players")
+      .select("is_playing")
+      .eq("session_id", sessionId)
+      .eq("player_id", playerId)
+      .maybeSingle();
+    await notifyGroup(supabase, playerId, sessionId, { kind: "joined", guests, playing: me?.is_playing ?? true });
+  }
   refresh();
 }
 

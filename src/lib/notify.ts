@@ -111,9 +111,12 @@ export async function sessionState(supabase: Client, sessionId: string): Promise
 }
 
 export type GroupEvent =
-  | { kind: "added"; courts: number[]; startsAt: string; endsAt: string }
+  // payers : celui qui a payé la réservation, et le second payeur s'il y en a un.
+  | { kind: "added"; courts: number[]; startsAt: string; endsAt: string; payers: string[] }
   | { kind: "removed"; courts: number[]; startsAt: string; endsAt: string; before: SessionState }
-  | { kind: "deleted"; before: SessionState };
+  | { kind: "deleted"; before: SessionState }
+  // Inscription d'un joueur, avec ses invités extérieurs ; playing = false s'il est en liste d'attente.
+  | { kind: "joined"; guests: number; playing: boolean };
 
 // « le terrain 7 », « les terrains 6 et 9 », « les terrains 6, 7 et 9 »
 export function courtsLabel(courts: number[]) {
@@ -156,8 +159,10 @@ function sessionLines(s: SessionState, link: string) {
 }
 
 // Texte du message envoyé au groupe ; null pour une session déjà passée.
-export function groupMessage(actor: string, event: GroupEvent, current: SessionState | null, link: string, now = Date.now()) {
-  const ref = current ?? (event.kind === "added" ? null : event.before);
+// names : le ou les payeurs pour une réservation, sinon la personne qui annule ou supprime.
+export function groupMessage(names: string[], event: GroupEvent, current: SessionState | null, link: string, now = Date.now()) {
+  const actor = names.join(" et ");
+  const ref = current ?? (event.kind === "added" || event.kind === "joined" ? null : event.before);
   if (!ref || Date.parse(ref.ends_at) < now) return null;
   if (event.kind === "deleted") {
     const s = event.before;
@@ -167,11 +172,17 @@ export function groupMessage(actor: string, event: GroupEvent, current: SessionS
       ...courtLines(s),
     ].join("\n");
   }
+  if (event.kind === "joined") {
+    const guests = event.guests ? ` avec ${event.guests} invité${event.guests > 1 ? "s" : ""}` : "";
+    const waiting = event.playing ? "" : " (en liste d'attente)";
+    return [`🙋 ${actor} s'inscrit${guests}${waiting}`, ...sessionLines(ref, link)].join("\n");
+  }
   // Heures du terrain, seulement si elles diffèrent de celles de la session.
   const times =
     Date.parse(event.startsAt) !== Date.parse(ref.starts_at) || Date.parse(event.endsAt) !== Date.parse(ref.ends_at) ? ` (${formatTimes(event.startsAt, event.endsAt)})` : "";
   const what = courtsLabel(event.courts) + times;
-  if (event.kind === "added") return [`🏸 ${actor} a réservé ${what}`, ...sessionLines(ref, link)].join("\n");
+  if (event.kind === "added")
+    return [`🏸 ${actor} ${names.length > 1 ? "ont" : "a"} réservé ${what}`, ...sessionLines(ref, link)].join("\n");
   if (current) return [`❌ ${actor} a annulé ${what}`, ...sessionLines(current, link)].join("\n");
   return [
     `❌ ${actor} a annulé ${what} : la session est supprimée`,
@@ -184,12 +195,16 @@ export function groupMessage(actor: string, event: GroupEvent, current: SessionS
 // réponse, pour ne pas ralentir l'action. Une erreur d'envoi est seulement journalisée.
 export async function notifyGroup(supabase: Client, actorId: string, sessionId: string, event: GroupEvent) {
   try {
-    const [state, { data: profile }] = await Promise.all([
+    // Une réservation est annoncée au nom de ses payeurs, pas de la personne qui l'a saisie ;
+    // une inscription au nom du joueur inscrit (actorId).
+    const ids = event.kind === "added" ? event.payers : [actorId];
+    const [state, { data: profiles }] = await Promise.all([
       event.kind === "deleted" ? Promise.resolve(null) : sessionState(supabase, sessionId),
-      supabase.from("profiles").select("display_name").eq("id", actorId).maybeSingle(),
+      supabase.from("profiles").select("id, display_name").in("id", ids),
     ]);
+    const names = ids.map((id) => profiles?.find((p) => p.id === id)?.display_name ?? "Quelqu'un");
     const link = state ? await sessionLink(sessionId) : "";
-    const message = groupMessage(profile?.display_name ?? "Quelqu'un", event, state, link);
+    const message = groupMessage(names, event, state, link);
     if (!message) return;
     after(async () => {
       try {
