@@ -97,7 +97,7 @@ try {
   // Session du soir avec deux terrains
   const DATE = new Date(Date.now() + 2 * 86400e3).toISOString().slice(0, 10);
   const stat = (page, label, value) => page.locator("div", { has: page.locator(`dt:text-is("${label}")`) }).locator(`dd:text-is("${value}")`);
-  async function newBooking(page, { courts, start, end, price, play = true }) {
+  async function newBooking(page, { courts, start, end, price, play = true, payer }) {
     await page.goto(APP + "/");
     await page.click('a[aria-label="Nouvelle réservation"]');
     await page.click('button[aria-label="Autre date"]');
@@ -108,6 +108,7 @@ try {
     if (end) await page.fill('input[name="end"]', end);
     for (const c of courts) await page.click(`label:has(input[value="${c}"])`);
     await page.fill('input[name="price"]', price);
+    if (payer) await page.locator('select[name="booked_by"]').selectOption({ label: payer });
     if (!play) await page.uncheck('input[name="i_play"]');
     await page.getByRole("button", { name: /^Réserver/ }).click();
     await page.waitForURL(/\/sessions\/[0-9a-f-]{36}$/);
@@ -188,8 +189,8 @@ try {
   await stat(bob, "Joueurs", "2 / 12").waitFor();
   await bob.waitForSelector("text=Volants fournis");
   ok("terrain 10 payé par bob et alice : 17,50 € chacun, 12 places");
-  await waitWhatsApp("🏸 bob a réservé le terrain 10\n", "Terrains : 6 · 9 · 10", "Places restantes : 10\n");
-  ok("le groupe WhatsApp est prévenu du terrain 10 ajouté par bob");
+  await waitWhatsApp("🏸 bob et alice ont réservé le terrain 10\n", "Terrains : 6 · 9 · 10", "Places restantes : 10\n");
+  ok("le groupe WhatsApp est prévenu du terrain 10, au nom de ses deux payeurs (bob et alice)");
   ok("le bouton OK de Gérer enregistre la note et revient à la session");
 
   // QR code
@@ -332,14 +333,15 @@ try {
   const later = await newBooking(alice, { courts: [11, 12], start: "17:00", end: "18:00", price: "6" });
   await waitWhatsApp("🏸 Alice a réservé les terrains 11 et 12\n", "Places restantes : 7\n");
   // 2 heures sur le terrain 11, 1 heure sur le 12 : chaque terrain avec ses horaires.
-  if ((await newBooking(alice, { courts: [11], start: "18:00", end: "19:00", price: "6" })) !== later)
+  if ((await newBooking(alice, { courts: [11], start: "18:00", end: "19:00", price: "6", payer: "bob" })) !== later)
     throw new Error("Le terrain 11 de 18:00 à 19:00 aurait dû rejoindre la session de 17:00");
   await waitWhatsApp(
-    "🏸 Alice a réservé le terrain 11 (18:00 – 19:00)\n",
+    "🏸 bob a réservé le terrain 11 (18:00 – 19:00)\n",
     ", 17:00 – 19:00 · ",
     "Terrains :\n• 11 : 17:00 – 19:00\n• 12 : 17:00 – 18:00\n",
   );
   ok("2 h sur le terrain 11 et 1 h sur le 12 : le message WhatsApp donne les horaires de chaque terrain");
+  ok("alice réserve le terrain 11 en indiquant bob comme payeur : le message WhatsApp est au nom de bob");
   await alice.click('a:text-is("Gérer")');
   alice.once("dialog", (d) => d.accept());
   await alice.click('button[aria-label="Retirer le terrain 12 (17:00 – 18:00)"]');
