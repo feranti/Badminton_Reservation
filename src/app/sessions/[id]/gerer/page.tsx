@@ -93,8 +93,9 @@ async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/ger
             </div>
           )),
         )}
-        <details className="group">
-          <summary className={`${textButton} cursor-pointer px-1 text-[15px] group-open:text-muted`}>+ Ajouter un terrain</summary>
+        {/* Ouvert, le formulaire devient un cadre en pointillés pour le distinguer des terrains réservés. */}
+        <details className="group rounded-2xl border border-dashed border-transparent open:mt-1 open:border-dash open:bg-surface open:px-4 open:pb-4">
+          <summary className={`${textButton} cursor-pointer px-1 text-[15px] group-open:-mx-1 group-open:text-muted`}>+ Ajouter un terrain</summary>
           <AddBookingForm
             sessionId={s.id}
             date={start.date}
