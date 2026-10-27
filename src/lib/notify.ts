@@ -1,9 +1,11 @@
 import { headers } from "next/headers";
+import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
-import { formatSlot } from "@/lib/format";
+import { formatSlot, formatTimes } from "@/lib/format";
 import { sendMail } from "@/lib/mail";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendToGroup } from "@/lib/whatsapp";
 
 type Client = SupabaseClient<Database>;
 
@@ -16,6 +18,14 @@ export async function snapshot(supabase: Client, sessionId: string): Promise<Sna
     registered: new Set((data ?? []).map((p) => p.player_id)),
     playing: new Set((data ?? []).filter((p) => p.is_playing).map((p) => p.player_id)),
   };
+}
+
+// Adresse complète de la page d'une session, d'après la requête en cours.
+async function sessionLink(sessionId: string) {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  return host ? `${proto}://${host}/sessions/${sessionId}` : "";
 }
 
 // Prévient par e-mail les joueurs qui viennent de passer de la liste d'attente aux joueurs effectifs.
@@ -36,10 +46,7 @@ export async function notifyPromotions(supabase: Client, sessionId: string, befo
       console.info(`[liste d'attente] ${waiting.length} joueur(s) promu(s), clé SUPABASE_SECRET_KEY absente : pas d'e-mail.`);
       return;
     }
-    const h = await headers();
-    const host = h.get("x-forwarded-host") ?? h.get("host");
-    const proto = h.get("x-forwarded-proto") ?? "http";
-    const link = host ? `${proto}://${host}/sessions/${sessionId}` : "";
+    const link = await sessionLink(sessionId);
     const slot = formatSlot(session.starts_at, session.ends_at);
 
     for (const { player_id } of waiting) {
@@ -58,5 +65,109 @@ export async function notifyPromotions(supabase: Client, sessionId: string, befo
     }
   } catch (error) {
     console.error("[liste d'attente] notification impossible", error);
+  }
+}
+
+// État d'une session pour les messages du groupe : terrains et places (invités compris).
+export type SessionState = {
+  id: string;
+  venue: string;
+  starts_at: string;
+  ends_at: string;
+  courts: number[];
+  capacity: number;
+  taken: number;
+  waiting: number;
+};
+
+export async function sessionState(supabase: Client, sessionId: string): Promise<SessionState | null> {
+  const [{ data: session }, { data: bookings }, { data: players }] = await Promise.all([
+    supabase.from("sessions").select("*").eq("id", sessionId).maybeSingle(),
+    supabase.from("court_bookings").select("court").eq("session_id", sessionId),
+    supabase.from("session_players").select("is_playing, spots").eq("session_id", sessionId),
+  ]);
+  if (!session) return null;
+  const courts = [...new Set((bookings ?? []).map((b) => b.court))].sort((a, b) => a - b);
+  const spots = (playing: boolean) =>
+    (players ?? []).filter((p) => p.is_playing === playing).reduce((sum, p) => sum + p.spots, 0);
+  return {
+    id: session.id,
+    venue: session.venue,
+    starts_at: session.starts_at,
+    ends_at: session.ends_at,
+    courts,
+    capacity: 4 * courts.length,
+    taken: spots(true),
+    waiting: spots(false),
+  };
+}
+
+export type GroupEvent =
+  | { kind: "added"; courts: number[]; startsAt: string; endsAt: string }
+  | { kind: "removed"; courts: number[]; startsAt: string; endsAt: string; before: SessionState }
+  | { kind: "deleted"; before: SessionState };
+
+// « le terrain 7 », « les terrains 6 et 9 », « les terrains 6, 7 et 9 »
+export function courtsLabel(courts: number[]) {
+  const sorted = [...courts].sort((a, b) => a - b);
+  if (sorted.length === 1) return `le terrain ${sorted[0]}`;
+  return `les terrains ${sorted.slice(0, -1).join(", ")} et ${sorted.at(-1)}`;
+}
+
+function sessionLines(s: SessionState, link: string) {
+  const free = Math.max(s.capacity - s.taken, 0);
+  return [
+    `${formatSlot(s.starts_at, s.ends_at)} · ${s.venue}`,
+    `Terrains : ${s.courts.join(" · ")}`,
+    `Places restantes : ${free}` + (s.waiting ? ` (${s.waiting} en liste d'attente)` : ""),
+    ...(link ? [link] : []),
+  ];
+}
+
+// Texte du message envoyé au groupe ; null pour une session déjà passée.
+export function groupMessage(actor: string, event: GroupEvent, current: SessionState | null, link: string, now = Date.now()) {
+  const ref = current ?? (event.kind === "added" ? null : event.before);
+  if (!ref || Date.parse(ref.ends_at) < now) return null;
+  if (event.kind === "deleted") {
+    const s = event.before;
+    return [
+      `❌ ${actor} a supprimé la session`,
+      `${formatSlot(s.starts_at, s.ends_at)} · ${s.venue}`,
+      `Terrains : ${s.courts.join(" · ")}`,
+    ].join("\n");
+  }
+  // Heures du terrain, seulement si elles diffèrent de celles de la session.
+  const times =
+    Date.parse(event.startsAt) !== Date.parse(ref.starts_at) || Date.parse(event.endsAt) !== Date.parse(ref.ends_at) ? ` (${formatTimes(event.startsAt, event.endsAt)})` : "";
+  const what = courtsLabel(event.courts) + times;
+  if (event.kind === "added") return [`🏸 ${actor} a réservé ${what}`, ...sessionLines(ref, link)].join("\n");
+  if (current) return [`❌ ${actor} a annulé ${what}`, ...sessionLines(current, link)].join("\n");
+  return [
+    `❌ ${actor} a annulé ${what} : la session est supprimée`,
+    `${formatSlot(ref.starts_at, ref.ends_at)} · ${ref.venue}`,
+  ].join("\n");
+}
+
+// Prévient le groupe WhatsApp d'une réservation ajoutée ou annulée, ou d'une session supprimée.
+// Le message est préparé tout de suite (état de la session à cet instant) et envoyé après la
+// réponse, pour ne pas ralentir l'action. Une erreur d'envoi est seulement journalisée.
+export async function notifyGroup(supabase: Client, actorId: string, sessionId: string, event: GroupEvent) {
+  try {
+    const [state, { data: profile }] = await Promise.all([
+      event.kind === "deleted" ? Promise.resolve(null) : sessionState(supabase, sessionId),
+      supabase.from("profiles").select("display_name").eq("id", actorId).maybeSingle(),
+    ]);
+    const link = state ? await sessionLink(sessionId) : "";
+    const message = groupMessage(profile?.display_name ?? "Quelqu'un", event, state, link);
+    if (!message) return;
+    after(async () => {
+      try {
+        await sendToGroup(message);
+      } catch (error) {
+        console.error("[WhatsApp] message au groupe impossible", error);
+      }
+    });
+  } catch (error) {
+    console.error("[WhatsApp] message au groupe impossible", error);
   }
 }
