@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { COURTS, MAX_GUESTS } from "@/lib/courts";
 import { parisToIso, parseEurosToCents } from "@/lib/format";
-import { notifyPromotions, snapshot } from "@/lib/notify";
+import { notifyGroup, notifyPromotions, sessionState, snapshot } from "@/lib/notify";
 import { requirePlayer } from "@/lib/session";
 
 export type FormState = { error?: string; added?: boolean };
@@ -51,14 +51,26 @@ export async function createBookings(_prev: FormState, formData: FormData): Prom
   if ("error" in fields) return { error: fields.error };
 
   let sessionId = "";
+  const booked: number[] = [];
+  // Un seul message au groupe pour tous les terrains réservés, même si l'un d'eux échoue.
+  const notify = () =>
+    booked.length > 0 &&
+    notifyGroup(supabase, userId, sessionId, {
+      kind: "added",
+      courts: booked,
+      startsAt: fields.booking.p_starts_at,
+      endsAt: fields.booking.p_ends_at,
+    });
   for (const court of courts) {
     const { data, error } = await supabase.rpc("add_court_booking", { ...fields.booking, p_venue: venue, p_court: court! });
     if (error) {
+      await notify();
       return {
         error: error.code === "23505" ? `Le terrain ${court} est déjà réservé sur ce créneau.` : "La réservation n'a pas pu être enregistrée.",
       };
     }
     sessionId = data;
+    booked.push(court!);
   }
 
   if (formData.get("i_play") === "on") {
@@ -66,6 +78,7 @@ export async function createBookings(_prev: FormState, formData: FormData): Prom
       .from("session_participants")
       .upsert({ session_id: sessionId, player_id: userId }, { onConflict: "session_id,player_id", ignoreDuplicates: true });
   }
+  await notify();
   redirect(`/sessions/${sessionId}`);
 }
 
@@ -90,15 +103,35 @@ export async function addBooking(sessionId: string, _prev: FormState, formData: 
   }
   // Plus de terrains = plus de places : des joueurs en attente peuvent passer joueurs.
   await notifyPromotions(supabase, newSessionId, before, userId);
+  await notifyGroup(supabase, userId, newSessionId, {
+    kind: "added",
+    courts: [court],
+    startsAt: fields.booking.p_starts_at,
+    endsAt: fields.booking.p_ends_at,
+  });
   if (newSessionId !== sessionId) redirect(`/sessions/${newSessionId}`);
   refresh();
   return { added: true };
 }
 
 export async function removeBooking(bookingId: string) {
-  const { supabase } = await requirePlayer();
-  const { data: booking } = await supabase.from("court_bookings").select("session_id, qr_path").eq("id", bookingId).single();
-  await supabase.rpc("remove_court_booking", { p_booking: bookingId });
+  const { supabase, userId } = await requirePlayer();
+  const { data: booking } = await supabase
+    .from("court_bookings")
+    .select("session_id, qr_path, court, starts_at, ends_at")
+    .eq("id", bookingId)
+    .single();
+  const before = booking ? await sessionState(supabase, booking.session_id) : null;
+  const { error } = await supabase.rpc("remove_court_booking", { p_booking: bookingId });
+  if (booking && before && !error) {
+    await notifyGroup(supabase, userId, booking.session_id, {
+      kind: "removed",
+      courts: [booking.court],
+      startsAt: booking.starts_at,
+      endsAt: booking.ends_at,
+      before,
+    });
+  }
   if (booking?.qr_path) await supabase.storage.from("qr-codes").remove([booking.qr_path]);
   const { data: still } = booking
     ? await supabase.from("sessions").select("id").eq("id", booking.session_id).maybeSingle()
@@ -122,10 +155,12 @@ export async function updateSession(_prev: FormState, formData: FormData): Promi
 }
 
 export async function deleteSession(id: string) {
-  const { supabase } = await requirePlayer();
+  const { supabase, userId } = await requirePlayer();
   const { data: bookings } = await supabase.from("court_bookings").select("qr_path").eq("session_id", id);
   const paths = (bookings ?? []).map((b) => b.qr_path).filter((p): p is string => Boolean(p));
-  await supabase.from("sessions").delete().eq("id", id);
+  const before = await sessionState(supabase, id);
+  const { error } = await supabase.from("sessions").delete().eq("id", id);
+  if (before && !error) await notifyGroup(supabase, userId, id, { kind: "deleted", before });
   if (paths.length) await supabase.storage.from("qr-codes").remove(paths);
   redirect("/");
 }

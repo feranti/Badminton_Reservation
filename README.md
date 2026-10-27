@@ -75,6 +75,26 @@ MAIL_FROM=Badminton Résas <votre.adresse@gmail.com>
 
 Sans ces variables, l'appli marche normalement mais n'envoie pas d'e-mail.
 
+### Messages au groupe WhatsApp
+
+Chaque terrain réservé ou annulé, et chaque session supprimée, envoie un message au groupe WhatsApp du club
+(créneau, gymnase, terrains, places restantes et lien vers la session). Rien n'est envoyé pour une session déjà passée.
+L'envoi passe par [Green API](https://green-api.com), qui garde la connexion d'un numéro WhatsApp (de préférence
+un numéro dédié, membre du groupe) : l'appli n'a rien à héberger.
+
+1. Sur green-api.com, créez une instance (l'offre gratuite Developer suffit) et scannez son QR code avec le WhatsApp du numéro.
+2. Récupérez l'identifiant du groupe (`...@g.us`), par exemple avec la méthode `getChats` de Green API.
+3. Ajoutez dans `.env.local` (et sur Vercel) :
+
+```
+GREEN_API_URL=https://7105.api.greenapi.com   # « apiUrl » affiché sur la page de l'instance
+GREEN_API_INSTANCE=7105000000                 # idInstance
+GREEN_API_TOKEN=...                           # apiTokenInstance
+WHATSAPP_GROUP_ID=120363000000000000@g.us
+```
+
+Sans ces variables, les messages sont seulement écrits dans le journal du serveur.
+
 ### 3. Mettre en ligne sur Vercel
 
 1. Sur [vercel.com](https://vercel.com), importez ce dépôt GitHub.

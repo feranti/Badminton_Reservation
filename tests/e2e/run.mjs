@@ -1,6 +1,7 @@
 // Test de bout en bout : deux joueurs (alice et bob) utilisent l'appli en même temps.
 // Prérequis : copie locale de Supabase lancée et remise à zéro, joueurs créés, appli lancée.
 // Le plus simple : `npm run check` (voir scripts/check.sh), qui fait tout.
+import { createServer } from "node:http";
 import { chromium } from "playwright";
 
 const APP = process.env.APP_URL ?? "http://127.0.0.1:3000";
@@ -8,6 +9,29 @@ const MAIL = process.env.MAIL_URL ?? "http://127.0.0.1:54324";
 const VENUE = "Gymnase " + Date.now();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
+
+// Faux Green API : reçoit les messages destinés au groupe WhatsApp (GREEN_API_URL dans check.sh).
+const whatsapp = [];
+const greenApi = createServer((req, res) => {
+  let body = "";
+  req.on("data", (chunk) => (body += chunk));
+  req.on("end", () => {
+    if (req.method === "POST" && /\/waInstance\w+\/sendMessage\/\w+$/.test(req.url)) whatsapp.push(JSON.parse(body));
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ idMessage: String(whatsapp.length) }));
+  });
+});
+await new Promise((r) => greenApi.listen(Number(process.env.GREEN_API_PORT ?? 54399), "127.0.0.1", r));
+
+// Attend le message WhatsApp qui contient tous les morceaux de texte donnés, et le renvoie.
+async function waitWhatsApp(...parts) {
+  for (let i = 0; i < 40; i++) {
+    const found = whatsapp.find((m) => m.chatId === "groupe@g.us" && parts.every((p) => m.message.includes(p)));
+    if (found) return found.message;
+    await sleep(250);
+  }
+  throw new Error(`Aucun message WhatsApp avec « ${parts.join(" », « ")} ». Reçus :\n${whatsapp.map((m) => m.message).join("\n---\n")}`);
+}
 
 async function loginMail(email) {
   for (let i = 0; i < 20; i++) {
@@ -103,6 +127,10 @@ try {
   await stat(alice, "Terrains", "6 · 9").waitFor();
   await stat(alice, "Joueurs", "1 / 8").waitFor();
   ok("alice réserve les terrains 6 et 9 (20:00 – 22:00 par défaut) et s'inscrit : 1/8 joueurs");
+  const first = await waitWhatsApp("🏸 alice a réservé les terrains 6 et 9\n", VENUE, "Terrains : 6 · 9", "Places restantes : 7 sur 8", evening);
+  if (whatsapp.length !== 1) throw new Error(`Un seul message attendu pour deux terrains, reçu ${whatsapp.length}`);
+  if (!first.includes(", 20:00 – 22:00 · ")) throw new Error(`Créneau absent du message : ${first}`);
+  ok("le groupe WhatsApp reçoit un seul message : terrains 6 et 9, créneau, gymnase, 7 places restantes sur 8 et le lien");
 
   const bobCard = bob.locator("a", { hasText: VENUE }).filter({ hasText: "20:00 –" });
   await bobCard.waitFor({ timeout: 10000 });
@@ -157,6 +185,8 @@ try {
   await stat(bob, "Joueurs", "2 / 12").waitFor();
   await bob.waitForSelector("text=Volants fournis");
   ok("terrain 10 payé par bob et alice : 17,50 € chacun, 12 places");
+  await waitWhatsApp("🏸 bob a réservé le terrain 10\n", "Terrains : 6 · 9 · 10", "Places restantes : 10 sur 12");
+  ok("le groupe WhatsApp est prévenu du terrain 10 ajouté par bob");
   ok("le bouton OK de Gérer enregistre la note et revient à la session");
 
   // QR code
@@ -178,6 +208,8 @@ try {
   await alice.waitForSelector(`text=20:00 – 23:00 · ${VENUE}`);
   await stat(alice, "Par joueur", "20,00 €").waitFor();
   ok("le terrain 7 de 22:00 à 23:00 rejoint la session du soir (20:00 – 23:00)");
+  await waitWhatsApp("🏸 alice a réservé le terrain 7 (22:00 – 23:00)\n", ", 20:00 – 23:00 · ", "Terrains : 6 · 7 · 9 · 10");
+  ok("le message WhatsApp précise les heures du terrain quand elles diffèrent de la session");
 
   const midday = await newBooking(alice, { courts: [8], start: "12:00", end: "13:00", price: "8", play: false });
   if (midday === evening) throw new Error("La réservation de midi aurait dû créer une autre session");
@@ -289,8 +321,24 @@ try {
   if ((await theme()) !== null || (await background()) !== "rgb(250, 250, 249)") throw new Error("Thème système non appliqué");
   ok("thème clair, sombre (gardé après rechargement) ou celui du téléphone");
 
+  // Annulation d'un terrain puis suppression de la session : le groupe WhatsApp est prévenu.
+  const later = await newBooking(alice, { courts: [11, 12], start: "17:00", end: "18:00", price: "6" });
+  await waitWhatsApp("🏸 Alice a réservé les terrains 11 et 12\n", "Places restantes : 7 sur 8");
+  await alice.click('a:text-is("Gérer")');
+  alice.once("dialog", (d) => d.accept());
+  await alice.click('button[aria-label="Retirer le terrain 12 (17:00 – 18:00)"]');
+  await alice.waitForSelector("text=Joueurs · 1 / 4");
+  await waitWhatsApp("❌ Alice a annulé le terrain 12\n", "Terrains : 11\n", "Places restantes : 3 sur 4", later);
+  ok("alice retire le terrain 12 : le groupe WhatsApp reçoit l'annulation et les places restantes");
+  alice.once("dialog", (d) => d.accept());
+  await alice.getByRole("button", { name: "Supprimer la session" }).click();
+  await alice.waitForURL(APP + "/");
+  await waitWhatsApp("❌ Alice a supprimé la session\n", ", 17:00 – 18:00 · " + VENUE, "Terrains : 11");
+  ok("alice supprime la session : le groupe WhatsApp est prévenu");
+
   if (errors.length) throw new Error("Erreurs dans le navigateur :\n" + errors.join("\n"));
   console.log("\nTous les tests sont passés.");
 } finally {
   await browser.close();
+  greenApi.close();
 }
