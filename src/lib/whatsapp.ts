@@ -11,7 +11,8 @@ export async function sendToGroup(message: string) {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chatId: WHATSAPP_GROUP_ID, message }),
+    // Sans aperçu du lien vers la session, pour garder des messages courts.
+    body: JSON.stringify({ chatId: WHATSAPP_GROUP_ID, message, linkPreview: false }),
     signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw new Error(`Green API a répondu ${response.status} : ${await response.text()}`);

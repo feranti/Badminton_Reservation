@@ -119,7 +119,7 @@ function sessionLines(s: SessionState, link: string) {
   return [
     `${formatSlot(s.starts_at, s.ends_at)} · ${s.venue}`,
     `Terrains : ${s.courts.join(" · ")}`,
-    `Places restantes : ${free} sur ${s.capacity}` + (s.waiting ? ` (${s.waiting} en liste d'attente)` : ""),
+    `Places restantes : ${free}` + (s.waiting ? ` (${s.waiting} en liste d'attente)` : ""),
     ...(link ? [link] : []),
   ];
 }
