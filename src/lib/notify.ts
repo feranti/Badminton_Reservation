@@ -159,8 +159,11 @@ function sessionLines(s: SessionState, link: string, { courts = true } = {}) {
   ];
 }
 
+// Barre verticale devant chaque ligne du détail d'une réservation ou annulation.
+const BAR = "▎ ";
+
 // Texte du message envoyé au groupe ; null pour une session déjà passée. Les messages de terrains
-// commencent par un titre en gras (*…* dans WhatsApp) suivi d'un bloc citation, pour se distinguer
+// commencent par un titre en gras (*…* dans WhatsApp) suivi d'un bloc marqué d'une barre, pour se distinguer
 // des inscriptions.
 // names : le ou les payeurs pour une réservation, sinon la personne qui annule ou supprime.
 export function groupMessage(names: string[], event: GroupEvent, current: SessionState | null, link: string, now = Date.now()) {
@@ -184,11 +187,12 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
   // Heures du terrain, seulement si elles diffèrent de celles de la session.
   const times =
     Date.parse(event.startsAt) !== Date.parse(ref.starts_at) || Date.parse(event.endsAt) !== Date.parse(ref.ends_at) ? ` (${formatTimes(event.startsAt, event.endsAt)})` : "";
-  // Format « bloc citation » : un titre avec une pastille de couleur, puis le détail en citation
-  // (lignes en « > ») pour que les réservations et annulations ressortent dans le fil.
+  // Un titre avec une pastille de couleur, puis le détail derrière une barre verticale pour que
+  // les réservations et annulations ressortent dans le fil. Pas de citation « > » : WhatsApp en
+  // fait un bloc séparé par ligne.
   const several = event.courts.length > 1;
   const title = event.kind === "added" ? `🟢 *TERRAIN${several ? "S" : ""} RÉSERVÉ${several ? "S" : ""}*` : `🔴 *TERRAIN${several ? "S" : ""} ANNULÉ${several ? "S" : ""}*`;
-  const who = `> *${actor}* · ${courtsLabel(event.courts).replace(/^les? /, "")}${times}`;
+  const who = `${BAR}*${actor}* · ${courtsLabel(event.courts).replace(/^les? /, "")}${times}`;
   const s = current ?? ref;
   const free = Math.max(s.capacity - s.taken, 0);
   const places = current
@@ -197,9 +201,9 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
   return [
     title,
     who,
-    `> ${formatSlot(s.starts_at, s.ends_at)}`,
-    ...(current ? courtLines(s).map((l) => `> ${l}`) : []),
-    `> ${s.venue} · ${places}`,
+    `${BAR}${formatSlot(s.starts_at, s.ends_at)}`,
+    ...(current ? courtLines(s).map((l) => `${BAR}${l}`) : []),
+    `${BAR}${s.venue} · ${places}`,
     ...(current && link ? [link] : []),
   ].join("\n");
 }
