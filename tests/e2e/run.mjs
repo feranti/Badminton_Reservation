@@ -361,14 +361,18 @@ try {
     "🏸 *NOUVELLE RÉSERVATION*\nbob a réservé le terrain 11 (18:00 – 19:00)\n",
     ", 17:00 – 19:00 · ",
     "Terrains :\n• 11 : 17:00 – 19:00\n• 12 : 17:00 – 18:00\n",
+    "Places restantes : 6\n",
   );
+  await stat(alice, "Joueurs", "2 / 8").waitFor();
+  await alice.getByRole("list", { name: "Joueurs inscrits" }).getByText("bob").waitFor();
+  ok("bob, payeur du terrain 11 réservé par alice, est inscrit automatiquement à la session");
   ok("2 h sur le terrain 11 et 1 h sur le 12 : le message WhatsApp donne les horaires de chaque terrain");
   ok("alice réserve le terrain 11 en indiquant bob comme payeur : le message WhatsApp est au nom de bob");
   await alice.click('a:text-is("Gérer")');
   alice.once("dialog", (d) => d.accept());
   await alice.click('button[aria-label="Retirer le terrain 12 (17:00 – 18:00)"]');
-  await alice.waitForSelector("text=Joueurs · 1 / 4");
-  await waitWhatsApp("❌ *RÉSERVATION ANNULÉE*\nAlice a annulé le terrain 12 (17:00 – 18:00)\n", "Terrains : 11\n", "Places restantes : 3\n", later);
+  await alice.waitForSelector("text=Joueurs · 2 / 4");
+  await waitWhatsApp("❌ *RÉSERVATION ANNULÉE*\nAlice a annulé le terrain 12 (17:00 – 18:00)\n", "Terrains : 11\n", "Places restantes : 2\n", later);
   ok("alice retire le terrain 12 : le groupe WhatsApp reçoit l'annulation et les places restantes");
   alice.once("dialog", (d) => d.accept());
   await alice.getByRole("button", { name: "Supprimer la session" }).click();
