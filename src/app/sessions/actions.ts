@@ -9,7 +9,7 @@ import { requirePlayer } from "@/lib/session";
 
 export type FormState = { error?: string; added?: boolean };
 
-// Limites aussi vérifiées en base (migration 0009).
+// Limites aussi vérifiées en base (supabase/migrations/0001_init.sql).
 const MAX_PRICE_CENTS = 100_000;
 const MAX_VENUE = 100;
 const MAX_NOTES = 500;

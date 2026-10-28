@@ -15,10 +15,12 @@ Dans le conteneur cloud, lancer `dockerd` s'il ne tourne pas, et passer
 
 ## Base de données
 
-- Toute modification de schéma passe par un nouveau fichier `supabase/migrations/NNNN_nom.sql`
-  (ne jamais modifier une migration déjà appliquée).
+- La base est créée par un seul script, `supabase/migrations/0001_init.sql` (anciennes migrations
+  0001 à 0009 regroupées). Toute modification de schéma passe par un nouveau fichier
+  `supabase/migrations/NNNN_nom.sql` à partir de `0002` (ne jamais modifier une migration déjà
+  appliquée). Les données de test sont à part, dans `supabase/donnees-test/`.
 - Toute nouvelle table ou vue a besoin de RLS **et** de `grant` explicites pour `authenticated` :
-  le projet en ligne n'ouvre pas les tables à l'API par défaut (voir `0006_droits_api.sql`).
+  le projet en ligne n'ouvre pas les tables à l'API par défaut (voir la partie « Droits de l'API » de `0001_init.sql`).
 - Appliquer ensuite la migration au projet en ligne « Badminton Reservations »
   (`yiwhkzxafkpadmvxqwhe`) avec le connecteur Supabase. Si la demande de validation n'aboutit pas,
   donner le fichier à Antoine pour qu'il l'exécute dans le SQL Editor.
