@@ -21,7 +21,7 @@ export async function declarePayment(_prev: PaymentState, formData: FormData): P
     return { error: "Vous ne pouvez signaler qu'un remboursement que vous avez fait ou reçu." };
   }
   if (!amountCents) return { error: "Le montant doit être en euros, par exemple 12,50." };
-  // Limites aussi vérifiées en base (migration 0009).
+  // Limites aussi vérifiées en base (supabase/migrations/0001_init.sql).
   if (amountCents > 1_000_000) return { error: "Le montant ne peut pas dépasser 10 000 €." };
   if (note && note.length > 200) return { error: "Note : 200 caractères maximum." };
 
