@@ -22,18 +22,6 @@ Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site
 - **Gmail (SMTP)** envoie l'e-mail « une place s'est libérée ». **Green API** envoie au groupe WhatsApp les terrains réservés ou annulés.
 - **GitHub** garde le code ; Vercel reconstruit le site à chaque push.
 
-## Avancement
-
-| Étape | Contenu | État |
-| --- | --- | --- |
-| 1 | Socle : projet Next.js, schéma de la base, connexion par lien e-mail | Fait |
-| 2 | Sessions partagées : plusieurs terrains par session, inscription des joueurs, temps réel | Fait |
-| 3 | Comptes en temps réel, liste « qui doit à qui », remboursements confirmés | Fait |
-| 3b | Sessions regroupées par créneaux, QR codes, liste d'attente et e-mail de place libérée | Fait |
-| 3c | Invités (+1, +2…), messages au groupe WhatsApp, payeurs inscrits d'office, prix par défaut (9 € l'heure) | Fait |
-| 3d | Durcissement de la sécurité (droits minimaux, limites en base) | Fait |
-| 4 | Mise en ligne sur Vercel et invitation du groupe | En cours |
-
 ## Règles de calcul
 
 - Une **réservation** = un terrain (6 à 14) sur un créneau. Elle est payée par un joueur, ou par deux (comme le permet le site du gymnase) : chacun avance alors la moitié du prix. On peut y joindre le QR code reçu par e-mail.
@@ -64,7 +52,7 @@ Par défaut, le lien de connexion doit être ouvert dans le même navigateur que
 
 Pour essayer l'appli avec des sessions déjà remplies, exécutez `supabase/donnees-test/remplir.sql` dans **SQL Editor** : il ajoute 8 joueurs fictifs (qui ne peuvent pas se connecter), 9 sessions passées et à venir et quelques remboursements. Votre compte (le plus ancien du projet) y joue le rôle de « vous ». Tout est marqué `(test)` ou `[TEST]`, et `supabase/donnees-test/vider.sql` efface tout sans toucher aux vraies données.
 
-Pour plus tard (étape 4) : l'envoi d'e-mails intégré à Supabase est limité à quelques messages par heure, et les modèles d'e-mail ne sont modifiables qu'avec un service d'envoi à vous. Branchez un service SMTP (Gmail avec un mot de passe d'application, Resend, Brevo…) dans **Authentication > Emails > SMTP Settings**, puis collez le contenu de `supabase/templates/magic_link.html` dans le modèle **Magic Link** : l'e-mail contiendra un lien qui marche dans n'importe quel navigateur et un code à saisir dans l'appli (pratique depuis l'icône de l'écran d'accueil).
+Pour inviter le groupe : l'envoi d'e-mails intégré à Supabase est limité à quelques messages par heure, et les modèles d'e-mail ne sont modifiables qu'avec un service d'envoi à vous. Branchez un service SMTP (Gmail avec un mot de passe d'application, Resend, Brevo…) dans **Authentication > Emails > SMTP Settings**, puis collez le contenu de `supabase/templates/magic_link.html` dans le modèle **Magic Link** : l'e-mail contiendra un lien qui marche dans n'importe quel navigateur et un code à saisir dans l'appli (pratique depuis l'icône de l'écran d'accueil).
 
 ### 2. Lancer le site en local
 
