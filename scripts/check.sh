@@ -44,6 +44,14 @@ for player in alice bob carol dave eve frank; do
     -H "apikey: $SECRET_KEY" -H "Authorization: Bearer $SECRET_KEY" -H "Content-Type: application/json" \
     -d "{\"email\":\"$player@test.fr\",\"email_confirm\":true}"
 done
+# Limites en base (0009) : un appel direct à l'API ne peut pas les contourner.
+LIMITS=$(psql "$DB_URL" -q \
+  -c "insert into public.sessions (venue, starts_at, ends_at, created_by) select repeat('x', 101), now(), now() + interval '1 hour', id from public.profiles limit 1" \
+  -c "update public.profiles set display_name = repeat('x', 41)" 2>&1 || true)
+if [[ "$LIMITS" != *sessions_venue_length* || "$LIMITS" != *profiles_display_name_length* ]]; then
+  echo "✗ La base accepte un nom de gymnase ou de joueur trop long."
+  exit 1
+fi
 sleep 15 # le service temps réel redémarre après la remise à zéro
 
 export NEXT_PUBLIC_SUPABASE_URL="$API_URL"

@@ -16,11 +16,11 @@ export function EditSessionForm({ id, venue, notes }: { id: string; venue: strin
       <input type="hidden" name="id" value={id} />
       <label className={labelClass}>
         Gymnase
-        <input name="venue" required defaultValue={venue} className={inputClass} />
+        <input name="venue" required maxLength={100} defaultValue={venue} className={inputClass} />
       </label>
       <label className={labelClass}>
         Note pour les joueurs
-        <input name="notes" defaultValue={notes} className={inputClass} placeholder="Volants à apporter…" />
+        <input name="notes" maxLength={500} defaultValue={notes} className={inputClass} placeholder="Volants à apporter…" />
       </label>
       {state.error && (
         <p role="alert" className={errorText}>
