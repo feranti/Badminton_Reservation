@@ -9,6 +9,11 @@ import { requirePlayer } from "@/lib/session";
 
 export type FormState = { error?: string; added?: boolean };
 
+// Limites aussi vérifiées en base (migration 0009).
+const MAX_PRICE_CENTS = 100_000;
+const MAX_VENUE = 100;
+const MAX_NOTES = 500;
+
 function readCourt(value: FormDataEntryValue | null) {
   const court = Number(value);
   return (COURTS as readonly number[]).includes(court) ? court : null;
@@ -24,6 +29,7 @@ function readBooking(formData: FormData, userId: string) {
 
   const priceCents = parseEurosToCents(String(formData.get("price") ?? ""));
   if (priceCents === null) return { error: "Le prix doit être un montant en euros, par exemple 12,50." } as const;
+  if (priceCents > MAX_PRICE_CENTS) return { error: "Le prix d'un terrain ne peut pas dépasser 1 000 €." } as const;
 
   const bookedBy = String(formData.get("booked_by") ?? "") || userId;
   const coPayer = String(formData.get("co_payer") ?? "") || null;
@@ -67,6 +73,7 @@ export async function createBookings(_prev: FormState, formData: FormData): Prom
   const { supabase, userId } = await requirePlayer();
   const venue = String(formData.get("venue") ?? "").trim();
   if (!venue) return { error: "Indiquez le gymnase." };
+  if (venue.length > MAX_VENUE) return { error: `Nom du gymnase : ${MAX_VENUE} caractères maximum.` };
   const courts = formData.getAll("courts").map(readCourt);
   if (courts.length === 0 || courts.some((c) => c === null)) return { error: "Cochez au moins un terrain." };
   const fields = readBooking(formData, userId);
@@ -169,6 +176,8 @@ export async function updateSession(_prev: FormState, formData: FormData): Promi
   const venue = String(formData.get("venue") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
   if (!venue) return { error: "Indiquez le gymnase." };
+  if (venue.length > MAX_VENUE) return { error: `Nom du gymnase : ${MAX_VENUE} caractères maximum.` };
+  if (notes && notes.length > MAX_NOTES) return { error: `Note : ${MAX_NOTES} caractères maximum.` };
   const { error } = await supabase.from("sessions").update({ venue, notes }).eq("id", id);
   if (error) return { error: "La modification n'a pas pu être enregistrée." };
   // Le bouton OK de l'écran Gérer enregistre puis revient à la session.

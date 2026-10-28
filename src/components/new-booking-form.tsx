@@ -90,7 +90,7 @@ export function NewBookingForm({
           </div>
           <label className={labelClass}>
             Gymnase
-            <input name="venue" required value={slot.venue} onChange={(e) => setSlot({ ...slot, venue: e.target.value })} className={inputClass} />
+            <input name="venue" required maxLength={100} value={slot.venue} onChange={(e) => setSlot({ ...slot, venue: e.target.value })} className={inputClass} />
           </label>
         </div>
       </fieldset>

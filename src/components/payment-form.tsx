@@ -46,7 +46,7 @@ export function PaymentForm({ players, userId }: { players: Player[]; userId: st
         </label>
         <label className={labelClass}>
           Remarque
-          <input name="note" placeholder="Lydia, espèces…" className={inputClass} />
+          <input name="note" maxLength={200} placeholder="Lydia, espèces…" className={inputClass} />
         </label>
       </div>
       {state.error && (

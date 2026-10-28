@@ -133,6 +133,10 @@ try {
   if (await alice.evaluate(() => document.documentElement.scrollWidth > window.innerWidth))
     throw new Error("La page Nouvelle réservation déborde sur la largeur d'un téléphone");
   ok("nouvelle réservation : 20:00 – 22:00 au Prisme par défaut, prix prérempli à 9 € l'heure (suit la durée, sauf s'il est saisi), total affiché sur le bouton");
+  await alice.fill('input[name="price"]', "2000");
+  await alice.getByRole("button", { name: /^Réserver/ }).click();
+  await alice.waitForSelector("text=Le prix d'un terrain ne peut pas dépasser 1 000 €.");
+  ok("un prix de terrain au-delà de 1 000 € est refusé");
   const evening = await newBooking(alice, { courts: [6, 9], price: "12,50" });
   await alice.waitForSelector(`text=20:00 – 22:00 · ${VENUE}`);
   await stat(alice, "Terrains", "6 · 9").waitFor();
