@@ -12,6 +12,28 @@ Le site s'utilise surtout sur téléphone (icône sur l'écran d'accueil), en th
 
 Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site, [Supabase](https://supabase.com) pour la base PostgreSQL, la connexion par e-mail, le temps réel et le stockage des QR codes, [Vercel](https://vercel.com) pour l'hébergement. Les e-mails de liste d'attente partent par SMTP (Gmail) et les messages au groupe WhatsApp par [Green API](https://green-api.com).
 
+## Captures d'écran
+
+Prises sur téléphone avec le jeu de données fictif (`supabase/donnees-test/`) : les joueurs et les montants sont inventés.
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/captures/accueil.png" alt="Accueil : solde et sessions à venir" width="240"><br><sub>Accueil : solde et sessions à venir</sub></td>
+    <td align="center" width="33%"><img src="docs/captures/session.png" alt="Une session : terrains, joueurs, part de chacun" width="240"><br><sub>Une session : terrains, joueurs, part de chacun</sub></td>
+    <td align="center" width="33%"><img src="docs/captures/liste-attente.png" alt="Session complète : liste d'attente" width="240"><br><sub>Session complète : liste d'attente</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><img src="docs/captures/nouvelle-reservation.png" alt="Nouvelle réservation" width="240"><br><sub>Nouvelle réservation</sub></td>
+    <td align="center" width="33%"><img src="docs/captures/gerer.png" alt="Gérer : terrains, payeurs, QR codes" width="240"><br><sub>Gérer : terrains, payeurs, QR codes</sub></td>
+    <td align="center" width="33%"><img src="docs/captures/comptes.png" alt="Comptes : qui doit combien à qui" width="240"><br><sub>Comptes : qui doit combien à qui</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><img src="docs/captures/calcul.png" alt="Explication du calcul" width="240"><br><sub>Explication du calcul</sub></td>
+    <td align="center" width="33%"><img src="docs/captures/accueil-sombre.png" alt="Accueil en thème sombre" width="240"><br><sub>Accueil en thème sombre</sub></td>
+    <td align="center" width="33%"><img src="docs/captures/comptes-sombre.png" alt="Comptes en thème sombre" width="240"><br><sub>Comptes en thème sombre</sub></td>
+  </tr>
+</table>
+
 ## Architecture
 
 ![Architecture : les joueurs, le site sur Vercel, Supabase, Gmail, Green API et GitHub](docs/architecture.svg)
@@ -141,5 +163,6 @@ src/app/profil/            Changer son nom affiché et le thème (clair, sombre 
 src/app/login/             Connexion par lien ou code reçu par e-mail
 src/app/auth/confirm/      Arrivée du lien de connexion
 docs/architecture.svg      Schéma de l'architecture (ci-dessus)
+docs/captures/             Captures d'écran du README
 src/components/            Éléments d'interface (carte de soirée, formulaires, temps réel)
 ```
