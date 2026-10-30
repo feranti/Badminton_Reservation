@@ -229,11 +229,14 @@ try {
     throw new Error("La réservation de 22:00 aurait dû rejoindre la session du soir");
   await alice.waitForSelector(`text=20:00 – 23:00 · ${VENUE}`);
   await stat(alice, "Par joueur", "20,00 €").waitFor();
+  await stat(alice, "Joueurs", "2 / 12").waitFor();
   ok("le terrain 7 de 22:00 à 23:00 rejoint la session du soir (20:00 – 23:00)");
+  ok("4 terrains mais jamais plus de 3 à la fois : 12 places, pas 16");
   await waitWhatsApp(
     "🟢 *TERRAIN RÉSERVÉ*\n▎ *alice* · terrain 7 (22:00 – 23:00)\n",
     ", 20:00 – 23:00\n",
     "▎ Terrains :\n▎ • 6 : 20:00 – 22:00\n▎ • 7 : 22:00 – 23:00\n▎ • 9 : 20:00 – 22:00\n▎ • 10 : 20:00 – 22:00\n",
+    " · 10 places restantes\n",
   );
   ok("le message WhatsApp donne les horaires de chaque terrain quand ils ne sont pas tous les mêmes");
 

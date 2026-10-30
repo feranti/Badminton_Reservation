@@ -1,4 +1,4 @@
-import { DEFAULT_VENUE } from "@/lib/courts";
+import { DEFAULT_VENUE, sessionCapacity } from "@/lib/courts";
 import type { Tables } from "@/lib/database.types";
 import { requirePlayer } from "@/lib/session";
 
@@ -47,7 +47,7 @@ async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = 
       ...s,
       bookings: sessionBookings,
       players: players.data.filter((p) => p.session_id === s.id),
-      capacity: 4 * new Set(sessionBookings.map((b) => b.court)).size,
+      capacity: sessionCapacity(sessionBookings),
       totalCents: sessionBookings.reduce((sum, b) => sum + b.price_cents, 0),
     };
   });

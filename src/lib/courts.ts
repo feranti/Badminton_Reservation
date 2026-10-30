@@ -24,3 +24,23 @@ export const USUAL_WEEKDAYS = [1, 4];
 
 // Invités extérieurs (sans compte) qu'un joueur peut amener à une session : +1 à +7.
 export const MAX_GUESTS = 7;
+
+// Joueurs par terrain (double).
+export const PLAYERS_PER_COURT = 4;
+
+// Capacité d'une session : 4 joueurs × le plus grand nombre de terrains réservés en même temps.
+// Un terrain de 20:00 à 22:00 et deux autres l'un de 20:00 à 21:00, l'autre de 21:00 à 22:00
+// font 2 terrains à la fois, donc 8 places (et non 12). Même calcul que la vue session_players.
+export function sessionCapacity(bookings: { court: number; starts_at: string; ends_at: string }[]) {
+  let max = 0;
+  for (const b of bookings) {
+    const at = new Date(b.starts_at).getTime();
+    const courts = new Set(
+      bookings
+        .filter((o) => new Date(o.starts_at).getTime() <= at && new Date(o.ends_at).getTime() > at)
+        .map((o) => o.court),
+    );
+    max = Math.max(max, courts.size);
+  }
+  return PLAYERS_PER_COURT * max;
+}
