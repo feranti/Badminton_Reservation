@@ -46,7 +46,7 @@ Prises sur téléphone avec le jeu de données fictif (`supabase/donnees-test/`)
 
 ## Règles de calcul
 
-- Une **réservation** = un terrain (6 à 14) sur un créneau. Elle est payée par un joueur, ou par deux (comme le permet le site du gymnase) : chacun avance alors la moitié du prix. On peut y joindre le QR code reçu par e-mail.
+- Une **réservation** = un terrain (6 à 14) sur un créneau. Elle est payée par un joueur, ou par deux (comme le permet le site du gymnase) : chacun avance alors la moitié du prix. On peut y joindre le QR code reçu par e-mail, et corriger son prix après coup dans « Gérer » (les comptes sont recalculés).
 - Une **session** regroupe automatiquement les réservations d'un même gymnase dont les créneaux se suivent ou se chevauchent (par exemple 20:00 – 21:00 et 21:00 – 22:00). Une réservation à midi et une le soir font deux sessions.
 - Les joueurs s'inscrivent à la session, pas à un terrain. Capacité : 4 places par terrain différent. Au-delà, les inscrits sont en **liste d'attente**, dans l'ordre d'inscription. Ceux qui paient une réservation y sont inscrits d'office.
 - Un inscrit peut amener des **invités** sans compte : chacun prend une place, et l'inscrit paie leur part. Un inscrit et ses invités jouent ensemble ou attendent ensemble.
