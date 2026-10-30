@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { sessionCapacity } from "@/lib/courts";
 import type { Database } from "@/lib/database.types";
 import { formatSlot, formatTimes } from "@/lib/format";
 import { sendMail } from "@/lib/mail";
@@ -104,7 +105,7 @@ export async function sessionState(supabase: Client, sessionId: string): Promise
     ends_at: session.ends_at,
     courts,
     slots: bookings ?? [],
-    capacity: 4 * courts.length,
+    capacity: sessionCapacity(bookings ?? []),
     taken: spots(true),
     waiting: spots(false),
   };
