@@ -378,6 +378,25 @@ try {
   await alice.waitForSelector("text=Joueurs · 2 / 4");
   await waitWhatsApp("🔴 *TERRAIN ANNULÉ*\n▎ *Alice* · terrain 12 (17:00 – 18:00)\n", "▎ Terrains : 11\n", " · 2 places restantes\n", later);
   ok("alice retire le terrain 12 : le groupe WhatsApp reçoit l'annulation et les places restantes");
+
+  // Prix corrigé après coup : terrain 11 de 18:00 à 19:00 (payé par bob) passe de 6 € à 10 €.
+  // Session : 16 € pour alice et bob, 8 € chacun → alice -2 €, bob +2 € (il était déjà à +2 €).
+  await bob.goto(later);
+  await stat(bob, "Par joueur", "6,00 €").waitFor();
+  const price = alice.locator('input[aria-label="Prix du terrain 11 (18:00 – 19:00)"]');
+  await alice.locator("details", { has: price }).locator("summary").click();
+  if ((await price.inputValue()) !== "6,00") throw new Error("Le prix actuel du terrain n'est pas prérempli");
+  await price.fill("1500");
+  await price.press("Enter");
+  await alice.waitForSelector("text=Le prix d'un terrain ne peut pas dépasser 1 000 €.");
+  await price.fill("10");
+  await price.press("Enter");
+  await alice.waitForSelector("text=Terrains · 16,00 €");
+  await alice.waitForSelector("text=18:00 – 19:00 · 10,00 € · payé par bob");
+  await stat(bob, "Par joueur", "8,00 €").waitFor({ timeout: 10000 });
+  await bob.goto(APP + "/comptes");
+  await bob.waitForSelector("text=On vous doit 4,00 €");
+  ok("alice corrige le prix d'un terrain déjà réservé (au-delà de 1 000 € refusé) : part et comptes recalculés, bob le voit en temps réel");
   alice.once("dialog", (d) => d.accept());
   await alice.getByRole("button", { name: "Supprimer la session" }).click();
   await alice.waitForURL(APP + "/");

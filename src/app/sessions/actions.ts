@@ -170,6 +170,20 @@ export async function removeBooking(bookingId: string) {
   refresh();
 }
 
+// Change le prix d'un terrain déjà réservé (prix réel différent, remise…). Les comptes et la part
+// de chacun sont recalculés à partir des prix : rien d'autre à mettre à jour.
+export async function updateBookingPrice(bookingId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const { supabase } = await requirePlayer();
+  const priceCents = parseEurosToCents(String(formData.get("price") ?? ""));
+  if (priceCents === null) return { error: "Le prix doit être un montant en euros, par exemple 12,50." };
+  if (priceCents > MAX_PRICE_CENTS) return { error: "Le prix d'un terrain ne peut pas dépasser 1 000 €." };
+  const { data, error } = await supabase.from("court_bookings").update({ price_cents: priceCents }).eq("id", bookingId).select("id");
+  if (error) return { error: "Le prix n'a pas pu être modifié." };
+  if (!data?.length) return { error: "Ce terrain n'existe plus." };
+  refresh();
+  return { added: true };
+}
+
 export async function updateSession(_prev: FormState, formData: FormData): Promise<FormState> {
   const { supabase } = await requirePlayer();
   const id = String(formData.get("id") ?? "");

@@ -22,6 +22,7 @@ export default function AccountsHelpPage() {
         </p>
         <ul className="flex list-disc flex-col gap-1.5 pl-5 text-muted">
           <li>Les joueurs en liste d&apos;attente ne paient rien tant qu&apos;ils n&apos;ont pas de place.</li>
+          <li>Le prix d&apos;un terrain se corrige après coup dans « Gérer » : les comptes sont recalculés aussitôt.</li>
           <li>
             Un joueur peut venir avec des invités extérieurs (+1, +2…). Chaque invité prend une place et sa part est payée
             par le joueur qui l&apos;amène.

@@ -54,7 +54,7 @@ export type Database = {
           co_payer?: string | null;
           created_by?: string;
         };
-        Update: { qr_path?: string | null };
+        Update: { qr_path?: string | null; price_cents?: number };
         Relationships: [];
       };
       session_participants: {

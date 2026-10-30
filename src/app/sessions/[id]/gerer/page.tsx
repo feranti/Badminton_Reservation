@@ -4,6 +4,7 @@ import { addParticipantFromForm, deleteSession, removeBooking, removeParticipant
 import { AddBookingForm } from "@/components/add-booking-form";
 import { Loading, SubPage } from "@/components/app-shell";
 import { ConfirmButton } from "@/components/confirm-button";
+import { EditPriceForm } from "@/components/edit-price-form";
 import { EditSessionForm, SessionDoneButton } from "@/components/edit-session-form";
 import { CheckIcon, TrashIcon } from "@/components/icons";
 import { QrUpload } from "@/components/qr-upload";
@@ -66,6 +67,12 @@ async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/ger
                 {formatTimes(b.starts_at, b.ends_at)} · {formatEuros(b.price_cents)} · payé par {name(b.booked_by)}
                 {b.co_payer && <> et {name(b.co_payer)} (moitié chacun)</>}
               </p>
+              <EditPriceForm
+                key={b.price_cents}
+                bookingId={b.id}
+                priceCents={b.price_cents}
+                label={`terrain ${court} (${formatTimes(b.starts_at, b.ends_at)})`}
+              />
               {b.qr_path ? (
                 <div className="flex items-center gap-3 text-sm">
                   <span className="flex items-center gap-1.5 font-medium text-accent-ink">
