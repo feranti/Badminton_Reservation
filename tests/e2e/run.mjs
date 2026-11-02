@@ -115,6 +115,21 @@ try {
     return page.url();
   }
 
+  // Pastille UCPA de l'en-tête : menu avec le site de réservation et la carte 10 sessions
+  await alice.getByRole("button", { name: "UCPA" }).click();
+  const ucpa = alice.getByRole("list", { name: "Liens UCPA" });
+  for (const [name, href] of [
+    ["Réserver un terrain", "https://www.ucpa.com/groupesos/le-prisme/badminton"],
+    ["Carte 10 sessions", "https://www.ucpa.com/groupesos/le-prisme/offre/carte-10-sessions-de-badminton"],
+  ]) {
+    const link = ucpa.getByRole("link", { name });
+    if ((await link.getAttribute("href")) !== href || (await link.getAttribute("target")) !== "_blank")
+      throw new Error(`Lien UCPA « ${name} » incorrect`);
+  }
+  await alice.keyboard.press("Escape");
+  await ucpa.waitFor({ state: "detached" });
+  ok("la pastille UCPA de l'accueil ouvre les liens de réservation et de la carte 10 sessions");
+
   await alice.click('a[aria-label="Nouvelle réservation"]');
   if ((await alice.inputValue('input[name="venue"]')) !== "Le Prisme, Bobigny") throw new Error("Gymnase par défaut incorrect");
   if ((await alice.inputValue('input[name="start"]')) !== "20:00") throw new Error("Heure par défaut incorrecte");

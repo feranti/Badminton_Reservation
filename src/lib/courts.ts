@@ -44,3 +44,9 @@ export function sessionCapacity(bookings: { court: number; starts_at: string; en
   }
   return PLAYERS_PER_COURT * max;
 }
+
+// Site de l'UCPA pour réserver les terrains du Prisme et acheter la carte 10 sessions.
+export const UCPA_LINKS = [
+  { label: "Réserver un terrain", href: "https://www.ucpa.com/groupesos/le-prisme/badminton" },
+  { label: "Carte 10 sessions", href: "https://www.ucpa.com/groupesos/le-prisme/offre/carte-10-sessions-de-badminton" },
+] as const;

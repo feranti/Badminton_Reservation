@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BackIcon, CalendarIcon, CloseIcon, PlusIcon, UserIcon, WalletIcon } from "./icons";
+import { UcpaMenu } from "./ucpa-menu";
 
 const roundButton = "flex size-11 items-center justify-center rounded-full";
 
@@ -18,6 +19,7 @@ export function TabPage({
       <header className="mx-auto flex w-full max-w-xl items-center justify-between px-5 pt-5 pb-2">
         <span className="text-[17px] font-semibold tracking-tight">{title}</span>
         <div className="flex items-center gap-2">
+          {tab === "sessions" && <UcpaMenu />}
           {tab === "sessions" && (
             <Link href="/sessions/nouvelle" aria-label="Nouvelle réservation" className={`${roundButton} bg-accent text-on-accent`}>
               <PlusIcon />
