@@ -50,3 +50,17 @@ export const UCPA_LINKS = [
   { label: "Réserver un terrain", href: "https://www.ucpa.com/groupesos/le-prisme/badminton" },
   { label: "Carte 10 sessions", href: "https://www.ucpa.com/groupesos/le-prisme/offre/carte-10-sessions-de-badminton" },
 ] as const;
+
+// Heures d'une réservation : l'UCPA donne un QR code par heure de terrain.
+// Un terrain de 20:00 à 22:00 donne [20:00 – 21:00, 21:00 – 22:00] ; une heure entamée compte.
+const HOUR_MS = 60 * 60 * 1000;
+export function bookingHours(b: { starts_at: string; ends_at: string }) {
+  const start = new Date(b.starts_at).getTime();
+  const end = new Date(b.ends_at).getTime();
+  const count = Math.min(24, Math.max(1, Math.ceil((end - start) / HOUR_MS)));
+  return Array.from({ length: count }, (_, hour) => ({
+    hour,
+    startsAt: new Date(start + hour * HOUR_MS).toISOString(),
+    endsAt: new Date(Math.min(end, start + (hour + 1) * HOUR_MS)).toISOString(),
+  }));
+}

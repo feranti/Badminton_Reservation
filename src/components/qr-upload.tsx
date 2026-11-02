@@ -7,21 +7,22 @@ import { UploadIcon } from "./icons";
 
 // Bouton « Ajouter le QR code » : ouvre les photos ou captures d'écran du téléphone
 // et envoie l'image directement dans le stockage privé de Supabase.
-export function QrUpload({ bookingId, hasQr }: { bookingId: string; hasQr: boolean }) {
+// hour : rang de l'heure dans la réservation (un QR code par heure) ; label précise laquelle.
+export function QrUpload({ bookingId, hour, hasQr, label }: { bookingId: string; hour: number; hasQr: boolean; label?: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<"idle" | "uploading" | "error">("idle");
 
   async function upload(file: File) {
     setStatus("uploading");
     const ext = (file.name.split(".").pop() || "png").toLowerCase();
-    const path = `${bookingId}/${Date.now()}.${ext}`;
+    const path = `${bookingId}/${hour}-${Date.now()}.${ext}`;
     const supabase = createClient();
     const { error } = await supabase.storage.from("qr-codes").upload(path, file, { contentType: file.type });
     if (error) {
       setStatus("error");
       return;
     }
-    await setQrPath(bookingId, path);
+    await setQrPath(bookingId, hour, path);
     setStatus("idle");
   }
 
@@ -32,7 +33,7 @@ export function QrUpload({ bookingId, hasQr }: { bookingId: string; hasQr: boole
         type="file"
         accept="image/*,application/pdf"
         className="sr-only"
-        aria-label="Fichier du QR code"
+        aria-label={label ? `Fichier du QR code · ${label}` : "Fichier du QR code"}
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) void upload(file);
@@ -50,7 +51,7 @@ export function QrUpload({ bookingId, hasQr }: { bookingId: string; hasQr: boole
         }
       >
         {!hasQr && <UploadIcon />}
-        {status === "uploading" ? "Envoi…" : hasQr ? "Remplacer" : "Ajouter le QR code"}
+        {status === "uploading" ? "Envoi…" : hasQr ? "Remplacer" : label ? `Ajouter le QR code · ${label}` : "Ajouter le QR code"}
       </button>
       {status === "error" && <span className="text-sm text-danger">Envoi impossible, réessayez.</span>}
     </>
