@@ -280,6 +280,16 @@ export async function setGuests(sessionId: string, _prev: FormState, formData: F
   if (error) return { error: "Le nombre d'invités n'a pas pu être modifié." };
   // Moins d'invités = des places libérées pour la liste d'attente.
   await notifyPromotions(supabase, sessionId, before, userId);
+  // Le groupe voit les places restantes avec les invités ajoutés ou retirés.
+  if (guests !== me.guests) {
+    const { data: now } = await supabase
+      .from("session_players")
+      .select("is_playing")
+      .eq("session_id", sessionId)
+      .eq("player_id", userId)
+      .maybeSingle();
+    await notifyGroup(supabase, userId, sessionId, { kind: "guests", guests, playing: now?.is_playing ?? true });
+  }
   refresh();
   return {};
 }

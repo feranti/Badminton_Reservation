@@ -401,6 +401,15 @@ try {
   ok("bob, payeur du terrain 11 réservé par alice, est inscrit automatiquement à la session");
   ok("2 h sur le terrain 11 et 1 h sur le 12 : le message WhatsApp donne les horaires de chaque terrain");
   ok("alice réserve le terrain 11 en indiquant bob comme payeur : le message WhatsApp est au nom de bob");
+  // bob ajoute puis retire des invités : le groupe voit les places restantes à jour.
+  await bob.goto(later);
+  await bob.selectOption('select[name="guests"]', "3");
+  await waitWhatsApp("🙋 bob vient avec 3 invités\n", ", 17:00 – 19:00 · ", "Places restantes : 3\n", later);
+  await stat(bob, "Joueurs", "5 / 8").waitFor();
+  await bob.selectOption('select[name="guests"]', "0");
+  await waitWhatsApp("🙋 bob vient sans invité\n", "Places restantes : 6\n", later);
+  await stat(bob, "Joueurs", "2 / 8").waitFor();
+  ok("bob ajoute 3 invités puis les retire : le groupe WhatsApp reçoit les places restantes à jour");
   await alice.click('a:text-is("Gérer")');
   alice.once("dialog", (d) => d.accept());
   await alice.click('button[aria-label="Retirer le terrain 12 (17:00 – 18:00)"]');
