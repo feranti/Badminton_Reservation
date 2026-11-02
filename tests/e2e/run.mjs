@@ -90,6 +90,17 @@ try {
   await stranger.waitForSelector("text=invité");
   ok("un inconnu ne peut pas se connecter");
 
+  // Icônes de l'appli (volant), accessibles sans être connecté
+  await stranger.waitForSelector('link[rel="apple-touch-icon"]', { state: "attached" });
+  await stranger.waitForSelector('link[rel="manifest"]', { state: "attached" });
+  const manifest = await (await fetch(APP + "/manifest.webmanifest")).json();
+  if (manifest.icons?.length !== 3) throw new Error("manifest sans icônes : " + JSON.stringify(manifest));
+  for (const path of ["/favicon.ico", "/apple-icon.png", ...manifest.icons.map((i) => i.src)]) {
+    const res = await fetch(APP + path, { redirect: "manual" });
+    if (res.status !== 200 || !/^image\//.test(res.headers.get("content-type") ?? "")) throw new Error(`icône ${path} : ${res.status}`);
+  }
+  ok("l'icône du volant est servie (favicon, écran d'accueil iPhone et Android)");
+
   const alice = await login(browser, "alice@test.fr");
   const bob = await login(browser, "bob@test.fr", { withCode: true });
   ok("alice se connecte par le lien de l'e-mail, bob avec le code reçu (8 chiffres comme en ligne) (un mauvais code est refusé)");
