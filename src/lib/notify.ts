@@ -117,7 +117,9 @@ export type GroupEvent =
   | { kind: "removed"; courts: number[]; startsAt: string; endsAt: string; before: SessionState }
   | { kind: "deleted"; before: SessionState }
   // Inscription d'un joueur, avec ses invités extérieurs ; playing = false s'il est en liste d'attente.
-  | { kind: "joined"; guests: number; playing: boolean };
+  | { kind: "joined"; guests: number; playing: boolean }
+  // Un joueur déjà inscrit change son nombre d'invités.
+  | { kind: "guests"; guests: number; playing: boolean };
 
 // « le terrain 7 », « les terrains 6 et 9 », « les terrains 6, 7 et 9 »
 export function courtsLabel(courts: number[]) {
@@ -169,7 +171,7 @@ const BAR = "▎ ";
 // names : le ou les payeurs pour une réservation, sinon la personne qui annule ou supprime.
 export function groupMessage(names: string[], event: GroupEvent, current: SessionState | null, link: string, now = Date.now()) {
   const actor = names.join(" et ");
-  const ref = current ?? (event.kind === "added" || event.kind === "joined" ? null : event.before);
+  const ref = current ?? (event.kind === "added" || event.kind === "joined" || event.kind === "guests" ? null : event.before);
   if (!ref || Date.parse(ref.ends_at) < now) return null;
   if (event.kind === "deleted") {
     const s = event.before;
@@ -184,6 +186,11 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
     const guests = event.guests ? ` avec ${event.guests} invité${event.guests > 1 ? "s" : ""}` : "";
     const waiting = event.playing ? "" : " (en liste d'attente)";
     return [`🙋 ${actor} s'inscrit${guests}${waiting}`, ...sessionLines(ref, link, { courts: false })].join("\n");
+  }
+  if (event.kind === "guests") {
+    const guests = event.guests ? `avec ${event.guests} invité${event.guests > 1 ? "s" : ""}` : "sans invité";
+    const waiting = event.playing ? "" : " (en liste d'attente)";
+    return [`🙋 ${actor} vient ${guests}${waiting}`, ...sessionLines(ref, link, { courts: false })].join("\n");
   }
   // Heures du terrain, seulement si elles diffèrent de celles de la session.
   const times =
