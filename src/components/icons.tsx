@@ -76,3 +76,8 @@ export const UploadIcon = ({ className = "size-5" }: Props) => (
     <path d="M12 16V4M7 9l5-5 5 5M4 20h16" />
   </svg>
 );
+export const ExternalIcon = ({ className = "size-4" }: Props) => (
+  <svg {...base} className={className}>
+    <path d="M8 16L16 8M9 8h7v7" />
+  </svg>
+);
