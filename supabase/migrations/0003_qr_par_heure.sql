@@ -14,7 +14,10 @@ create table public.booking_qr_codes (
 insert into public.booking_qr_codes (booking_id, hour, qr_path)
 select id, 0, qr_path from public.court_bookings where qr_path is not null;
 
-alter table public.court_bookings drop column qr_path;
+-- L'ancienne colonne court_bookings.qr_path n'est plus lue par l'appli. Elle est gardée pour que
+-- la version en ligne continue de marcher entre l'exécution de ce script et sa mise à jour ;
+-- elle pourra être supprimée par une prochaine migration.
+comment on column public.court_bookings.qr_path is 'Obsolète : remplacé par booking_qr_codes (0003).';
 
 alter table public.booking_qr_codes enable row level security;
 create policy "qr: lecture" on public.booking_qr_codes
