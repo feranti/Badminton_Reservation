@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
     turbopackFileSystemCacheForBuild: false,
   },
   partialPrefetching: true,
+  // Le service worker doit toujours être relu pour que ses mises à jour arrivent.
+  async headers() {
+    return [{ source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }] }];
+  },
   turbopack: {
     rules: {
       "*.css": {

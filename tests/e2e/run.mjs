@@ -248,22 +248,68 @@ try {
   await terrain6.getByRole("button", { name: "Ajouter le QR code · 20:00 – 21:00" }).waitFor();
   await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
   await terrain6.getByLabel("Fichier du QR code · 20:00 – 21:00").setInputFiles({ name: "qr.png", mimeType: "image/png", buffer: png });
-  await terrain6.getByText("QR code 20:00 – 21:00").waitFor();
+  await terrain6.getByRole("button", { name: "Remplacer le QR code · 20:00 – 21:00" }).waitFor();
   await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
   const qrLinks = alice.locator("section", { hasText: "QR codes d'entrée" }).locator("a", { hasText: "Terrain 6" });
   await qrLinks.filter({ hasText: "20:00" }).waitFor({ timeout: 10000 });
   await terrain6.getByLabel("Fichier du QR code · 21:00 – 22:00").setInputFiles({ name: "qr2.png", mimeType: "image/png", buffer: png });
-  await terrain6.getByText("QR code 21:00 – 22:00").waitFor();
+  await terrain6.getByRole("button", { name: "Remplacer le QR code · 21:00 – 22:00" }).waitFor();
   await qrLinks.filter({ hasText: "21:00" }).waitFor({ timeout: 10000 });
   if ((await terrain6.getByRole("button", { name: "Remplacer" }).count()) !== 2)
     throw new Error("Le terrain 6 devrait avoir ses deux QR codes, un par heure");
   ok("bob ajoute un QR code par heure du terrain 6 (20:00 et 21:00), alice les voit en temps réel");
   // Supprimer le QR code d'une heure ne touche pas à l'autre
-  await terrain6.locator("div.flex-wrap", { hasText: "QR code 21:00 – 22:00" }).getByRole("button", { name: "Supprimer" }).click();
+  await terrain6.getByRole("button", { name: "Supprimer le QR code · 21:00 – 22:00" }).click();
   await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
-  await terrain6.getByText("QR code 20:00 – 21:00").waitFor();
+  await terrain6.getByRole("button", { name: "Remplacer le QR code · 20:00 – 21:00" }).waitFor();
   await qrLinks.filter({ hasText: "21:00" }).waitFor({ state: "detached", timeout: 10000 });
   ok("supprimer le QR code de 21:00 garde celui de 20:00");
+
+  // Coller un QR code copié (depuis Gmail par exemple)
+  await bob.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: APP });
+  await bob.evaluate(async (b64) => {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": new Blob([bytes], { type: "image/png" }) })]);
+  }, png.toString("base64"));
+  await terrain6.getByRole("button", { name: "Coller le QR code · 21:00 – 22:00" }).click();
+  await terrain6.getByRole("button", { name: "Remplacer le QR code · 21:00 – 22:00" }).waitFor();
+  await qrLinks.filter({ hasText: "21:00" }).waitFor({ timeout: 10000 });
+  ok("bob colle l'image copiée comme QR code de 21:00, alice le voit");
+  await terrain6.getByRole("button", { name: "Supprimer le QR code · 21:00 – 22:00" }).click();
+  await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
+
+  // Partager une image vers l'appli depuis le menu « Partager » d'Android (share_target du manifest)
+  const share = (await (await fetch(APP + "/manifest.webmanifest")).json()).share_target;
+  if (share?.action !== "/partager/recevoir" || share.method !== "POST" || share.params?.files?.[0]?.name !== "qr")
+    throw new Error("manifest sans share_target : " + JSON.stringify(share));
+  const gerer = bob.url();
+  await bob.goto(APP + "/partager");
+  await bob.getByText("Pour quel créneau ?").waitFor();
+  await bob.evaluate(() => navigator.serviceWorker.ready);
+  if (!(await bob.evaluate(() => Boolean(navigator.serviceWorker.controller)))) await bob.reload();
+  await bob.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  // Android envoie l'image comme ce formulaire ; le service worker la reçoit.
+  await bob.evaluate(({ action, name }) => {
+    const form = Object.assign(document.createElement("form"), { method: "post", action, enctype: "multipart/form-data" });
+    form.innerHTML = `<input type="file" name="${name}" id="partage-test">`;
+    document.body.append(form);
+  }, { action: share.action, name: share.params.files[0].name });
+  await bob.setInputFiles("#partage-test", { name: "qr-gmail.png", mimeType: "image/png", buffer: png });
+  await bob.evaluate(() => document.querySelector("#partage-test").form.submit());
+  await bob.getByAltText("QR code reçu").waitFor();
+  await bob.getByLabel("Terrain 6 · 21:00 – 22:00", { exact: true }).check();
+  if (!(await bob.locator("label", { hasText: "Terrain 6 · 20:00 – 21:00" }).getByText("déjà un QR code").count()))
+    throw new Error("La page de partage devrait signaler que 20:00 a déjà un QR code");
+  await bob.getByRole("button", { name: "Envoyer le QR code" }).click();
+  await bob.waitForURL(evening);
+  await qrLinks.filter({ hasText: "21:00" }).waitFor({ timeout: 10000 });
+  await bob.goto(gerer);
+  await terrain6.getByRole("button", { name: "Remplacer le QR code · 21:00 – 22:00" }).waitFor();
+  await bob.goto(APP + "/partager");
+  await bob.getByText("Pour quel créneau ?").waitFor();
+  if (await bob.getByAltText("QR code reçu").count()) throw new Error("L'image partagée aurait dû être oubliée après l'envoi");
+  ok("bob partage une image vers l'appli, choisit terrain 6 · 21:00 et le QR code est enregistré");
+  await bob.goto(gerer);
 
   // Regroupement : un créneau qui suit rejoint la même session, celui de midi en crée une autre
   if ((await newBooking(alice, { courts: [7], start: "22:00", end: "23:00", price: "5" })) !== evening)

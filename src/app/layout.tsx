@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ServiceWorker } from "@/components/service-worker";
 import { THEME_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
@@ -36,7 +37,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Applique le thème choisi (clair ou sombre) avant l'affichage, pour éviter un flash. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="flex min-h-full flex-col bg-bg font-sans text-ink">{children}</body>
+      <body className="flex min-h-full flex-col bg-bg font-sans text-ink">
+        {children}
+        <ServiceWorker />
+      </body>
     </html>
   );
 }
