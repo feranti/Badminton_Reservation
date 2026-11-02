@@ -17,7 +17,7 @@ const list = await (await fetch(`${MAIL}/api/v1/search?query=to:alice@test.fr`))
 const msg = await (await fetch(`${MAIL}/api/v1/message/${list.messages[0].ID}`)).json();
 await page.goto(msg.HTML.match(/href="([^"]+)"/)[1].replaceAll("&amp;", "&"));
 await page.waitForSelector('nav[aria-label="Navigation principale"]');
-for (const path of ["/", "/?passees=1", "/comptes", "/comptes/aide", "/profil", "/sessions/nouvelle"]) {
+for (const path of ["/", "/?passees=1", "/comptes", "/comptes/aide", "/profil", "/sessions/nouvelle", "/partager"]) {
   await page.goto(APP + path);
   await page.waitForTimeout(1500);
 }

@@ -1,29 +1,45 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { setQrPath } from "@/app/sessions/actions";
-import { createClient } from "@/lib/supabase/client";
+import { useRef, useState, useSyncExternalStore } from "react";
+import { canPasteImage, readClipboardImage, uploadQr } from "@/lib/qr-upload";
 import { UploadIcon } from "./icons";
 
-// Bouton « Ajouter le QR code » : ouvre les photos ou captures d'écran du téléphone
-// et envoie l'image directement dans le stockage privé de Supabase.
-// hour : rang de l'heure dans la réservation (un QR code par heure) ; label précise laquelle.
-export function QrUpload({ bookingId, hour, hasQr, label }: { bookingId: string; hour: number; hasQr: boolean; label?: string }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [status, setStatus] = useState<"idle" | "uploading" | "error">("idle");
+const noSubscribe = () => () => {};
+const action = "inline-flex min-h-11 items-center gap-1.5 text-sm disabled:opacity-60";
 
-  async function upload(file: File) {
+// Boutons d'une tuile QR code (une heure de terrain) :
+// « Ajouter » ouvre les photos ou captures d'écran, « Coller » reprend une image copiée
+// (depuis Gmail par exemple), « Remplacer » quand il y a déjà un QR code.
+// L'image va directement dans le stockage privé de Supabase.
+// hour : rang de l'heure dans la réservation ; label : l'heure, pour les noms accessibles.
+// children : actions placées avant (Voir).
+export function QrUpload({
+  bookingId,
+  hour,
+  hasQr,
+  label,
+  children,
+}: {
+  bookingId: string;
+  hour: number;
+  hasQr: boolean;
+  label?: string;
+  children?: React.ReactNode;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [status, setStatus] = useState<"idle" | "uploading" | "error" | "empty">("idle");
+  const pasteable = useSyncExternalStore(noSubscribe, canPasteImage, () => false);
+  const suffix = label ? ` · ${label}` : "";
+
+  async function upload(file: Blob, name?: string) {
     setStatus("uploading");
-    const ext = (file.name.split(".").pop() || "png").toLowerCase();
-    const path = `${bookingId}/${hour}-${Date.now()}.${ext}`;
-    const supabase = createClient();
-    const { error } = await supabase.storage.from("qr-codes").upload(path, file, { contentType: file.type });
-    if (error) {
-      setStatus("error");
-      return;
-    }
-    await setQrPath(bookingId, hour, path);
-    setStatus("idle");
+    setStatus((await uploadQr(bookingId, hour, file, name)) ? "idle" : "error");
+  }
+
+  async function paste() {
+    const file = await readClipboardImage();
+    if (file) await upload(file, file.name);
+    else setStatus("empty");
   }
 
   return (
@@ -33,27 +49,43 @@ export function QrUpload({ bookingId, hour, hasQr, label }: { bookingId: string;
         type="file"
         accept="image/*,application/pdf"
         className="sr-only"
-        aria-label={label ? `Fichier du QR code · ${label}` : "Fichier du QR code"}
+        aria-label={`Fichier du QR code${suffix}`}
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) void upload(file);
+          if (file) void upload(file, file.name);
           e.target.value = "";
         }}
       />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={status === "uploading"}
-        className={
-          hasQr
-            ? "inline-flex min-h-11 items-center text-sm text-muted hover:text-ink disabled:opacity-60"
-            : "flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-dash text-[15px] disabled:opacity-60"
-        }
-      >
-        {!hasQr && <UploadIcon />}
-        {status === "uploading" ? "Envoi…" : hasQr ? "Remplacer" : label ? `Ajouter le QR code · ${label}` : "Ajouter le QR code"}
-      </button>
-      {status === "error" && <span className="text-sm text-danger">Envoi impossible, réessayez.</span>}
+      <span className="flex flex-wrap items-center gap-x-3">
+        {status === "uploading" ? (
+          <span className={`${action} text-muted`}>Envoi…</span>
+        ) : (
+          <>
+            {children}
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              aria-label={`${hasQr ? "Remplacer" : "Ajouter"} le QR code${suffix}`}
+              className={hasQr ? `${action} text-muted hover:text-ink` : `${action} font-medium text-accent`}
+            >
+              {!hasQr && <UploadIcon className="size-4" />}
+              {hasQr ? "Remplacer" : "Ajouter"}
+            </button>
+            {pasteable && !hasQr && (
+              <button
+                type="button"
+                onClick={() => void paste()}
+                aria-label={`Coller le QR code${suffix}`}
+                className={`${action} text-muted hover:text-ink`}
+              >
+                Coller
+              </button>
+            )}
+          </>
+        )}
+      </span>
+      {status === "error" && <span className="text-sm text-danger">Échec, réessayez.</span>}
+      {status === "empty" && <span className="text-sm text-danger">Aucune image copiée.</span>}
     </>
   );
 }
