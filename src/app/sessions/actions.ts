@@ -148,9 +148,10 @@ export async function removeBooking(bookingId: string) {
   const { supabase, userId } = await requirePlayer();
   const { data: booking } = await supabase
     .from("court_bookings")
-    .select("session_id, qr_path, court, starts_at, ends_at")
+    .select("session_id, court, starts_at, ends_at")
     .eq("id", bookingId)
     .single();
+  const { data: qrs } = await supabase.from("booking_qr_codes").select("qr_path").eq("booking_id", bookingId);
   const before = booking ? await sessionState(supabase, booking.session_id) : null;
   const { error } = await supabase.rpc("remove_court_booking", { p_booking: bookingId });
   if (booking && before && !error) {
@@ -162,7 +163,7 @@ export async function removeBooking(bookingId: string) {
       before,
     });
   }
-  if (booking?.qr_path) await supabase.storage.from("qr-codes").remove([booking.qr_path]);
+  if (!error && qrs?.length) await supabase.storage.from("qr-codes").remove(qrs.map((q) => q.qr_path));
   const { data: still } = booking
     ? await supabase.from("sessions").select("id").eq("id", booking.session_id).maybeSingle()
     : { data: null };
@@ -202,8 +203,11 @@ export async function updateSession(_prev: FormState, formData: FormData): Promi
 
 export async function deleteSession(id: string) {
   const { supabase, userId } = await requirePlayer();
-  const { data: bookings } = await supabase.from("court_bookings").select("qr_path").eq("session_id", id);
-  const paths = (bookings ?? []).map((b) => b.qr_path).filter((p): p is string => Boolean(p));
+  const { data: bookings } = await supabase.from("court_bookings").select("id").eq("session_id", id);
+  const { data: qrs } = bookings?.length
+    ? await supabase.from("booking_qr_codes").select("qr_path").in("booking_id", bookings.map((b) => b.id))
+    : { data: [] };
+  const paths = (qrs ?? []).map((q) => q.qr_path);
   const before = await sessionState(supabase, id);
   const { error } = await supabase.from("sessions").delete().eq("id", id);
   if (before && !error) await notifyGroup(supabase, userId, id, { kind: "deleted", before });
@@ -309,10 +313,19 @@ export async function addParticipantFromForm(sessionId: string, formData: FormDa
   if (playerId) await addParticipant(sessionId, playerId);
 }
 
-export async function setQrPath(bookingId: string, path: string | null) {
+// QR code d'une heure d'un terrain (hour = 0 pour la première heure) ; path = null le supprime.
+export async function setQrPath(bookingId: string, hour: number, path: string | null) {
   const { supabase } = await requirePlayer();
-  const { data: old } = await supabase.from("court_bookings").select("qr_path").eq("id", bookingId).single();
-  await supabase.from("court_bookings").update({ qr_path: path }).eq("id", bookingId);
-  if (old?.qr_path && old.qr_path !== path) await supabase.storage.from("qr-codes").remove([old.qr_path]);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return;
+  const { data: old } = await supabase
+    .from("booking_qr_codes")
+    .select("qr_path")
+    .eq("booking_id", bookingId)
+    .eq("hour", hour)
+    .maybeSingle();
+  const { error } = path
+    ? await supabase.from("booking_qr_codes").upsert({ booking_id: bookingId, hour, qr_path: path })
+    : await supabase.from("booking_qr_codes").delete().eq("booking_id", bookingId).eq("hour", hour);
+  if (!error && old?.qr_path && old.qr_path !== path) await supabase.storage.from("qr-codes").remove([old.qr_path]);
   refresh();
 }

@@ -8,6 +8,7 @@ import { groupByCourt, sessionStatus } from "@/components/session-card";
 import { GuestsForm } from "@/components/join-form";
 import { JoinButton, SessionPlayers } from "@/components/session-players";
 import { card, sectionTitle } from "@/components/ui";
+import { bookingHours } from "@/lib/courts";
 import { getPlayers, getSession, isPast } from "@/lib/data";
 import { formatDay, formatEuros, formatTimes, shareCents } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
@@ -35,7 +36,14 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
   const past = isPast(s);
   const payers = [...new Set(s.bookings.flatMap((b) => [b.booked_by, b.co_payer]).filter((p): p is string => Boolean(p)))];
   const payersText = payers.map(name).join(", ").replace(/, ([^,]*)$/, " et $1");
-  const qrs = s.bookings.filter((b) => b.qrUrl);
+  // Un QR code par heure de terrain : l'heure est précisée dès qu'un terrain en a plusieurs.
+  const qrs = s.bookings.flatMap((b) => {
+    const hours = bookingHours(b);
+    const several = hours.length > 1 || courts.find(([c]) => c === b.court)![1].length > 1;
+    return b.qrs
+      .filter((q) => q.url && hours[q.hour])
+      .map((q) => ({ key: `${b.id}-${q.hour}`, url: q.url!, court: b.court, time: several ? formatTimes(hours[q.hour].startsAt, hours[q.hour].endsAt).split(" ")[0] : null }));
+  });
 
   return (
     <SubPage
@@ -85,19 +93,17 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
         <section className="flex flex-col gap-3">
           <h2 className={sectionTitle}>QR codes d&apos;entrée</h2>
           <div className="grid grid-cols-2 gap-2">
-            {qrs.map((b) => (
+            {qrs.map((q) => (
               <a
-                key={b.id}
-                href={b.qrUrl!}
+                key={q.key}
+                href={q.url}
                 target="_blank"
                 rel="noreferrer"
                 className={`${card} flex min-h-14 items-center justify-center gap-2 rounded-xl text-[15px] font-medium`}
               >
                 <QrIcon />
-                Terrain {b.court}
-                {courts.find(([c]) => c === b.court)![1].length > 1 && (
-                  <span className="text-muted"> · {formatTimes(b.starts_at, b.ends_at).split(" ")[0]}</span>
-                )}
+                Terrain {q.court}
+                {q.time && <span className="text-muted"> · {q.time}</span>}
               </a>
             ))}
           </div>

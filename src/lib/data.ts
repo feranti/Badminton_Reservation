@@ -3,7 +3,9 @@ import type { Tables } from "@/lib/database.types";
 import { requirePlayer } from "@/lib/session";
 
 export type Player = Tables<"profiles">;
-export type CourtBooking = Tables<"court_bookings"> & { qrUrl: string | null };
+// Un QR code par heure de la réservation (hour = 0 pour la première heure).
+export type BookingQr = { hour: number; path: string; url: string | null };
+export type CourtBooking = Tables<"court_bookings"> & { qrs: BookingQr[] };
 // guests = invités extérieurs amenés par le joueur ; spots = places prises (lui compris).
 export type SessionPlayer = { player_id: string; position: number; is_playing: boolean; guests: number; spots: number };
 export type Session = Tables<"sessions"> & {
@@ -30,10 +32,14 @@ async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = 
   ]);
   if (bookings.error) throw bookings.error;
   if (players.error) throw players.error;
+  const qrs = bookings.data.length
+    ? await supabase.from("booking_qr_codes").select("booking_id, hour, qr_path").in("booking_id", bookings.data.map((b) => b.id)).order("hour")
+    : { data: [], error: null };
+  if (qrs.error) throw qrs.error;
 
   // Liens temporaires vers les QR codes (stockage privé), seulement quand la page les affiche.
   const urls = new Map<string, string>();
-  const paths = bookings.data.map((b) => b.qr_path).filter((p): p is string => Boolean(p));
+  const paths = qrs.data.map((q) => q.qr_path);
   if (qrUrls && paths.length > 0) {
     const { data } = await supabase.storage.from("qr-codes").createSignedUrls(paths, 60 * 60);
     for (const item of data ?? []) if (item.path && item.signedUrl) urls.set(item.path, item.signedUrl);
@@ -42,7 +48,12 @@ async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = 
   return sessions.map((s) => {
     const sessionBookings = bookings.data
       .filter((b) => b.session_id === s.id)
-      .map((b) => ({ ...b, qrUrl: b.qr_path ? (urls.get(b.qr_path) ?? null) : null }));
+      .map((b) => ({
+        ...b,
+        qrs: qrs.data
+          .filter((q) => q.booking_id === b.id)
+          .map((q) => ({ hour: q.hour, path: q.qr_path, url: urls.get(q.qr_path) ?? null })),
+      }));
     return {
       ...s,
       bookings: sessionBookings,

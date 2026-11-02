@@ -11,6 +11,7 @@ import { QrUpload } from "@/components/qr-upload";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { groupByCourt, sessionStatus } from "@/components/session-card";
 import { card, dangerText, inputClass, quietButton, secondaryButton, sectionTitle, textButton } from "@/components/ui";
+import { bookingHours } from "@/lib/courts";
 import { getPlayers, getSession } from "@/lib/data";
 import { formatDay, formatEuros, formatTimes, toDateAndTime } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
@@ -73,29 +74,34 @@ async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/ger
                 priceCents={b.price_cents}
                 label={`terrain ${court} (${formatTimes(b.starts_at, b.ends_at)})`}
               />
-              {b.qr_path ? (
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="flex items-center gap-1.5 font-medium text-accent-ink">
-                    <CheckIcon />
-                    QR code ajouté
-                  </span>
-                  {b.qrUrl && (
-                    <a href={b.qrUrl} target="_blank" rel="noreferrer" className={textButton}>
-                      Voir
-                    </a>
-                  )}
-                  <span className="ml-auto flex items-center gap-3">
-                    <QrUpload bookingId={b.id} hasQr />
-                    <form action={setQrPath.bind(null, b.id, null)}>
-                      <button type="submit" className={quietButton}>
-                        Supprimer
-                      </button>
-                    </form>
-                  </span>
-                </div>
-              ) : (
-                <QrUpload bookingId={b.id} hasQr={false} />
-              )}
+              {bookingHours(b).map((h, _, hours) => {
+                // Un QR code par heure : l'heure n'est précisée que si le terrain en a plusieurs.
+                const qr = b.qrs.find((q) => q.hour === h.hour);
+                const label = hours.length > 1 ? formatTimes(h.startsAt, h.endsAt) : undefined;
+                return qr ? (
+                  <div key={h.hour} className="flex flex-wrap items-center gap-x-3 text-sm">
+                    <span className="flex items-center gap-1.5 font-medium text-accent-ink">
+                      <CheckIcon />
+                      {label ? `QR code ${label}` : "QR code ajouté"}
+                    </span>
+                    {qr.url && (
+                      <a href={qr.url} target="_blank" rel="noreferrer" className={textButton}>
+                        Voir
+                      </a>
+                    )}
+                    <span className="ml-auto flex items-center gap-3">
+                      <QrUpload bookingId={b.id} hour={h.hour} label={label} hasQr />
+                      <form action={setQrPath.bind(null, b.id, h.hour, null)}>
+                        <button type="submit" className={quietButton}>
+                          Supprimer
+                        </button>
+                      </form>
+                    </span>
+                  </div>
+                ) : (
+                  <QrUpload key={h.hour} bookingId={b.id} hour={h.hour} label={label} hasQr={false} />
+                );
+              })}
             </div>
           )),
         )}

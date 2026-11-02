@@ -41,7 +41,6 @@ export type Database = {
           co_payer: string | null;
           starts_at: string;
           ends_at: string;
-          qr_path: string | null;
           created_by: string;
           created_at: string;
         };
@@ -54,7 +53,13 @@ export type Database = {
           co_payer?: string | null;
           created_by?: string;
         };
-        Update: { qr_path?: string | null; price_cents?: number };
+        Update: { price_cents?: number };
+        Relationships: [];
+      };
+      booking_qr_codes: {
+        Row: { booking_id: string; hour: number; qr_path: string; created_at: string };
+        Insert: { booking_id: string; hour: number; qr_path: string };
+        Update: { qr_path?: string };
         Relationships: [];
       };
       session_participants: {

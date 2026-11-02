@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const TABLES = ["sessions", "court_bookings", "session_participants", "payments"] as const;
+const TABLES = ["sessions", "court_bookings", "booking_qr_codes", "session_participants", "payments"] as const;
 
 // Recharge les données de la page dès qu'un autre joueur modifie quelque chose.
 export function RealtimeRefresh() {

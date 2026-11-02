@@ -243,12 +243,27 @@ try {
     "base64",
   );
   await bob.click('a:text-is("Gérer")');
-  await bob.locator('input[type="file"]').first().setInputFiles({ name: "qr.png", mimeType: "image/png", buffer: png });
-  await bob.waitForSelector("text=QR code ajouté");
-  await bob.getByRole("button", { name: "Remplacer" }).waitFor();
-  const qrLink = alice.locator("section", { hasText: "QR codes d'entrée" }).locator("a", { hasText: "Terrain 6" });
-  await qrLink.waitFor({ timeout: 10000 });
-  ok("bob ajoute le QR code du terrain 6, alice le voit en temps réel");
+  // Un QR code par heure : le terrain 6 de 20:00 à 22:00 en demande deux.
+  const terrain6 = bob.locator("div.p-4", { has: bob.locator('span:text-is("Terrain 6")') });
+  await terrain6.getByRole("button", { name: "Ajouter le QR code · 20:00 – 21:00" }).waitFor();
+  await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
+  await terrain6.getByLabel("Fichier du QR code · 20:00 – 21:00").setInputFiles({ name: "qr.png", mimeType: "image/png", buffer: png });
+  await terrain6.getByText("QR code 20:00 – 21:00").waitFor();
+  await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
+  const qrLinks = alice.locator("section", { hasText: "QR codes d'entrée" }).locator("a", { hasText: "Terrain 6" });
+  await qrLinks.filter({ hasText: "20:00" }).waitFor({ timeout: 10000 });
+  await terrain6.getByLabel("Fichier du QR code · 21:00 – 22:00").setInputFiles({ name: "qr2.png", mimeType: "image/png", buffer: png });
+  await terrain6.getByText("QR code 21:00 – 22:00").waitFor();
+  await qrLinks.filter({ hasText: "21:00" }).waitFor({ timeout: 10000 });
+  if ((await terrain6.getByRole("button", { name: "Remplacer" }).count()) !== 2)
+    throw new Error("Le terrain 6 devrait avoir ses deux QR codes, un par heure");
+  ok("bob ajoute un QR code par heure du terrain 6 (20:00 et 21:00), alice les voit en temps réel");
+  // Supprimer le QR code d'une heure ne touche pas à l'autre
+  await terrain6.locator("div.flex-wrap", { hasText: "QR code 21:00 – 22:00" }).getByRole("button", { name: "Supprimer" }).click();
+  await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
+  await terrain6.getByText("QR code 20:00 – 21:00").waitFor();
+  await qrLinks.filter({ hasText: "21:00" }).waitFor({ state: "detached", timeout: 10000 });
+  ok("supprimer le QR code de 21:00 garde celui de 20:00");
 
   // Regroupement : un créneau qui suit rejoint la même session, celui de midi en crée une autre
   if ((await newBooking(alice, { courts: [7], start: "22:00", end: "23:00", price: "5" })) !== evening)
