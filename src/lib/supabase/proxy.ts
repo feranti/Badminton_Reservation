@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+// /api/recap-comptes vérifie lui-même son secret (tâche planifiée, sans joueur connecté).
+const PUBLIC_PATHS = ["/login", "/auth", "/api/recap-comptes"];
 
 // Rafraîchit la session Supabase à chaque requête et renvoie vers /login si besoin.
 export async function updateSession(request: NextRequest) {

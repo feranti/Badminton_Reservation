@@ -4,7 +4,7 @@ Application web pour un groupe d'amis qui joue au badminton :
 
 - mettre en commun les sessions, les terrains réservés (6 à 14), qui les a payés et leurs QR codes ;
 - s'inscrire à une session (4 joueurs par terrain), seul ou avec des invités sans compte (+1, +2…), avec liste d'attente et e-mail quand une place se libère ;
-- prévenir le groupe WhatsApp des terrains réservés ou annulés et des inscriptions ;
+- prévenir le groupe WhatsApp des terrains réservés ou annulés et des inscriptions, et y poster chaque lundi soir le récap des comptes ;
 - tenir les comptes en temps réel (qui doit combien à qui), avec une page qui explique le calcul ;
 - signaler un remboursement, que le bénéficiaire confirme.
 
@@ -128,6 +128,22 @@ WHATSAPP_GROUP_ID=120363000000000000@g.us
 ```
 
 Sans ces variables, les messages sont seulement écrits dans le journal du serveur.
+
+#### Récap hebdomadaire des comptes
+
+Chaque **lundi à 23 h** (heure de Paris), l'appli poste dans le groupe la liste des remboursements à faire pour
+remettre tout le monde à zéro (la même que la page Comptes), en signalant ceux déjà déclarés et pas encore confirmés,
+avec le lien vers la page Comptes. Quand personne ne doit rien, le message dit que tout le monde est à jour.
+
+La tâche planifiée est déclarée dans `vercel.json` et appelle `/api/recap-comptes`. Elle a besoin, sur Vercel, de :
+
+```
+CRON_SECRET=...            # une longue chaîne au hasard ; Vercel l'envoie à chaque appel de la tâche
+SUPABASE_SECRET_KEY=...    # pour lire les soldes sans joueur connecté (voir les e-mails de liste d'attente)
+```
+
+et du script `supabase/migrations/0004_recap_comptes.sql` exécuté sur le projet en ligne. Pour envoyer le récap
+tout de suite (essai) : `curl -H "Authorization: Bearer $CRON_SECRET" "https://<site>/api/recap-comptes?force=1"`.
 
 ### 3. Mettre en ligne sur Vercel
 

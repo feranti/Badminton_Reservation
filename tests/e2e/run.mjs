@@ -502,6 +502,19 @@ try {
   await waitWhatsApp("❌ *SESSION SUPPRIMÉE*\nAlice a supprimé la session\n", ", 17:00 – 19:00 · " + VENUE, "Terrains : 11");
   ok("alice supprime la session : le groupe WhatsApp est prévenu");
 
+  // Récap hebdomadaire des comptes (tâche planifiée du lundi 23 h) : refusé sans le secret,
+  // envoyé tout de suite avec ?force=1.
+  const recapUrl = APP + "/api/recap-comptes";
+  const denied = await fetch(recapUrl, { redirect: "manual" });
+  if (denied.status !== 401) throw new Error(`Récap sans secret : 401 attendu, reçu ${denied.status}`);
+  const auth = { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } };
+  const sent = await (await fetch(recapUrl + "?force=1", auth)).json();
+  if (!sent.sent) throw new Error(`Récap non envoyé : ${JSON.stringify(sent)}`);
+  const recap = await waitWhatsApp("💰 *RÉCAP DES COMPTES*\n", "/comptes");
+  if (!/\n• \S+ → \S+ : \*[\d\s,]+€\*/.test(recap) && !recap.includes("Tout le monde est à jour"))
+    throw new Error(`Récap sans virements : ${recap}`);
+  ok("le récap hebdomadaire des comptes part dans le groupe WhatsApp (refusé sans le secret de la tâche planifiée)");
+
   if (errors.length) throw new Error("Erreurs dans le navigateur :\n" + errors.join("\n"));
   console.log("\nTous les tests sont passés.");
 } finally {
