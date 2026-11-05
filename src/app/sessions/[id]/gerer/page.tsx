@@ -19,7 +19,7 @@ import { requirePlayer } from "@/lib/session";
 
 export default function ManageSessionPage({ params }: PageProps<"/sessions/[id]/gerer">) {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<Loading variant="form" alone />}>
       <ManageSession params={params} />
     </Suspense>
   );

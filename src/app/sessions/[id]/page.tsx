@@ -15,7 +15,7 @@ import { requirePlayer } from "@/lib/session";
 
 export default function SessionPage({ params }: PageProps<"/sessions/[id]">) {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<Loading alone />}>
       <SessionDetails params={params} />
     </Suspense>
   );
