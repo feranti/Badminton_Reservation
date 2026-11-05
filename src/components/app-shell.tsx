@@ -99,6 +99,56 @@ export function StickyFooter({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Loading() {
-  return <p className="text-muted">Chargement…</p>;
+// Écran de chargement : des formes grises qui imitent la page et pulsent doucement.
+// « list » : une carte puis des lignes (accueil, comptes, session). « form » : des champs.
+// « alone » : la page entière charge, sans en-tête autour, donc on laisse la place du bouton retour.
+export function Loading({ variant = "list", alone = false }: { variant?: "list" | "form"; alone?: boolean }) {
+  const bar = (className: string) => <div className={`rounded-md bg-line ${className}`} />;
+  return (
+    <div
+      role="status"
+      aria-label="Chargement"
+      className={`flex flex-col gap-6 motion-safe:animate-pulse ${alone ? "mx-auto w-full max-w-xl px-5 pt-[68px]" : ""}`}
+    >
+      <span className="sr-only">Chargement…</span>
+      {variant === "form" ? (
+        [0, 1, 2].map((i) => (
+          <div key={i} className="flex flex-col gap-2">
+            {bar("h-3.5 w-24")}
+            <div className="h-12 rounded-xl border border-line bg-surface" />
+          </div>
+        ))
+      ) : (
+        <>
+          <div className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-2">
+                {bar("h-7 w-40")}
+                {bar("h-4 w-48")}
+              </div>
+              {bar("h-7 w-16 rounded-full")}
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between">
+                {bar("h-3.5 w-28")}
+                {bar("h-3.5 w-20")}
+              </div>
+              {bar("h-1.5 rounded-full")}
+            </div>
+          </div>
+          <div className="flex flex-col">
+            {["w-32", "w-36", "w-28"].map((w) => (
+              <div key={w} className="flex min-h-14 items-center justify-between gap-3 border-b border-line py-2">
+                <div className="flex flex-col gap-1.5">
+                  {bar(`h-4 ${w}`)}
+                  {bar("h-3.5 w-44")}
+                </div>
+                {bar("h-3.5 w-14")}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }

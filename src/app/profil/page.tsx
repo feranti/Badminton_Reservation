@@ -9,7 +9,7 @@ import { ProfileForm } from "./profile-form";
 export default function ProfilePage() {
   return (
     <SubPage back="/" title="Mon profil">
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<Loading variant="form" />}>
         <Profile />
       </Suspense>
       <ThemePicker />

@@ -9,7 +9,7 @@ import { requirePlayer } from "@/lib/session";
 export default function NewBookingPage() {
   return (
     <SubPage back="/" close title="Nouvelle réservation" withFooter>
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<Loading variant="form" />}>
         <Form />
       </Suspense>
     </SubPage>

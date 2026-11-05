@@ -563,6 +563,13 @@ try {
   await bob.waitForSelector("text=On vous doit 2,50 €");
   ok("le 2e joueur se désiste puis revient sans carte : prix recalculé (19 €) et chacun crédité de sa part exacte (10 € et 9 €)");
 
+  // Écran de chargement : le HTML envoyé avant les données contient le squelette de la page.
+  for (const path of ["/", "/comptes", "/profil"]) {
+    const html = await (await alice.context().request.get(APP + path)).text();
+    if (!html.includes('role="status"') || !html.includes('aria-label="Chargement"')) throw new Error(`pas de squelette de chargement sur ${path}`);
+  }
+  ok("pendant le chargement, les pages affichent un squelette gris à la place du texte « Chargement… »");
+
   if (errors.length) throw new Error("Erreurs dans le navigateur :\n" + errors.join("\n"));
   console.log("\nTous les tests sont passés.");
 } finally {
