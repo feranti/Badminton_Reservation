@@ -4,7 +4,7 @@ Application web pour un groupe d'amis qui joue au badminton :
 
 - mettre en commun les sessions, les terrains réservés (6 à 14), qui les a payés et leurs QR codes ;
 - s'inscrire à une session (4 joueurs par terrain), seul ou avec des invités sans compte (+1, +2…), avec liste d'attente et e-mail quand une place se libère ;
-- prévenir le groupe WhatsApp des terrains réservés ou annulés et des inscriptions, et rappeler 72h avant une session où il manque au moins 4 joueurs ;
+- prévenir le groupe WhatsApp des terrains réservés ou annulés et des inscriptions, rappeler 72h avant une session où il manque au moins 4 joueurs, et poster chaque lundi soir le récap des comptes ;
 - tenir les comptes en temps réel (qui doit combien à qui), avec une page qui explique le calcul ;
 - signaler un remboursement, que le bénéficiaire confirme.
 
@@ -139,6 +139,21 @@ s'inscrire, ou le groupe décide de jouer en simple ou d'annuler un terrain (au 
 1. Sur Vercel, ajoutez `SUPABASE_SECRET_KEY` (clé secrète du projet Supabase) et `CRON_SECRET` (une longue valeur au hasard).
 2. Sur GitHub, dans Settings > Secrets and variables > Actions, créez le secret `CRON_SECRET` avec la même valeur.
 3. Exécutez `supabase/migrations/0006_rappel_terrains_vides.sql` sur le projet en ligne.
+
+### Récap hebdomadaire des comptes
+
+Chaque **lundi à 23 h** (heure de Paris), l'appli poste dans le groupe la liste des remboursements à faire pour
+remettre tout le monde à zéro (la même que la page Comptes), en signalant ceux déjà déclarés et pas encore confirmés,
+avec le lien vers la page Comptes. Quand personne ne doit rien, le message dit que tout le monde est à jour.
+
+Le workflow GitHub Actions `.github/workflows/recap-comptes.yml` appelle `/api/cron/recap-comptes`
+(Vercel gratuit ne permet pas de choisir l'heure aussi finement). Il faut :
+
+- sur Vercel : `CRON_SECRET` (une longue chaîne au hasard) et `SUPABASE_SECRET_KEY` (voir les e-mails de liste d'attente) ;
+- sur GitHub (Settings > Secrets and variables > Actions) : `CRON_SECRET`, la même valeur ;
+- le script `supabase/migrations/0004_recap_comptes.sql` exécuté sur le projet en ligne.
+
+Pour envoyer le récap tout de suite : onglet **Actions** > « Récap des comptes » > **Run workflow**.
 
 ### 3. Mettre en ligne sur Vercel
 
