@@ -19,6 +19,7 @@ export type Database = {
           notes: string | null;
           created_by: string;
           created_at: string;
+          reminder_sent_at: string | null;
         };
         Insert: {
           id?: string;
@@ -27,6 +28,7 @@ export type Database = {
           ends_at: string;
           notes?: string | null;
           created_by?: string;
+          reminder_sent_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["sessions"]["Insert"]>;
         Relationships: [];
