@@ -45,6 +45,11 @@ export function formatTimes(startsAt: string, endsAt: string) {
   return `${timeFormat.format(new Date(startsAt))} – ${timeFormat.format(new Date(endsAt))}`;
 }
 
+// « 20:00 »
+export function formatTime(iso: string) {
+  return timeFormat.format(new Date(iso));
+}
+
 // Valeurs pour pré-remplir les champs <input type="date"> et <input type="time">.
 export function toDateAndTime(iso: string) {
   const parts = Object.fromEntries(

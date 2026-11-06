@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// /api/cron/… : tâches planifiées sans joueur connecté, chaque route vérifie CRON_SECRET.
+// Les tâches planifiées (/api/cron/…) sont appelées par GitHub Actions, sans compte : chaque route vérifie elle-même le secret (src/lib/cron.ts).
 const PUBLIC_PATHS = ["/login", "/auth", "/api/cron/"];
 
 // Rafraîchit la session Supabase à chaque requête et renvoie vers /login si besoin.

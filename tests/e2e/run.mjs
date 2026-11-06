@@ -599,6 +599,52 @@ try {
     throw new Error(`Récap sans virements : ${recap}`);
   ok("le récap hebdomadaire des comptes part dans le groupe WhatsApp (refusé sans le secret de la tâche planifiée)");
 
+  // Rappel des terrains vides à 72h (route appelée toutes les heures par GitHub Actions).
+  // Les sessions sont créées directement en base, avec la clé secrète, à quelques heures près.
+  const rest = async (path, body) => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${path}`, {
+      method: body ? "POST" : "GET",
+      headers: {
+        apikey: process.env.SUPABASE_SECRET_KEY,
+        Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: body && JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`${path} : ${res.status} ${await res.text()}`);
+    return res.json();
+  };
+  // Deux joueurs quelconques (alice a changé de nom plus haut).
+  const [p1, p2] = (await rest("profiles?select=id&order=created_at")).map((p) => p.id);
+  const at = (h) => new Date(Math.round((Date.now() + h * 3600e3) / 3600e3) * 3600e3).toISOString();
+  async function seedSession(venue, inHours, courts, players) {
+    const [s] = await rest("sessions", { venue, starts_at: at(inHours), ends_at: at(inHours + 2), created_by: p1 });
+    await rest("court_bookings", courts.map((court) => ({ session_id: s.id, court, price_cents: 1800, booked_by: p1, created_by: p1, starts_at: s.starts_at, ends_at: s.ends_at })));
+    if (players.length) await rest("session_participants", players.map(([player_id, guests]) => ({ session_id: s.id, player_id, guests })));
+    return s.id;
+  }
+  const missing4 = await seedSession(VENUE + " rappel", 60, [6, 9], [[p1, 0], [p2, 2]]);
+  const others = [
+    await seedSession(VENUE + " complet", 60, [6], [[p1, 3]]),
+    await seedSession(VENUE + " 3 manquants", 60, [6, 9], [[p1, 4]]),
+    await seedSession(VENUE + " trop tôt", 80, [6, 9], []),
+    await seedSession(VENUE + " trop tard", 30, [6, 9], []),
+  ];
+  const cron = (secret) => fetch(APP + "/api/cron/rappel-terrains-vides", { headers: secret ? { Authorization: `Bearer ${secret}` } : {} });
+  if ((await cron()).status !== 401 || (await cron("mauvais")).status !== 401) throw new Error("La route du rappel doit refuser un appel sans le bon secret");
+  const before = whatsapp.length;
+  const run1 = await (await cron(process.env.CRON_SECRET)).json();
+  if (!run1.sent.includes(missing4) || others.some((id) => run1.sent.includes(id))) throw new Error(`Rappel attendu pour la seule session à moitié vide : ${JSON.stringify(run1)}`);
+  const reminder = await waitWhatsApp("⏰ *IL MANQUE 4 JOUEURS*\n▎ ", "\n▎ Terrains : 6 · 9\n▎ " + VENUE + " rappel · 4 inscrits pour 8 places\n", "on joue en simple, ou un capitaine annule son terrain avant ", "(48h avant)", `/sessions/${missing4}`);
+  const deadline = new Date(Date.parse(at(60)) - 48 * 3600e3);
+  const parisTime = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" }).format(deadline);
+  if (!reminder.includes(` à ${parisTime} (48h avant)`)) throw new Error(`Limite d'annulation incorrecte (${parisTime} attendu) : ${reminder}`);
+  const run2 = await (await cron(process.env.CRON_SECRET)).json();
+  await sleep(500);
+  if (run2.sent.length || whatsapp.length !== before + run1.sent.length) throw new Error(`Le rappel ne doit partir qu'une fois : ${JSON.stringify(run2)}`);
+  ok("72h avant, le groupe WhatsApp est prévenu une seule fois s'il manque 4 joueurs (limite d'annulation à 48h), pas s'il en manque moins de 4 ni hors délai");
+
   if (errors.length) throw new Error("Erreurs dans le navigateur :\n" + errors.join("\n"));
   console.log("\nTous les tests sont passés.");
 } finally {

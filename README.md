@@ -4,7 +4,7 @@ Application web pour un groupe d'amis qui joue au badminton :
 
 - mettre en commun les sessions, les terrains réservés (6 à 14), qui les a payés et leurs QR codes ;
 - s'inscrire à une session (4 joueurs par terrain), seul ou avec des invités sans compte (+1, +2…), avec liste d'attente et e-mail quand une place se libère ;
-- prévenir le groupe WhatsApp des terrains réservés ou annulés et des inscriptions, et y poster chaque lundi soir le récap des comptes ;
+- prévenir le groupe WhatsApp des terrains réservés ou annulés et des inscriptions, rappeler 72h avant une session où il manque au moins 4 joueurs, et poster chaque lundi soir le récap des comptes ;
 - tenir les comptes en temps réel (qui doit combien à qui), avec une page qui explique le calcul ;
 - signaler un remboursement, que le bénéficiaire confirme.
 
@@ -129,7 +129,18 @@ WHATSAPP_GROUP_ID=120363000000000000@g.us
 
 Sans ces variables, les messages sont seulement écrits dans le journal du serveur.
 
-#### Récap hebdomadaire des comptes
+### Rappel des terrains vides à 72h
+
+Toutes les heures, GitHub Actions (`.github/workflows/rappel-terrains-vides.yml`) appelle la route
+`/api/cron/rappel-terrains-vides`. Pour chaque session qui commence dans 48 à 72h, s'il manque au moins
+4 joueurs (un terrain entier vide), le groupe WhatsApp reçoit un rappel, une seule fois : les oubliés peuvent
+s'inscrire, ou le groupe décide de jouer en simple ou d'annuler un terrain (au Prisme, au plus tard 48h avant).
+
+1. Sur Vercel, ajoutez `SUPABASE_SECRET_KEY` (clé secrète du projet Supabase) et `CRON_SECRET` (une longue valeur au hasard).
+2. Sur GitHub, dans Settings > Secrets and variables > Actions, créez le secret `CRON_SECRET` avec la même valeur.
+3. Exécutez `supabase/migrations/0006_rappel_terrains_vides.sql` sur le projet en ligne.
+
+### Récap hebdomadaire des comptes
 
 Chaque **lundi à 23 h** (heure de Paris), l'appli poste dans le groupe la liste des remboursements à faire pour
 remettre tout le monde à zéro (la même que la page Comptes), en signalant ceux déjà déclarés et pas encore confirmés,

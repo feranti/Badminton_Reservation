@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sessionCapacity } from "@/lib/courts";
+import { PLAYERS_PER_COURT, sessionCapacity } from "@/lib/courts";
 import type { Database } from "@/lib/database.types";
-import { formatSlot, formatTimes } from "@/lib/format";
+import { formatDay, formatSlot, formatTime, formatTimes } from "@/lib/format";
 import { sendMail } from "@/lib/mail";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendToGroup } from "@/lib/whatsapp";
@@ -242,4 +242,33 @@ export async function notifyGroup(supabase: Client, actorId: string, sessionId: 
   } catch (error) {
     console.error("[WhatsApp] message au groupe impossible", error);
   }
+}
+
+// Délai de prévenance : le rappel part 72h avant la session, l'annulation d'un terrain au Prisme
+// doit se faire au plus tard 48h avant.
+export const REMINDER_HOURS = 72;
+export const CANCEL_HOURS = 48;
+
+// Joueurs manquants pour remplir tous les terrains (invités compris).
+export function missingPlayers(s: Pick<SessionState, "capacity" | "taken">) {
+  return Math.max(s.capacity - s.taken, 0);
+}
+
+// Rappel au groupe quand il manque au moins un terrain entier de joueurs ; null sinon.
+// On ne tranche rien : les inscrits peuvent jouer en simple, les oubliés s'inscrire, ou un
+// capitaine annuler son terrain avant la limite des 48h.
+export function emptyCourtReminder(s: SessionState, link: string) {
+  const missing = missingPlayers(s);
+  if (missing < PLAYERS_PER_COURT) return null;
+  const deadline = new Date(Date.parse(s.starts_at) - CANCEL_HOURS * 3600e3).toISOString();
+  const players = `${s.taken} inscrit${s.taken > 1 ? "s" : ""} pour ${s.capacity} places`;
+  return [
+    `⏰ *IL MANQUE ${missing} JOUEUR${missing > 1 ? "S" : ""}*`,
+    `${BAR}${formatSlot(s.starts_at, s.ends_at)}`,
+    ...courtLines(s).map((l) => `${BAR}${l}`),
+    `${BAR}${s.venue} · ${players}`,
+    "Vous venez ? Inscrivez-vous. Sinon, on en parle ici : on joue en simple, ou un capitaine annule son terrain " +
+      `avant ${formatDay(deadline).toLowerCase()} à ${formatTime(deadline)} (48h avant).`,
+    ...(link ? [link] : []),
+  ].join("\n");
 }
