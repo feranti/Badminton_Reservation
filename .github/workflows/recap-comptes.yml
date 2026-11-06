@@ -1,0 +1,33 @@
+# Récap hebdomadaire des comptes dans le groupe WhatsApp, le lundi à 23 h (heure de Paris).
+# GitHub planifie en heure UTC : le workflow est lancé à 21 h et à 22 h UTC, et seul le lancement
+# qui correspond à 23 h à Paris appelle le site (21 h UTC en heure d'été, 22 h UTC en hiver).
+# Un lancement en retard reste rattaché à son horaire prévu, donc le récap ne part qu'une fois.
+# « Run workflow » (onglet Actions) l'envoie tout de suite.
+# Secret GitHub nécessaire : CRON_SECRET, la même valeur que sur Vercel.
+name: Récap des comptes
+
+on:
+  schedule:
+    - cron: "0 21 * * 1"
+    - cron: "0 22 * * 1"
+  workflow_dispatch:
+
+jobs:
+  recap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Envoyer le récap si c'est 23 h à Paris
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          if [ -n "$SCHEDULE" ]; then
+            # +0200 en heure d'été (lancement de 21 h UTC), +0100 en hiver (lancement de 22 h UTC).
+            offset=$(TZ=Europe/Paris date +%z)
+            if { [ "$offset" = "+0200" ] && [ "$SCHEDULE" != "0 21 * * 1" ]; } || \
+               { [ "$offset" = "+0100" ] && [ "$SCHEDULE" != "0 22 * * 1" ]; }; then
+              echo "Pas 23 h à Paris pour ce lancement ($SCHEDULE, $offset) : rien à envoyer."
+              exit 0
+            fi
+          fi
+          curl -fsS --max-time 30 -H "Authorization: Bearer $CRON_SECRET" https://bad-resas.vercel.app/api/cron/recap-comptes

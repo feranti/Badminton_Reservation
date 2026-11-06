@@ -1,19 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
-import { APP_TIMEZONE, formatEuros } from "@/lib/format";
+import { formatEuros } from "@/lib/format";
 import { simplifyDebts } from "@/lib/settle";
 
 type Balance = { player_id: string; display_name: string; balance_cents: number };
 type PendingPayment = { from_player: string; to_player: string };
-
-// Le récap part le lundi à 23 h, heure de Paris. Vercel planifie en heure UTC : la tâche est
-// lancée à 21 h et à 22 h UTC, et seul l'appel qui tombe à 23 h à Paris envoie le message
-// (21 h UTC en été, 22 h UTC en hiver).
-export function isRecapTime(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: APP_TIMEZONE, weekday: "short", hour: "2-digit", hourCycle: "h23" }).formatToParts(now);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value;
-  return get("weekday") === "Mon" && get("hour") === "23";
-}
 
 // Texte du récap hebdomadaire : les virements à faire pour remettre tout le monde à zéro
 // (la même liste que la page Comptes), puis le lien vers la page.

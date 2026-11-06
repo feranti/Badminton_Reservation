@@ -587,13 +587,12 @@ try {
   }
   ok("pendant le chargement, les pages affichent un squelette gris à la place du texte « Chargement… »");
 
-  // Récap hebdomadaire des comptes (tâche planifiée du lundi 23 h) : refusé sans le secret,
-  // envoyé tout de suite avec ?force=1.
-  const recapUrl = APP + "/api/recap-comptes";
+  // Récap hebdomadaire des comptes (appelé par GitHub Actions le lundi à 23 h) : refusé sans le secret.
+  const recapUrl = APP + "/api/cron/recap-comptes";
   const denied = await fetch(recapUrl, { redirect: "manual" });
   if (denied.status !== 401) throw new Error(`Récap sans secret : 401 attendu, reçu ${denied.status}`);
   const auth = { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } };
-  const sent = await (await fetch(recapUrl + "?force=1", auth)).json();
+  const sent = await (await fetch(recapUrl, auth)).json();
   if (!sent.sent) throw new Error(`Récap non envoyé : ${JSON.stringify(sent)}`);
   const recap = await waitWhatsApp("💰 *RÉCAP DES COMPTES*\n", "/comptes");
   if (!/\n• \S+ → \S+ : \*[\d\s,]+€\*/.test(recap) && !recap.includes("Tout le monde est à jour"))

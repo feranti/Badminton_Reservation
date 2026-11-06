@@ -135,15 +135,14 @@ Chaque **lundi à 23 h** (heure de Paris), l'appli poste dans le groupe la liste
 remettre tout le monde à zéro (la même que la page Comptes), en signalant ceux déjà déclarés et pas encore confirmés,
 avec le lien vers la page Comptes. Quand personne ne doit rien, le message dit que tout le monde est à jour.
 
-La tâche planifiée est déclarée dans `vercel.json` et appelle `/api/recap-comptes`. Elle a besoin, sur Vercel, de :
+Le workflow GitHub Actions `.github/workflows/recap-comptes.yml` appelle `/api/cron/recap-comptes`
+(Vercel gratuit ne permet pas de choisir l'heure aussi finement). Il faut :
 
-```
-CRON_SECRET=...            # une longue chaîne au hasard ; Vercel l'envoie à chaque appel de la tâche
-SUPABASE_SECRET_KEY=...    # pour lire les soldes sans joueur connecté (voir les e-mails de liste d'attente)
-```
+- sur Vercel : `CRON_SECRET` (une longue chaîne au hasard) et `SUPABASE_SECRET_KEY` (voir les e-mails de liste d'attente) ;
+- sur GitHub (Settings > Secrets and variables > Actions) : `CRON_SECRET`, la même valeur ;
+- le script `supabase/migrations/0004_recap_comptes.sql` exécuté sur le projet en ligne.
 
-et du script `supabase/migrations/0004_recap_comptes.sql` exécuté sur le projet en ligne. Pour envoyer le récap
-tout de suite (essai) : `curl -H "Authorization: Bearer $CRON_SECRET" "https://<site>/api/recap-comptes?force=1"`.
+Pour envoyer le récap tout de suite : onglet **Actions** > « Récap des comptes » > **Run workflow**.
 
 ### 3. Mettre en ligne sur Vercel
 
