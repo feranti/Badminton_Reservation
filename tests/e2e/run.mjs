@@ -147,18 +147,40 @@ try {
   await alice.waitForSelector("text=20:00 – 22:00 · Le Prisme, Bobigny");
   await alice.click('label:has(input[value="6"])');
   await alice.click('label:has(input[value="9"])');
-  if ((await alice.inputValue('input[name="price"]')) !== "18,00") throw new Error("Prix par défaut incorrect (9 € l'heure attendu)");
+  // Tarif carte 10 sessions du Prisme : 4,50 €/h avec carte, 5 €/h sans, et 5 €/h de supplément
+  // si le capitaine est seul.
+  const detail = alice.getByLabel("Détail du prix");
+  await detail.getByText("Supplément : 2e joueur absent").waitFor();
+  await detail.getByText("19,00 € · 9,50 €/h").waitFor();
+  await alice.getByRole("button", { name: "Réserver 2 terrains · 38,00 €" }).waitFor();
+  if (await alice.locator('input[name="price"]').count()) throw new Error("Pas de prix à saisir au tarif carte");
+  await alice.getByText("+ Ajouter le 2e joueur").click();
+  await alice.getByLabel("2e joueur", { exact: true }).selectOption({ label: "bob" });
+  await detail.getByText("18,00 € · 9,00 €/h").waitFor();
   await alice.getByRole("button", { name: "Réserver 2 terrains · 36,00 €" }).waitFor();
+  await alice.getByLabel("Carte 10 sessions du 2e joueur").uncheck();
+  await detail.getByText("bob (sans carte)").waitFor();
+  await alice.getByRole("button", { name: "Réserver 2 terrains · 38,00 €" }).waitFor();
+  await alice.getByLabel("Carte 10 sessions du capitaine").uncheck();
+  await alice.getByRole("button", { name: "Réserver 2 terrains · 40,00 €" }).waitFor();
   await alice.getByRole("button", { name: "Modifier" }).click();
   await alice.fill('input[name="end"]', "21:30");
-  if ((await alice.inputValue('input[name="price"]')) !== "13,50") throw new Error("Le prix par défaut ne suit pas la durée du créneau");
+  await alice.getByRole("button", { name: "Réserver 2 terrains · 30,00 €" }).waitFor();
+  ok("tarif carte au Prisme : 9,50 €/h seul avec carte, 9 €/h à deux avec carte, 5 €/h par réservant sans carte, suit la durée");
+  await alice.getByRole("button", { name: "Saisir un montant" }).click();
+  if ((await alice.inputValue('input[name="price"]')) !== "15,00") throw new Error("Le montant libre ne part pas du prix au tarif carte");
   await alice.fill('input[name="price"]', "12,50");
   await alice.fill('input[name="end"]', "22:00");
   if ((await alice.inputValue('input[name="price"]')) !== "12,50") throw new Error("Le prix saisi a été écrasé par le prix par défaut");
   await alice.getByRole("button", { name: "Réserver 2 terrains · 25,00 €" }).waitFor();
   if (await alice.evaluate(() => document.documentElement.scrollWidth > window.innerWidth))
     throw new Error("La page Nouvelle réservation déborde sur la largeur d'un téléphone");
-  ok("nouvelle réservation : 20:00 – 22:00 au Prisme par défaut, prix prérempli à 9 € l'heure (suit la durée, sauf s'il est saisi), total affiché sur le bouton");
+  await alice.getByRole("button", { name: "Revenir au tarif carte 10 sessions" }).click();
+  await alice.getByRole("button", { name: "Réserver 2 terrains · 40,00 €" }).waitFor();
+  await alice.fill('input[name="venue"]', VENUE);
+  if ((await alice.inputValue('input[name="price"]')) !== "18,00") throw new Error("Prix par défaut incorrect hors du Prisme (9 € l'heure attendu)");
+  if (await alice.getByText("Saisir un montant").count()) throw new Error("Tarif carte proposé hors du Prisme");
+  ok("montant libre sur demande au Prisme, et seul choix dans un autre gymnase ; total affiché sur le bouton");
   await alice.fill('input[name="price"]', "2000");
   await alice.getByRole("button", { name: /^Réserver/ }).click();
   await alice.waitForSelector("text=Le prix d'un terrain ne peut pas dépasser 1 000 €.");
@@ -250,7 +272,7 @@ try {
   await terrain6.getByLabel("Fichier du QR code · 20:00 – 21:00").setInputFiles({ name: "qr.png", mimeType: "image/png", buffer: png });
   await terrain6.getByRole("button", { name: "Remplacer le QR code · 20:00 – 21:00" }).waitFor();
   await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
-  const qrLinks = alice.locator("section", { hasText: "QR codes d'entrée" }).locator("a", { hasText: "Terrain 6" });
+  const qrLinks = alice.locator("section", { hasText: "QR codes d'entrée" }).getByRole("button", { name: /Terrain 6/ });
   await qrLinks.filter({ hasText: "20:00" }).waitFor({ timeout: 10000 });
   await terrain6.getByLabel("Fichier du QR code · 21:00 – 22:00").setInputFiles({ name: "qr2.png", mimeType: "image/png", buffer: png });
   await terrain6.getByRole("button", { name: "Remplacer le QR code · 21:00 – 22:00" }).waitFor();
@@ -258,6 +280,23 @@ try {
   if ((await terrain6.getByRole("button", { name: "Remplacer" }).count()) !== 2)
     throw new Error("Le terrain 6 devrait avoir ses deux QR codes, un par heure");
   ok("bob ajoute un QR code par heure du terrain 6 (20:00 et 21:00), alice les voit en temps réel");
+  // Un clic sur un QR code l'ouvre dans une fenêtre par-dessus la page, sans nouvel onglet
+  const pagesAvant = alice.context().pages().length;
+  await qrLinks.filter({ hasText: "20:00" }).click();
+  const fenetre = alice.getByRole("dialog", { name: /Terrain 6 · 20:00/ });
+  await fenetre.getByRole("img").waitFor();
+  if (alice.context().pages().length !== pagesAvant) throw new Error("Le QR code ne doit pas ouvrir de nouvel onglet");
+  await fenetre.getByRole("button", { name: "Fermer" }).click();
+  await fenetre.waitFor({ state: "hidden" });
+  await qrLinks.filter({ hasText: "21:00" }).click();
+  await alice.getByRole("dialog", { name: /21:00/ }).waitFor();
+  await alice.keyboard.press("Escape");
+  await alice.getByRole("dialog", { name: /21:00/ }).waitFor({ state: "hidden" });
+  await qrLinks.filter({ hasText: "20:00" }).click();
+  await fenetre.waitFor();
+  await alice.mouse.click(5, 5);
+  await fenetre.waitFor({ state: "hidden" });
+  ok("alice ouvre un QR code dans une fenêtre et la ferme par la croix, Échap ou un clic à côté");
   // Supprimer le QR code d'une heure ne touche pas à l'autre
   await terrain6.getByRole("button", { name: "Supprimer le QR code · 21:00 – 22:00" }).click();
   await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
@@ -501,6 +540,52 @@ try {
   await alice.waitForURL(APP + "/");
   await waitWhatsApp("❌ *SESSION SUPPRIMÉE*\nAlice a supprimé la session\n", ", 17:00 – 19:00 · " + VENUE, "Terrains : 11");
   ok("alice supprime la session : le groupe WhatsApp est prévenu");
+
+  // Tarif carte au Prisme, de bout en bout : alice capitaine avec carte, bob 2e joueur avec carte.
+  // bob est à +2 € avant. Chaque changement de payeurs recalcule le prix et la part avancée par chacun.
+  await bob.goto(APP + "/comptes");
+  await bob.waitForSelector("text=On vous doit 2,00 €");
+  await alice.goto(APP + "/");
+  await alice.click('a[aria-label="Nouvelle réservation"]');
+  await alice.click('button[aria-label="Autre date"]');
+  await alice.fill('input[type="date"]', DATE);
+  // Le gymnase proposé est le dernier utilisé : on revient au Prisme.
+  await alice.getByRole("button", { name: "Modifier" }).click();
+  await alice.fill('input[name="venue"]', "Le Prisme, Bobigny");
+  await alice.click('label:has(input[value="13"])');
+  await alice.getByText("+ Ajouter le 2e joueur").click();
+  await alice.getByLabel("2e joueur", { exact: true }).selectOption({ label: "bob" });
+  await alice.getByRole("button", { name: "Réserver 1 terrain · 18,00 €" }).click();
+  await alice.waitForURL(/\/sessions\/[0-9a-f-]{36}$/);
+  await stat(alice, "Par joueur", "9,00 €").waitFor();
+  await alice.click('a:text-is("Gérer")');
+  await alice.waitForSelector("text=20:00 – 22:00 · 18,00 € · Alice carte + bob carte");
+  ok("alice réserve au Prisme avec bob, tous deux avec carte : 18 € pour 2 h, bob est inscrit");
+  // bob se désiste : alice est seule et paie le supplément ; bob doit sa part de 19 €.
+  await alice.getByRole("button", { name: "Retirer bob (2e joueur)" }).click();
+  await alice.waitForSelector("text=20:00 – 22:00 · 19,00 € · Alice carte · seul");
+  await alice.waitForSelector("text=Supplément de 5 € l'heure pour le 2e joueur absent");
+  await bob.reload();
+  await bob.waitForSelector("text=Vous devez 7,50 €");
+  // bob revient, sans carte : il avance 10 €, alice 9 € ; chacun doit 9,50 €.
+  const label13 = "terrain 13 (20:00 – 22:00)";
+  const partner13 = alice.getByLabel(`2e joueur · ${label13}`);
+  const payers13 = alice.locator("details", { has: partner13 });
+  await payers13.locator("summary").click();
+  await partner13.selectOption({ label: "bob" });
+  await alice.getByLabel(`Carte 10 sessions du 2e joueur · ${label13}`).uncheck();
+  await payers13.getByRole("button", { name: "Enregistrer" }).click();
+  await alice.waitForSelector("text=20:00 – 22:00 · 19,00 € · Alice carte + bob sans carte");
+  await bob.reload();
+  await bob.waitForSelector("text=On vous doit 2,50 €");
+  ok("le 2e joueur se désiste puis revient sans carte : prix recalculé (19 €) et chacun crédité de sa part exacte (10 € et 9 €)");
+
+  // Écran de chargement : le HTML envoyé avant les données contient le squelette de la page.
+  for (const path of ["/", "/comptes", "/profil"]) {
+    const html = await (await alice.context().request.get(APP + path)).text();
+    if (!html.includes('role="status"') || !html.includes('aria-label="Chargement"')) throw new Error(`pas de squelette de chargement sur ${path}`);
+  }
+  ok("pendant le chargement, les pages affichent un squelette gris à la place du texte « Chargement… »");
 
   // Récap hebdomadaire des comptes (tâche planifiée du lundi 23 h) : refusé sans le secret,
   // envoyé tout de suite avec ?force=1.

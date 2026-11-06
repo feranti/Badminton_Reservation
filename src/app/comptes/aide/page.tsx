@@ -39,6 +39,11 @@ export default function AccountsHelpPage() {
         <p className="text-muted">
           Quand un terrain est partagé entre deux payeurs, chacun est crédité de la moitié.
         </p>
+        <p className="text-muted">
+          Au Prisme, avec le tarif carte 10 sessions, chaque réservant est crédité de sa part : 4,50 € l&apos;heure avec la
+          carte, 5 € sans. Un capitaine seul paie aussi 5 € l&apos;heure pour le partenaire absent (9,50 € l&apos;heure avec
+          sa carte).
+        </p>
       </section>
 
       <section className="flex flex-col gap-3">

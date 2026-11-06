@@ -43,6 +43,9 @@ export type Database = {
           ends_at: string;
           created_by: string;
           created_at: string;
+          card_pricing: boolean;
+          booked_by_card: boolean;
+          co_payer_card: boolean;
         };
         Insert: {
           id?: string;
@@ -53,7 +56,14 @@ export type Database = {
           co_payer?: string | null;
           created_by?: string;
         };
-        Update: { price_cents?: number };
+        Update: {
+          price_cents?: number;
+          booked_by?: string;
+          co_payer?: string | null;
+          card_pricing?: boolean;
+          booked_by_card?: boolean;
+          co_payer_card?: boolean;
+        };
         Relationships: [];
       };
       booking_qr_codes: {
@@ -122,6 +132,9 @@ export type Database = {
           p_price_cents: number;
           p_booked_by: string;
           p_co_payer?: string | null;
+          p_card_pricing?: boolean;
+          p_booked_by_card?: boolean;
+          p_co_payer_card?: boolean;
         };
         Returns: string;
       };

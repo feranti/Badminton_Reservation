@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { createBookings, type FormState } from "@/app/sessions/actions";
-import { COURTS, DEFAULT_END, DEFAULT_START, defaultCourtPriceCents } from "@/lib/courts";
+import { COURTS, DEFAULT_END, DEFAULT_START } from "@/lib/courts";
 import type { Player } from "@/lib/data";
-import { formatEuros, formatPriceInput, parseEurosToCents } from "@/lib/format";
+import { formatEuros } from "@/lib/format";
 import { StickyFooter } from "./app-shell";
 import { CalendarIcon } from "./icons";
-import { PayerFields } from "./payer-fields";
+import { PaymentFields, usePayment } from "./payment-fields";
 import { errorText, inputClass, labelClass, primaryButton, textButton } from "./ui";
 import { useFormAction } from "./use-form-action";
 
@@ -33,11 +33,8 @@ export function NewBookingForm({
   const [editSlot, setEditSlot] = useState(false);
   const [slot, setSlot] = useState({ start: DEFAULT_START, end: DEFAULT_END, venue: defaultVenue });
   const [courts, setCourts] = useState<number[]>([]);
-  // Tant que le joueur n'a pas saisi de prix, il suit la durée du créneau (9 € l'heure).
-  const [typedPrice, setTypedPrice] = useState<string | null>(null);
-  const slotPrice = defaultCourtPriceCents(slot.start, slot.end);
-  const price = typedPrice ?? (slotPrice === null ? "" : formatPriceInput(slotPrice));
-  const priceCents = parseEurosToCents(price);
+  const payment = usePayment(userId, slot);
+  const priceCents = payment.priceCents;
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6">
@@ -116,20 +113,7 @@ export function NewBookingForm({
         </div>
       </fieldset>
 
-      <PayerFields players={players} userId={userId}>
-        <label className={labelClass}>
-          Prix par terrain (€)
-          <input
-            name="price"
-            required
-            inputMode="decimal"
-            value={price}
-            onChange={(e) => setTypedPrice(e.target.value)}
-            className={inputClass}
-            placeholder="12,50"
-          />
-        </label>
-      </PayerFields>
+      <PaymentFields players={players} userId={userId} value={payment} />
 
       <label className="flex min-h-13 cursor-pointer items-center justify-between rounded-xl border border-line bg-surface px-3.5">
         Je joue

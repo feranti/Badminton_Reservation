@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
-import { COURTS, MAX_GUESTS } from "@/lib/courts";
+import { cardPrice, COURTS, MAX_GUESTS } from "@/lib/courts";
 import { parisToIso, parseEurosToCents } from "@/lib/format";
 import { notifyGroup, notifyPromotions, sessionState, snapshot } from "@/lib/notify";
 import { requirePlayer } from "@/lib/session";
@@ -27,13 +27,20 @@ function readBooking(formData: FormData, userId: string) {
   if (!startsAt || !endsAt) return { error: "Indiquez la date et les heures de début et de fin." } as const;
   if (Date.parse(endsAt) <= Date.parse(startsAt)) return { error: "L'heure de fin doit être après l'heure de début." } as const;
 
-  const priceCents = parseEurosToCents(String(formData.get("price") ?? ""));
-  if (priceCents === null) return { error: "Le prix doit être un montant en euros, par exemple 12,50." } as const;
-  if (priceCents > MAX_PRICE_CENTS) return { error: "Le prix d'un terrain ne peut pas dépasser 1 000 €." } as const;
-
   const bookedBy = String(formData.get("booked_by") ?? "") || userId;
   const coPayer = String(formData.get("co_payer") ?? "") || null;
   if (coPayer === bookedBy) return { error: "Choisissez deux payeurs différents." } as const;
+
+  // Tarif carte 10 sessions (Prisme) : le prix est calculé ici à partir des cartes cochées.
+  const cardPricing = formData.get("card_pricing") === "on";
+  const bookedByCard = cardPricing && formData.get("booked_by_card") === "on";
+  const coPayerCard = cardPricing && coPayer !== null && formData.get("co_payer_card") === "on";
+  const minutes = (Date.parse(endsAt) - Date.parse(startsAt)) / 60000;
+  const priceCents = cardPricing
+    ? cardPrice({ captainCard: bookedByCard, partner: coPayer !== null, partnerCard: coPayerCard }, minutes).total
+    : parseEurosToCents(String(formData.get("price") ?? ""));
+  if (priceCents === null) return { error: "Le prix doit être un montant en euros, par exemple 12,50." } as const;
+  if (priceCents > MAX_PRICE_CENTS) return { error: "Le prix d'un terrain ne peut pas dépasser 1 000 €." } as const;
 
   return {
     booking: {
@@ -42,6 +49,9 @@ function readBooking(formData: FormData, userId: string) {
       p_price_cents: priceCents,
       p_booked_by: bookedBy,
       p_co_payer: coPayer,
+      p_card_pricing: cardPricing,
+      p_booked_by_card: bookedByCard,
+      p_co_payer_card: coPayerCard,
     },
   } as const;
 }
@@ -178,11 +188,80 @@ export async function updateBookingPrice(bookingId: string, _prev: FormState, fo
   const priceCents = parseEurosToCents(String(formData.get("price") ?? ""));
   if (priceCents === null) return { error: "Le prix doit être un montant en euros, par exemple 12,50." };
   if (priceCents > MAX_PRICE_CENTS) return { error: "Le prix d'un terrain ne peut pas dépasser 1 000 €." };
-  const { data, error } = await supabase.from("court_bookings").update({ price_cents: priceCents }).eq("id", bookingId).select("id");
+  // Un montant saisi remplace le tarif carte : les deux payeurs avancent alors la moitié chacun.
+  const { data, error } = await supabase
+    .from("court_bookings")
+    .update({ price_cents: priceCents, card_pricing: false })
+    .eq("id", bookingId)
+    .select("id");
   if (error) return { error: "Le prix n'a pas pu être modifié." };
   if (!data?.length) return { error: "Ce terrain n'existe plus." };
   refresh();
   return { added: true };
+}
+
+type Payers = { booked_by: string; co_payer: string | null; booked_by_card: boolean; co_payer_card: boolean };
+
+// Change les payeurs d'un terrain déjà réservé. Au tarif carte, le prix est recalculé
+// (seul, le capitaine paie le supplément du partenaire absent) ; sinon il ne change pas.
+// Un nouveau payeur est inscrit à la session, comme à la réservation.
+async function savePayers(bookingId: string, payers: Payers): Promise<FormState> {
+  const { supabase } = await requirePlayer();
+  const { data: booking } = await supabase
+    .from("court_bookings")
+    .select("session_id, starts_at, ends_at, card_pricing, booked_by, co_payer")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (!booking) return { error: "Ce terrain n'existe plus." };
+  if (payers.co_payer === payers.booked_by) return { error: "Choisissez deux payeurs différents." };
+  const coPayerCard = payers.co_payer !== null && payers.co_payer_card;
+  const minutes = (Date.parse(booking.ends_at) - Date.parse(booking.starts_at)) / 60000;
+  const price = booking.card_pricing
+    ? { price_cents: cardPrice({ captainCard: payers.booked_by_card, partner: payers.co_payer !== null, partnerCard: coPayerCard }, minutes).total }
+    : {};
+  const { error } = await supabase
+    .from("court_bookings")
+    .update({ ...payers, co_payer_card: coPayerCard, ...price })
+    .eq("id", bookingId);
+  if (error) return { error: "Les payeurs n'ont pas pu être modifiés." };
+  const added = [payers.booked_by, payers.co_payer].filter(
+    (id): id is string => id !== null && id !== booking.booked_by && id !== booking.co_payer,
+  );
+  if (added.length) {
+    await supabase.from("session_participants").upsert(
+      added.map((player_id) => ({ session_id: booking.session_id, player_id })),
+      { onConflict: "session_id,player_id", ignoreDuplicates: true },
+    );
+  }
+  refresh();
+  return { added: true };
+}
+
+// Formulaire « Modifier les payeurs » de l'écran Gérer.
+export async function updateBookingPayers(bookingId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const bookedBy = String(formData.get("booked_by") ?? "");
+  if (!bookedBy) return { error: "Choisissez le capitaine." };
+  const coPayer = String(formData.get("co_payer") ?? "") || null;
+  return savePayers(bookingId, {
+    booked_by: bookedBy,
+    co_payer: coPayer,
+    booked_by_card: formData.get("booked_by_card") === "on",
+    co_payer_card: formData.get("co_payer_card") === "on",
+  });
+}
+
+// Le 2e joueur annule sa réservation sur le site du gymnase : le capitaine reste seul et,
+// au tarif carte, paie le supplément du partenaire absent. (Si le capitaine annule, le gymnase
+// annule le terrain : on le retire.)
+export async function removePartner(bookingId: string) {
+  const { supabase } = await requirePlayer();
+  const { data: b } = await supabase
+    .from("court_bookings")
+    .select("booked_by, co_payer, booked_by_card")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (!b?.co_payer) return;
+  await savePayers(bookingId, { booked_by: b.booked_by, co_payer: null, booked_by_card: b.booked_by_card, co_payer_card: false });
 }
 
 export async function updateSession(_prev: FormState, formData: FormData): Promise<FormState> {
