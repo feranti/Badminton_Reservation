@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Loading, StickyFooter, SubPage } from "@/components/app-shell";
 import { QrIcon } from "@/components/icons";
+import { QrViewer } from "@/components/qr-viewer";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { groupByCourt, sessionStatus } from "@/components/session-card";
 import { GuestsForm } from "@/components/join-form";
@@ -42,7 +43,7 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
     const several = hours.length > 1 || courts.find(([c]) => c === b.court)![1].length > 1;
     return b.qrs
       .filter((q) => q.url && hours[q.hour])
-      .map((q) => ({ key: `${b.id}-${q.hour}`, url: q.url!, court: b.court, time: several ? formatTimes(hours[q.hour].startsAt, hours[q.hour].endsAt).split(" ")[0] : null }));
+      .map((q) => ({ key: `${b.id}-${q.hour}`, url: q.url!, path: q.path, court: b.court, time: several ? formatTimes(hours[q.hour].startsAt, hours[q.hour].endsAt).split(" ")[0] : null }));
   });
 
   return (
@@ -94,17 +95,17 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
           <h2 className={sectionTitle}>QR codes d&apos;entrée</h2>
           <div className="grid grid-cols-2 gap-2">
             {qrs.map((q) => (
-              <a
+              <QrViewer
                 key={q.key}
-                href={q.url}
-                target="_blank"
-                rel="noreferrer"
+                url={q.url}
+                path={q.path}
+                title={`QR code · Terrain ${q.court}${q.time ? ` · ${q.time}` : ""}`}
                 className={`${card} flex min-h-14 items-center justify-center gap-2 rounded-xl text-[15px] font-medium`}
               >
                 <QrIcon />
                 Terrain {q.court}
                 {q.time && <span className="text-muted"> · {q.time}</span>}
-              </a>
+              </QrViewer>
             ))}
           </div>
         </section>

@@ -9,6 +9,7 @@ import { EditPriceForm } from "@/components/edit-price-form";
 import { EditSessionForm, SessionDoneButton } from "@/components/edit-session-form";
 import { TrashIcon } from "@/components/icons";
 import { QrUpload } from "@/components/qr-upload";
+import { QrViewer } from "@/components/qr-viewer";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { groupByCourt, sessionStatus } from "@/components/session-card";
 import { card, dangerText, inputClass, quietButton, secondaryButton, sectionTitle, textButton } from "@/components/ui";
@@ -152,9 +153,14 @@ async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/ger
                       </span>
                       <QrUpload bookingId={b.id} hour={h.hour} label={label} hasQr={Boolean(qr)}>
                         {qr?.url && (
-                          <a href={qr.url} target="_blank" rel="noreferrer" className={textButton}>
+                          <QrViewer
+                            url={qr.url}
+                            path={qr.path}
+                            title={`QR code · Terrain ${court}${label ? ` · ${label}` : ""}`}
+                            className={`${textButton} cursor-pointer`}
+                          >
                             Voir
-                          </a>
+                          </QrViewer>
                         )}
                       </QrUpload>
                     </div>

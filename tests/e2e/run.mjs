@@ -272,7 +272,7 @@ try {
   await terrain6.getByLabel("Fichier du QR code · 20:00 – 21:00").setInputFiles({ name: "qr.png", mimeType: "image/png", buffer: png });
   await terrain6.getByRole("button", { name: "Remplacer le QR code · 20:00 – 21:00" }).waitFor();
   await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
-  const qrLinks = alice.locator("section", { hasText: "QR codes d'entrée" }).locator("a", { hasText: "Terrain 6" });
+  const qrLinks = alice.locator("section", { hasText: "QR codes d'entrée" }).getByRole("button", { name: /Terrain 6/ });
   await qrLinks.filter({ hasText: "20:00" }).waitFor({ timeout: 10000 });
   await terrain6.getByLabel("Fichier du QR code · 21:00 – 22:00").setInputFiles({ name: "qr2.png", mimeType: "image/png", buffer: png });
   await terrain6.getByRole("button", { name: "Remplacer le QR code · 21:00 – 22:00" }).waitFor();
@@ -280,6 +280,23 @@ try {
   if ((await terrain6.getByRole("button", { name: "Remplacer" }).count()) !== 2)
     throw new Error("Le terrain 6 devrait avoir ses deux QR codes, un par heure");
   ok("bob ajoute un QR code par heure du terrain 6 (20:00 et 21:00), alice les voit en temps réel");
+  // Un clic sur un QR code l'ouvre dans une fenêtre par-dessus la page, sans nouvel onglet
+  const pagesAvant = alice.context().pages().length;
+  await qrLinks.filter({ hasText: "20:00" }).click();
+  const fenetre = alice.getByRole("dialog", { name: /Terrain 6 · 20:00/ });
+  await fenetre.getByRole("img").waitFor();
+  if (alice.context().pages().length !== pagesAvant) throw new Error("Le QR code ne doit pas ouvrir de nouvel onglet");
+  await fenetre.getByRole("button", { name: "Fermer" }).click();
+  await fenetre.waitFor({ state: "hidden" });
+  await qrLinks.filter({ hasText: "21:00" }).click();
+  await alice.getByRole("dialog", { name: /21:00/ }).waitFor();
+  await alice.keyboard.press("Escape");
+  await alice.getByRole("dialog", { name: /21:00/ }).waitFor({ state: "hidden" });
+  await qrLinks.filter({ hasText: "20:00" }).click();
+  await fenetre.waitFor();
+  await alice.mouse.click(5, 5);
+  await fenetre.waitFor({ state: "hidden" });
+  ok("alice ouvre un QR code dans une fenêtre et la ferme par la croix, Échap ou un clic à côté");
   // Supprimer le QR code d'une heure ne touche pas à l'autre
   await terrain6.getByRole("button", { name: "Supprimer le QR code · 21:00 – 22:00" }).click();
   await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
