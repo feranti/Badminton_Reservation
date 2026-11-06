@@ -4,7 +4,7 @@ import { CANCEL_HOURS, REMINDER_HOURS, emptyCourtReminder, sessionState } from "
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendToGroup } from "@/lib/whatsapp";
 
-// Appelée toutes les heures par GitHub Actions (.github/workflows/rappel-terrains-vides.yml).
+// Appelée toutes les 6 heures par GitHub Actions (.github/workflows/rappel-terrains-vides.yml).
 // Pour chaque session qui commence dans 48 à 72h et qui n'a pas encore eu de rappel, prévient
 // le groupe WhatsApp s'il manque au moins 4 joueurs. Une session assez remplie est revue à chaque
 // passage tant qu'on peut encore annuler : si des joueurs se désinscrivent, le rappel part alors.

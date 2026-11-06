@@ -1,11 +1,11 @@
-# Rappel WhatsApp des terrains vides à 72h, toutes les heures (et à la main depuis l'onglet Actions).
+# Rappel WhatsApp des terrains vides à 72h, toutes les 6 heures (et à la main depuis l'onglet Actions).
 # Secret du dépôt à créer (Settings > Secrets and variables > Actions) : CRON_SECRET, avec la
 # même valeur que la variable CRON_SECRET sur Vercel.
 name: Rappel des terrains vides
 
 on:
   schedule:
-    - cron: "7 * * * *" # à h+7 : GitHub retarde souvent les tâches lancées pile à l'heure
+    - cron: "7 */6 * * *" # toutes les 6 h, à h+7 : GitHub retarde souvent les tâches lancées pile à l'heure
   workflow_dispatch:
 
 jobs:

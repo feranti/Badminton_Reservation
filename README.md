@@ -131,7 +131,7 @@ Sans ces variables, les messages sont seulement écrits dans le journal du serve
 
 ### Rappel des terrains vides à 72h
 
-Toutes les heures, GitHub Actions (`.github/workflows/rappel-terrains-vides.yml`) appelle la route
+Toutes les 6 heures, GitHub Actions (`.github/workflows/rappel-terrains-vides.yml`) appelle la route
 `/api/cron/rappel-terrains-vides`. Pour chaque session qui commence dans 48 à 72h, s'il manque au moins
 4 joueurs (un terrain entier vide), le groupe WhatsApp reçoit un rappel, une seule fois : les oubliés peuvent
 s'inscrire, ou le groupe décide de jouer en simple ou d'annuler un terrain (au Prisme, au plus tard 48h avant).
