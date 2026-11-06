@@ -16,4 +16,6 @@ jobs:
       - name: Rappel WhatsApp des terrains vides à 72h
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-        run: curl -fsS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" "https://bad-resas.vercel.app/api/cron/rappel-terrains-vides"
+        # Bloc « | » : sans lui, le « : » de l'en-tête Authorization casse la syntaxe YAML.
+        run: |
+          curl -fsS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" "https://bad-resas.vercel.app/api/cron/rappel-terrains-vides"
