@@ -200,7 +200,7 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
   // fait un bloc séparé par ligne.
   const several = event.courts.length > 1;
   const title = event.kind === "added" ? `🟢 *TERRAIN${several ? "S" : ""} RÉSERVÉ${several ? "S" : ""}*` : `🔴 *TERRAIN${several ? "S" : ""} ANNULÉ${several ? "S" : ""}*`;
-  const who = `${BAR}*${actor}* · ${courtsLabel(event.courts).replace(/^les? /, "")}${times}`;
+  const who = `${BAR}${actor} · ${courtsLabel(event.courts).replace(/^les? /, "")}${times}`;
   const s = current ?? ref;
   const free = Math.max(s.capacity - s.taken, 0);
   const places = current
@@ -209,7 +209,7 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
   return [
     title,
     who,
-    `${BAR}${formatSlot(s.starts_at, s.ends_at)}`,
+    `${BAR}*${formatSlot(s.starts_at, s.ends_at)}*`,
     ...(current ? courtLines(s).map((l) => `${BAR}${l}`) : []),
     `${BAR}${s.venue} · ${places}`,
     ...(current && link ? [link] : []),
