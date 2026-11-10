@@ -73,6 +73,9 @@ APP_URL="http://127.0.0.1:$PROD_PORT" node tests/e2e/run.mjs
 step "Rien n'est supprimé en base"
 psql "$DB_URL" -q -v ON_ERROR_STOP=1 -f tests/sql/annulations.sql
 
+step "Droits de l'API"
+psql "$DB_URL" -q -v ON_ERROR_STOP=1 -f tests/sql/droits.sql
+
 step "Visite des pages avec next dev"
 setsid npx next dev -p $DEV_PORT -H 127.0.0.1 >"$LOG_DIR/dev.log" 2>&1 &
 PIDS+=($!)
