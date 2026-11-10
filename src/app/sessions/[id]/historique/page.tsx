@@ -28,7 +28,7 @@ async function History({
   const filtre = (await searchParams).filtre;
   const filter = typeof filtre === "string" && filtre in FILTERS ? (filtre as Filter) : null;
   await requirePlayer();
-  const [session, players, { events }] = await Promise.all([getSession(id), getPlayers(), getSessionEvents(id)]);
+  const [session, players, { events }] = await Promise.all([getSession(id, { cancelled: true }), getPlayers(), getSessionEvents(id)]);
   if (!session) notFound();
 
   const kinds: readonly string[] | null = filter ? FILTERS[filter].kinds : null;

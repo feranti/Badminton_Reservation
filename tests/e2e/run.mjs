@@ -568,8 +568,17 @@ try {
   alice.once("dialog", (d) => d.accept());
   await alice.getByRole("button", { name: "Supprimer la session" }).click();
   await alice.waitForURL(APP + "/");
-  await waitWhatsApp("❌ *SESSION SUPPRIMÉE*\nAlice a supprimé la session\n", ", 17:00 – 19:00 · " + VENUE, "Terrains : 11");
-  ok("alice supprime la session : le groupe WhatsApp est prévenu");
+  await waitWhatsApp("❌ *SESSION SUPPRIMÉE*\nAlice a supprimé la session\n", ", 17:00 – 19:00 · " + VENUE, "Terrains : 11", later);
+  ok("alice supprime la session : le groupe WhatsApp est prévenu, avec le lien de la session");
+  // La session annulée reste consultable, sans rien pour la modifier ni s'y inscrire.
+  await bob.goto(later);
+  await bob.waitForSelector("text=Session annulée par Alice le");
+  await stat(bob, "Terrain", "11").waitFor();
+  if (await bob.locator('a:text-is("Gérer")').count() || (await bob.getByRole("button", { name: /inscri/ }).count()))
+    throw new Error("Une session annulée ne doit plus pouvoir être modifiée");
+  await bob.goto(later + "/historique");
+  await bob.waitForSelector("text=Alice a supprimé la session");
+  ok("bob ouvre le lien : la session annulée reste consultable, avec son historique, mais n'est plus modifiable");
 
   // Tarif carte au Prisme, de bout en bout : alice capitaine avec carte, bob 2e joueur avec carte.
   // bob est à +2 € avant. Chaque changement de payeurs recalcule le prix et la part avancée par chacun.
