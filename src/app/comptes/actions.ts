@@ -50,7 +50,8 @@ export async function confirmPayment(paymentId: string) {
 // Annule (par celui qui l'a déclaré) ou refuse (par le bénéficiaire) un remboursement en attente.
 export async function cancelPayment(paymentId: string) {
   const { supabase } = await requirePlayer();
-  await supabase.from("payments").delete().eq("id", paymentId).is("confirmed_at", null);
+  // Le remboursement reste en base, marqué comme annulé.
+  await supabase.rpc("cancel_payment", { p_payment: paymentId });
   refresh();
 }
 

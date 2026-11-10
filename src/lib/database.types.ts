@@ -22,6 +22,9 @@ export type Database = {
           created_by: string;
           created_at: string;
           reminder_sent_at: string | null;
+          cancelled_at: string | null;
+          cancelled_by: string | null;
+          merged_into: string | null;
         };
         Insert: {
           id?: string;
@@ -31,6 +34,7 @@ export type Database = {
           notes?: string | null;
           created_by?: string;
           reminder_sent_at?: string | null;
+          cancelled_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["sessions"]["Insert"]>;
         Relationships: [];
@@ -50,6 +54,8 @@ export type Database = {
           card_pricing: boolean;
           booked_by_card: boolean;
           co_payer_card: boolean;
+          cancelled_at: string | null;
+          cancelled_by: string | null;
         };
         Insert: {
           id?: string;
@@ -67,19 +73,28 @@ export type Database = {
           card_pricing?: boolean;
           booked_by_card?: boolean;
           co_payer_card?: boolean;
+          cancelled_at?: string | null;
         };
         Relationships: [];
       };
       booking_qr_codes: {
-        Row: { booking_id: string; hour: number; qr_path: string; created_at: string };
-        Insert: { booking_id: string; hour: number; qr_path: string };
-        Update: { qr_path?: string };
+        Row: { booking_id: string; hour: number; qr_path: string; created_at: string; removed_at: string | null; removed_by: string | null };
+        Insert: { booking_id: string; hour: number; qr_path: string; removed_at?: string | null };
+        Update: { qr_path?: string; removed_at?: string | null };
         Relationships: [];
       };
       session_participants: {
-        Row: { session_id: string; player_id: string; added_at: string; guests: number };
+        Row: {
+          id: string;
+          session_id: string;
+          player_id: string;
+          added_at: string;
+          guests: number;
+          left_at: string | null;
+          left_by: string | null;
+        };
         Insert: { session_id: string; player_id: string; guests?: number };
-        Update: { guests?: number };
+        Update: { guests?: number; left_at?: string | null };
         Relationships: [];
       };
       session_events: {
@@ -108,6 +123,8 @@ export type Database = {
           confirmed_at: string | null;
           created_by: string;
           created_at: string;
+          cancelled_at: string | null;
+          cancelled_by: string | null;
         };
         Insert: {
           id?: string;
@@ -158,6 +175,8 @@ export type Database = {
         Returns: string;
       };
       remove_court_booking: { Args: { p_booking: string }; Returns: undefined };
+      add_participants: { Args: { p_session: string; p_players: string[]; p_guests?: number }; Returns: string[] };
+      cancel_payment: { Args: { p_payment: string }; Returns: undefined };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

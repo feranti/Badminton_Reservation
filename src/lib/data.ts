@@ -27,13 +27,13 @@ async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = 
   const { supabase } = await requirePlayer();
   const ids = sessions.map((s) => s.id);
   const [bookings, players] = await Promise.all([
-    supabase.from("court_bookings").select("*").in("session_id", ids).order("court").order("starts_at"),
+    supabase.from("court_bookings").select("*").in("session_id", ids).is("cancelled_at", null).order("court").order("starts_at"),
     supabase.from("session_players").select("session_id, player_id, position, is_playing, guests, spots").in("session_id", ids).order("position"),
   ]);
   if (bookings.error) throw bookings.error;
   if (players.error) throw players.error;
   const qrs = bookings.data.length
-    ? await supabase.from("booking_qr_codes").select("booking_id, hour, qr_path").in("booking_id", bookings.data.map((b) => b.id)).order("hour")
+    ? await supabase.from("booking_qr_codes").select("booking_id, hour, qr_path").in("booking_id", bookings.data.map((b) => b.id)).is("removed_at", null).order("hour")
     : { data: [], error: null };
   if (qrs.error) throw qrs.error;
 
@@ -68,7 +68,7 @@ async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = 
 export async function getSessions(past: boolean) {
   const { supabase } = await requirePlayer();
   const now = new Date().toISOString();
-  const query = supabase.from("sessions").select("*");
+  const query = supabase.from("sessions").select("*").is("cancelled_at", null);
   const { data, error } = past
     ? await query.lt("ends_at", now).order("starts_at", { ascending: false }).limit(50)
     : await query.gte("ends_at", now).order("starts_at");
@@ -81,7 +81,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function getSession(id: string) {
   if (!UUID.test(id)) return null;
   const { supabase } = await requirePlayer();
-  const { data, error } = await supabase.from("sessions").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await supabase.from("sessions").select("*").eq("id", id).is("cancelled_at", null).maybeSingle();
   if (error) throw error;
   if (!data) return null;
   const [session] = await withDetails([data], { qrUrls: true });
@@ -94,6 +94,7 @@ export async function getLastVenue() {
   const { data: session } = await supabase
     .from("sessions")
     .select("venue")
+    .is("cancelled_at", null)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -112,6 +113,7 @@ export async function getPayments() {
   const { data, error } = await supabase
     .from("payments")
     .select("*")
+    .is("cancelled_at", null)
     .order("created_at", { ascending: false })
     .limit(100);
   if (error) throw error;

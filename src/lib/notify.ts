@@ -102,11 +102,12 @@ export type SessionState = {
 
 export async function sessionState(supabase: Client, sessionId: string): Promise<SessionState | null> {
   const [{ data: session }, { data: bookings }, { data: players }] = await Promise.all([
-    supabase.from("sessions").select("*").eq("id", sessionId).maybeSingle(),
+    supabase.from("sessions").select("*").eq("id", sessionId).is("cancelled_at", null).maybeSingle(),
     supabase
       .from("court_bookings")
       .select("court, starts_at, ends_at")
       .eq("session_id", sessionId)
+      .is("cancelled_at", null)
       .order("court")
       .order("starts_at"),
     supabase.from("session_players").select("is_playing, spots").eq("session_id", sessionId),
