@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { addParticipantFromForm, deleteSession, removeBooking, removeParticipant, removePartner, setQrPath } from "@/app/sessions/actions";
@@ -14,7 +15,7 @@ import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { groupByCourt, sessionStatus } from "@/components/session-card";
 import { card, dangerText, inputClass, quietButton, secondaryButton, sectionTitle, textButton } from "@/components/ui";
 import { bookingHours } from "@/lib/courts";
-import { getPlayers, getSession } from "@/lib/data";
+import { getPlayers, getSession, getSessionEvents } from "@/lib/data";
 import { formatDay, formatEuros, formatTimes, toDateAndTime } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
 
@@ -29,7 +30,7 @@ export default function ManageSessionPage({ params }: PageProps<"/sessions/[id]/
 async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/gerer">["params"] }) {
   const { id } = await params;
   const { userId } = await requirePlayer();
-  const [session, players] = await Promise.all([getSession(id), getPlayers()]);
+  const [session, players, { count: eventCount }] = await Promise.all([getSession(id), getPlayers(), getSessionEvents(id, 1)]);
   if (!session) notFound();
 
   const s = session;
@@ -234,6 +235,13 @@ async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/ger
         <h2 className={sectionTitle}>Session</h2>
         <EditSessionForm id={s.id} venue={s.venue} notes={s.notes ?? ""} />
       </section>
+
+      <Link href={`/sessions/${s.id}/historique`} className={`${card} flex min-h-14 items-center justify-between px-4 text-[15px]`}>
+        <span>
+          Historique <span className="text-muted">· {eventCount} événement{eventCount > 1 ? "s" : ""}</span>
+        </span>
+        <span aria-hidden className="text-faint">›</span>
+      </Link>
 
       {s.created_by === userId && (
         <form action={deleteSession.bind(null, s.id)} className="flex justify-center">

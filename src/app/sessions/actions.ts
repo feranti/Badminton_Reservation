@@ -163,7 +163,10 @@ export async function removeBooking(bookingId: string) {
     .single();
   const { data: qrs } = await supabase.from("booking_qr_codes").select("qr_path").eq("booking_id", bookingId);
   const before = booking ? await sessionState(supabase, booking.session_id) : null;
+  const players = booking ? await snapshot(supabase, booking.session_id) : null;
   const { error } = await supabase.rpc("remove_court_booking", { p_booking: bookingId });
+  // Moins de places : des joueurs peuvent repasser en liste d'attente (noté dans l'historique).
+  if (booking && players && !error) await notifyPromotions(supabase, booking.session_id, players, userId);
   if (booking && before && !error) {
     await notifyGroup(supabase, userId, booking.session_id, {
       kind: "removed",

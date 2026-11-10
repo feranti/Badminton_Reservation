@@ -25,7 +25,7 @@ await page.goto(APP + "/");
 const session = page.locator('main a[href^="/sessions/"]:not([href$="/nouvelle"])').first();
 if (await session.count()) {
   const href = await session.getAttribute("href");
-  for (const path of [href, `${href}/gerer`]) {
+  for (const path of [href, `${href}/gerer`, `${href}/historique`]) {
     await page.goto(APP + path);
     await page.waitForTimeout(2000);
   }

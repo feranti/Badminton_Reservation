@@ -29,11 +29,28 @@ async function sessionLink(sessionId: string) {
   return host ? `${proto}://${host}/sessions/${sessionId}` : "";
 }
 
-// Prévient par e-mail les joueurs qui viennent de passer de la liste d'attente aux joueurs effectifs.
+// Note dans l'historique de la session les joueurs passés de la liste d'attente aux joueurs
+// effectifs, ou l'inverse (terrain retiré). Renvoie l'état après le changement.
+async function logWaitingChanges(supabase: Client, sessionId: string, before: Snapshot) {
+  const after = await snapshot(supabase, sessionId);
+  const stayed = [...after.registered].filter((id) => before.registered.has(id));
+  const events = [
+    ...stayed.filter((id) => after.playing.has(id) && !before.playing.has(id)).map((player_id) => ({ player_id, kind: "promoted" as const })),
+    ...stayed.filter((id) => !after.playing.has(id) && before.playing.has(id)).map((player_id) => ({ player_id, kind: "demoted" as const })),
+  ];
+  if (events.length) {
+    const { error } = await supabase.from("session_events").insert(events.map((e) => ({ ...e, session_id: sessionId })));
+    if (error) console.error("[historique] liste d'attente non notée", error);
+  }
+  return after;
+}
+
+// Note dans l'historique les passages liste d'attente ↔ joueurs, et prévient par e-mail les joueurs
+// qui viennent de passer de la liste d'attente aux joueurs effectifs.
 // N'interrompt jamais l'action en cours : une erreur d'envoi est seulement journalisée.
 export async function notifyPromotions(supabase: Client, sessionId: string, before: Snapshot, actorId: string) {
   try {
-    const after = await snapshot(supabase, sessionId);
+    const after = await logWaitingChanges(supabase, sessionId, before);
     // Promus = étaient inscrits mais en liste d'attente, et jouent maintenant.
     const waiting = [...after.playing]
       .filter((id) => before.registered.has(id) && !before.playing.has(id) && id !== actorId)
