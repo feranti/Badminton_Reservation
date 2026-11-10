@@ -7,10 +7,11 @@ import { QrViewer } from "@/components/qr-viewer";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { groupByCourt, sessionStatus } from "@/components/session-card";
 import { GuestsForm } from "@/components/join-form";
+import { SessionHistory } from "@/components/session-history";
 import { JoinButton, SessionPlayers } from "@/components/session-players";
 import { card, sectionTitle } from "@/components/ui";
 import { bookingHours } from "@/lib/courts";
-import { getPlayers, getSession, isPast } from "@/lib/data";
+import { getPlayers, getSession, getSessionEvents, isPast } from "@/lib/data";
 import { formatDay, formatEuros, formatTimes, shareCents } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
 
@@ -25,7 +26,7 @@ export default function SessionPage({ params }: PageProps<"/sessions/[id]">) {
 async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">["params"] }) {
   const { id } = await params;
   const { userId } = await requirePlayer();
-  const [session, players] = await Promise.all([getSession(id), getPlayers()]);
+  const [session, players, history] = await Promise.all([getSession(id), getPlayers(), getSessionEvents(id, 4)]);
   if (!session) notFound();
 
   const s = session;
@@ -114,6 +115,20 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
       <p className="text-sm text-muted">
         Réservé par {payersText} · {formatEuros(s.totalCents)}
       </p>
+
+      {history.count > 0 && (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className={sectionTitle}>Historique</h2>
+            {history.count > history.events.length && (
+              <Link href={`/sessions/${s.id}/historique`} className="text-[15px] font-medium text-accent">
+                Tout voir ({history.count})
+              </Link>
+            )}
+          </div>
+          <SessionHistory events={history.events} names={new Map(players.map((p) => [p.id, p.display_name]))} />
+        </section>
+      )}
 
       {!past && (
         <StickyFooter>

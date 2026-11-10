@@ -261,6 +261,28 @@ try {
   ok("le groupe WhatsApp est prévenu du terrain 10, au nom de ses deux payeurs (bob et alice)");
   ok("le bouton OK de Gérer enregistre la note et revient à la session");
 
+  // Historique : les 4 derniers événements sur la page de la session, tout le fil sur sa page.
+  const historique = bob.locator("section", { has: bob.locator('h2:text-is("Historique")') });
+  await historique.getByText("bob a modifié la session").waitFor();
+  await historique.getByText("bob et alice ont réservé le terrain 10").waitFor();
+  await historique.getByText("bob s'est désinscrit").waitFor();
+  if ((await historique.locator("li").count()) !== 4) throw new Error("La page de la session doit montrer 4 événements");
+  await historique.getByRole("link", { name: "Tout voir (9)" }).click();
+  // La page précédente reste chargée (cachée) : on ne regarde que le fil visible.
+  const fil = bob.locator("ol").filter({ visible: true });
+  await fil.getByText("alice a créé la session").waitFor();
+  await fil.getByText("alice a réservé le terrain 6").waitFor();
+  await fil.getByText("Note : « Volants fournis »").waitFor();
+  await fil.getByText("Aujourd'hui", { exact: true }).waitFor();
+  if ((await fil.locator("> li").count()) !== 9) throw new Error("La page Historique doit montrer les 9 événements");
+  await bob.getByRole("link", { name: "Terrains", exact: true }).filter({ visible: true }).click();
+  await fil.getByText("bob s'est désinscrit").waitFor({ state: "detached" });
+  await fil.getByText("alice a réservé le terrain 9").waitFor();
+  if ((await fil.locator("> li").count()) !== 3) throw new Error("Le filtre Terrains doit garder les 3 réservations");
+  await bob.getByRole("link", { name: "Retour" }).filter({ visible: true }).click();
+  await stat(bob, "Joueurs", "2 / 12").waitFor();
+  ok("l'historique montre création, terrains, inscriptions, désinscription et note, avec un filtre par type");
+
   // QR code
   const png = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
@@ -422,6 +444,12 @@ try {
   }
   if (!promoted) throw new Error("bob n'a pas reçu l'e-mail de place libérée");
   ok("eve se désiste aussi : bob et son invité jouent (4/4), bob paie 2 parts et reçoit un e-mail");
+  await bob.reload();
+  const historiqueMidi = bob.locator("section", { has: bob.locator('h2:text-is("Historique")') });
+  await historiqueMidi.getByText("bob passe de la liste d'attente aux joueurs").waitFor();
+  await historiqueMidi.getByText("alice a retiré eve").waitFor();
+  await historiqueMidi.getByText("alice a retiré carol").waitFor();
+  ok("l'historique note les joueurs retirés par alice et le passage de bob de la liste d'attente aux joueurs");
 
   await bob.selectOption('select[name="guests"]', "2");
   await bob.waitForSelector("text=La session est complète : impossible d'ajouter un invité.");

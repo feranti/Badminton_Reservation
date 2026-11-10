@@ -121,3 +121,20 @@ export async function getPayments() {
 export function isPast(session: { ends_at: string }) {
   return Date.parse(session.ends_at) < Date.now();
 }
+
+export type SessionEvent = Tables<"session_events">;
+
+// Historique d'une session, du plus récent au plus ancien, avec le nombre total d'événements.
+export async function getSessionEvents(sessionId: string, limit?: number) {
+  const { supabase } = await requirePlayer();
+  let query = supabase
+    .from("session_events")
+    .select("*", { count: "exact" })
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+  if (limit) query = query.limit(limit);
+  const { data, error, count } = await query;
+  if (error) throw error;
+  return { events: data, count: count ?? data.length };
+}

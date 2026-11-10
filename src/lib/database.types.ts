@@ -1,6 +1,8 @@
 // Types de la base, écrits à la main d'après supabase/migrations.
 // Pour les régénérer : npx supabase gen types typescript --project-id <id> > src/lib/database.types.ts
 
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
 export type Database = {
   public: {
     Tables: {
@@ -78,6 +80,21 @@ export type Database = {
         Row: { session_id: string; player_id: string; added_at: string; guests: number };
         Insert: { session_id: string; player_id: string; guests?: number };
         Update: { guests?: number };
+        Relationships: [];
+      };
+      session_events: {
+        Row: {
+          id: number;
+          session_id: string;
+          kind: string;
+          actor_id: string | null;
+          player_id: string | null;
+          details: Json;
+          created_at: string;
+        };
+        // L'appli n'écrit que les passages liste d'attente ↔ joueurs (le reste vient des déclencheurs).
+        Insert: { session_id: string; kind: "promoted" | "demoted"; player_id: string };
+        Update: Record<string, never>;
         Relationships: [];
       };
       payments: {
