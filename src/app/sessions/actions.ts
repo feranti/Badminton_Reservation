@@ -72,10 +72,7 @@ async function joinPayers(
 ) {
   const ids = [...new Set([...(iPlay ? [userId] : []), ...payers(booking).filter((id) => id !== userId)])];
   if (ids.length === 0) return;
-  await supabase.from("session_participants").upsert(
-    ids.map((player_id) => ({ session_id: sessionId, player_id })),
-    { onConflict: "session_id,player_id", ignoreDuplicates: true },
-  );
+  await supabase.rpc("add_participants", { p_session: sessionId, p_players: ids });
 }
 
 // Ajoute une ou plusieurs réservations (un terrain chacune). L'appli les range dans la bonne session.
@@ -126,7 +123,7 @@ export async function addBooking(sessionId: string, _prev: FormState, formData: 
   if (court === null) return { error: "Choisissez un terrain." };
   const fields = readBooking(formData, userId);
   if ("error" in fields) return { error: fields.error };
-  const { data: session } = await supabase.from("sessions").select("venue").eq("id", sessionId).single();
+  const { data: session } = await supabase.from("sessions").select("venue").eq("id", sessionId).is("cancelled_at", null).maybeSingle();
   if (!session) return { error: "Cette session n'existe plus." };
 
   const before = await snapshot(supabase, sessionId);
@@ -160,8 +157,8 @@ export async function removeBooking(bookingId: string) {
     .from("court_bookings")
     .select("session_id, court, starts_at, ends_at")
     .eq("id", bookingId)
-    .single();
-  const { data: qrs } = await supabase.from("booking_qr_codes").select("qr_path").eq("booking_id", bookingId);
+    .is("cancelled_at", null)
+    .maybeSingle();
   const before = booking ? await sessionState(supabase, booking.session_id) : null;
   const players = booking ? await snapshot(supabase, booking.session_id) : null;
   const { error } = await supabase.rpc("remove_court_booking", { p_booking: bookingId });
@@ -176,9 +173,8 @@ export async function removeBooking(bookingId: string) {
       before,
     });
   }
-  if (!error && qrs?.length) await supabase.storage.from("qr-codes").remove(qrs.map((q) => q.qr_path));
   const { data: still } = booking
-    ? await supabase.from("sessions").select("id").eq("id", booking.session_id).maybeSingle()
+    ? await supabase.from("sessions").select("id").eq("id", booking.session_id).is("cancelled_at", null).maybeSingle()
     : { data: null };
   if (!still) redirect("/");
   refresh();
@@ -196,6 +192,7 @@ export async function updateBookingPrice(bookingId: string, _prev: FormState, fo
     .from("court_bookings")
     .update({ price_cents: priceCents, card_pricing: false })
     .eq("id", bookingId)
+    .is("cancelled_at", null)
     .select("id");
   if (error) return { error: "Le prix n'a pas pu être modifié." };
   if (!data?.length) return { error: "Ce terrain n'existe plus." };
@@ -214,6 +211,7 @@ async function savePayers(bookingId: string, payers: Payers): Promise<FormState>
     .from("court_bookings")
     .select("session_id, starts_at, ends_at, card_pricing, booked_by, co_payer")
     .eq("id", bookingId)
+    .is("cancelled_at", null)
     .maybeSingle();
   if (!booking) return { error: "Ce terrain n'existe plus." };
   if (payers.co_payer === payers.booked_by) return { error: "Choisissez deux payeurs différents." };
@@ -231,10 +229,7 @@ async function savePayers(bookingId: string, payers: Payers): Promise<FormState>
     (id): id is string => id !== null && id !== booking.booked_by && id !== booking.co_payer,
   );
   if (added.length) {
-    await supabase.from("session_participants").upsert(
-      added.map((player_id) => ({ session_id: booking.session_id, player_id })),
-      { onConflict: "session_id,player_id", ignoreDuplicates: true },
-    );
+    await supabase.rpc("add_participants", { p_session: booking.session_id, p_players: added });
   }
   refresh();
   return { added: true };
@@ -283,27 +278,25 @@ export async function updateSession(_prev: FormState, formData: FormData): Promi
   return { added: true };
 }
 
+// La session est annulée, pas supprimée : elle reste en base avec ses terrains, ses inscriptions
+// et ses QR codes (seul son créateur peut l'annuler, règle vérifiée en base).
 export async function deleteSession(id: string) {
   const { supabase, userId } = await requirePlayer();
-  const { data: bookings } = await supabase.from("court_bookings").select("id").eq("session_id", id);
-  const { data: qrs } = bookings?.length
-    ? await supabase.from("booking_qr_codes").select("qr_path").in("booking_id", bookings.map((b) => b.id))
-    : { data: [] };
-  const paths = (qrs ?? []).map((q) => q.qr_path);
   const before = await sessionState(supabase, id);
-  const { error } = await supabase.from("sessions").delete().eq("id", id);
-  if (before && !error) await notifyGroup(supabase, userId, id, { kind: "deleted", before });
-  if (paths.length) await supabase.storage.from("qr-codes").remove(paths);
+  const { data, error } = await supabase
+    .from("sessions")
+    .update({ cancelled_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("cancelled_at", null)
+    .select("id");
+  if (before && !error && data?.length) await notifyGroup(supabase, userId, id, { kind: "deleted", before });
   redirect("/");
 }
 
 // Inscrit un joueur (lui-même ou un autre depuis la page de la session) et prévient le groupe.
 export async function addParticipant(sessionId: string, playerId: string, guests = 0) {
   const { supabase } = await requirePlayer();
-  const { data: added } = await supabase
-    .from("session_participants")
-    .upsert({ session_id: sessionId, player_id: playerId, guests }, { onConflict: "session_id,player_id", ignoreDuplicates: true })
-    .select("player_id");
+  const { data: added } = await supabase.rpc("add_participants", { p_session: sessionId, p_players: [playerId], p_guests: guests });
   // Rien de renvoyé = le joueur était déjà inscrit : pas de nouveau message.
   if (added?.length) {
     const { data: me } = await supabase
@@ -362,7 +355,8 @@ export async function setGuests(sessionId: string, _prev: FormState, formData: F
     .from("session_participants")
     .update({ guests })
     .eq("session_id", sessionId)
-    .eq("player_id", userId);
+    .eq("player_id", userId)
+    .is("left_at", null);
   if (error) return { error: "Le nombre d'invités n'a pas pu être modifié." };
   // Moins d'invités = des places libérées pour la liste d'attente.
   await notifyPromotions(supabase, sessionId, before, userId);
@@ -380,16 +374,17 @@ export async function setGuests(sessionId: string, _prev: FormState, formData: F
   return {};
 }
 
-// Désinscription : le groupe est prévenu, le premier de la liste d'attente prend la place et
-// reçoit un e-mail.
+// Désinscription : l'inscription est marquée comme quittée (jamais supprimée), le groupe est
+// prévenu, le premier de la liste d'attente prend la place et reçoit un e-mail.
 export async function removeParticipant(sessionId: string, playerId: string) {
   const { supabase, userId } = await requirePlayer();
   const before = await snapshot(supabase, sessionId);
   const { data: removed } = await supabase
     .from("session_participants")
-    .delete()
+    .update({ left_at: new Date().toISOString() })
     .eq("session_id", sessionId)
     .eq("player_id", playerId)
+    .is("left_at", null)
     .select("guests");
   // Rien de renvoyé = le joueur n'était plus inscrit : pas de message.
   if (removed?.length) {
@@ -409,19 +404,12 @@ export async function addParticipantFromForm(sessionId: string, formData: FormDa
   if (playerId) await addParticipant(sessionId, playerId);
 }
 
-// QR code d'une heure d'un terrain (hour = 0 pour la première heure) ; path = null le supprime.
+// QR code d'une heure d'un terrain (hour = 0 pour la première heure) ; path = null le retire.
+// Un QR code retiré reste en base (removed_at) et son image reste dans le stockage.
 export async function setQrPath(bookingId: string, hour: number, path: string | null) {
   const { supabase } = await requirePlayer();
   if (!Number.isInteger(hour) || hour < 0 || hour > 23) return;
-  const { data: old } = await supabase
-    .from("booking_qr_codes")
-    .select("qr_path")
-    .eq("booking_id", bookingId)
-    .eq("hour", hour)
-    .maybeSingle();
-  const { error } = path
-    ? await supabase.from("booking_qr_codes").upsert({ booking_id: bookingId, hour, qr_path: path })
-    : await supabase.from("booking_qr_codes").delete().eq("booking_id", bookingId).eq("hour", hour);
-  if (!error && old?.qr_path && old.qr_path !== path) await supabase.storage.from("qr-codes").remove([old.qr_path]);
+  if (path) await supabase.from("booking_qr_codes").upsert({ booking_id: bookingId, hour, qr_path: path, removed_at: null });
+  else await supabase.from("booking_qr_codes").update({ removed_at: new Date().toISOString() }).eq("booking_id", bookingId).eq("hour", hour);
   refresh();
 }

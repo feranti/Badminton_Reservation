@@ -29,7 +29,7 @@ export function recapMessage(balances: Balance[], pending: PendingPayment[], lin
 export async function buildRecap(admin: SupabaseClient<Database>, link: string) {
   const [balances, pending] = await Promise.all([
     admin.from("balances").select("player_id, display_name, balance_cents").order("balance_cents", { ascending: false }),
-    admin.from("payments").select("from_player, to_player").is("confirmed_at", null),
+    admin.from("payments").select("from_player, to_player").is("confirmed_at", null).is("cancelled_at", null),
   ]);
   if (balances.error) throw balances.error;
   if (pending.error) throw pending.error;

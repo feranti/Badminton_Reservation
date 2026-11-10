@@ -18,6 +18,7 @@ export async function GET(request: Request) {
   const { data: due, error } = await admin
     .from("sessions")
     .select("id")
+    .is("cancelled_at", null)
     .is("reminder_sent_at", null)
     .gte("starts_at", hours(CANCEL_HOURS))
     .lte("starts_at", hours(REMINDER_HOURS));
