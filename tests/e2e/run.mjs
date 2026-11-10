@@ -222,6 +222,8 @@ try {
   await bob.getByRole("button", { name: "Me désinscrire" }).click();
   await bob.getByRole("button", { name: "Je m'inscris" }).waitFor();
   await stat(alice, "Par joueur", "25,00 €").waitFor({ timeout: 10000 });
+  await waitWhatsApp("👋 bob se désinscrit\n", ", 20:00 – 22:00 · " + VENUE + "\nPlaces restantes : 7\n", evening);
+  ok("le groupe WhatsApp est prévenu de la désinscription de bob, avec les places restantes");
   await bob.getByRole("button", { name: "Je m'inscris" }).click();
   await stat(alice, "Par joueur", "12,50 €").waitFor({ timeout: 10000 });
   await bob.goto(APP + "/");
