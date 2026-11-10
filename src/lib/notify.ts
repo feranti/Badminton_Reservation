@@ -200,6 +200,8 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
       `${actor} a supprimé la session`,
       `${formatSlot(s.starts_at, s.ends_at)} · ${s.venue}`,
       ...courtLines(s),
+      // La session annulée reste consultable dans l'appli.
+      ...(link ? [link] : []),
     ].join("\n");
   }
   if (event.kind === "joined") {
@@ -237,7 +239,7 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
     `${BAR}*${formatSlot(s.starts_at, s.ends_at)}*`,
     ...(current ? courtLines(s).map((l) => `${BAR}${l}`) : []),
     `${BAR}${s.venue} · ${places}`,
-    ...(current && link ? [link] : []),
+    ...(link ? [link] : []),
   ].join("\n");
 }
 
@@ -254,7 +256,8 @@ export async function notifyGroup(supabase: Client, actorId: string, sessionId: 
       supabase.from("profiles").select("id, display_name").in("id", ids),
     ]);
     const names = ids.map((id) => profiles?.find((p) => p.id === id)?.display_name ?? "Quelqu'un");
-    const link = state ? await sessionLink(sessionId) : "";
+    // Lien aussi pour une session annulée : elle reste consultable.
+    const link = await sessionLink(sessionId);
     const message = groupMessage(names, event, state, link);
     if (!message) return;
     after(async () => {

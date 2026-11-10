@@ -78,10 +78,12 @@ export async function getSessions(past: boolean) {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function getSession(id: string) {
+// cancelled : renvoie aussi une session annulée, pour la consulter (page de la session, historique).
+export async function getSession(id: string, { cancelled = false } = {}) {
   if (!UUID.test(id)) return null;
   const { supabase } = await requirePlayer();
-  const { data, error } = await supabase.from("sessions").select("*").eq("id", id).is("cancelled_at", null).maybeSingle();
+  const query = supabase.from("sessions").select("*").eq("id", id);
+  const { data, error } = await (cancelled ? query : query.is("cancelled_at", null)).maybeSingle();
   if (error) throw error;
   if (!data) return null;
   const [session] = await withDetails([data], { qrUrls: true });

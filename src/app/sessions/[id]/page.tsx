@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Loading, StickyFooter, SubPage } from "@/components/app-shell";
 import { QrIcon } from "@/components/icons";
@@ -12,7 +12,7 @@ import { JoinButton, SessionPlayers } from "@/components/session-players";
 import { card, sectionTitle } from "@/components/ui";
 import { bookingHours } from "@/lib/courts";
 import { getPlayers, getSession, getSessionEvents, isPast } from "@/lib/data";
-import { formatDay, formatEuros, formatTimes, shareCents } from "@/lib/format";
+import { formatDay, formatEuros, formatTime, formatTimes, shareCents } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
 
 export default function SessionPage({ params }: PageProps<"/sessions/[id]">) {
@@ -26,8 +26,10 @@ export default function SessionPage({ params }: PageProps<"/sessions/[id]">) {
 async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">["params"] }) {
   const { id } = await params;
   const { userId } = await requirePlayer();
-  const [session, players, history] = await Promise.all([getSession(id), getPlayers(), getSessionEvents(id, 4)]);
+  const [session, players, history] = await Promise.all([getSession(id, { cancelled: true }), getPlayers(), getSessionEvents(id, 4)]);
   if (!session) notFound();
+  // Session absorbée par une autre lors d'une fusion : on affiche celle qui la remplace.
+  if (session.merged_into) redirect(`/sessions/${session.merged_into}`);
 
   const s = session;
   const playersById = new Map(players.map((p) => [p.id, p]));
@@ -35,7 +37,10 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
   const { playing, me, guests } = sessionStatus(s, userId);
   const share = playing > 0 ? shareCents(s.totalCents, playing) : 0;
   const courts = groupByCourt(s.bookings);
+  // Une session annulée reste consultable, sans rien pour la modifier ni s'y inscrire.
+  const cancelled = Boolean(s.cancelled_at);
   const past = isPast(s);
+  const readOnly = past || cancelled;
   const payers = [...new Set(s.bookings.flatMap((b) => [b.booked_by, b.co_payer]).filter((p): p is string => Boolean(p)))];
   const payersText = payers.map(name).join(", ").replace(/, ([^,]*)$/, " et $1");
   // Un QR code par heure de terrain : l'heure est précisée dès qu'un terrain en a plusieurs.
@@ -50,14 +55,21 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
   return (
     <SubPage
       back={past ? "/?passees=1" : "/"}
-      withFooter={!past}
+      withFooter={!readOnly}
       right={
-        <Link href={`/sessions/${s.id}/gerer`} className="flex min-h-11 items-center px-3 text-[15px] font-medium text-ink">
+        !cancelled && <Link href={`/sessions/${s.id}/gerer`} className="flex min-h-11 items-center px-3 text-[15px] font-medium text-ink">
           Gérer
         </Link>
       }
     >
       <RealtimeRefresh />
+      {cancelled && (
+        <p role="status" className="rounded-xl bg-chip px-4 py-3 text-[15px]">
+          <span className="font-semibold">Session annulée</span>
+          {s.cancelled_by && ` par ${name(s.cancelled_by)}`} le {formatDay(s.cancelled_at!).toLowerCase()} à{" "}
+          {formatTime(s.cancelled_at!)}.
+        </p>
+      )}
       <div className="flex flex-col gap-1.5">
         <h1 className="text-[28px] leading-tight font-semibold tracking-tight">{formatDay(s.starts_at)}</h1>
         <p className="text-muted">
@@ -82,7 +94,7 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
       <section className="flex flex-col gap-3">
         <h2 className={sectionTitle}>Joueurs</h2>
         <SessionPlayers session={s} players={playersById} userId={userId} />
-        {me && !past && <GuestsForm sessionId={s.id} guests={guests} />}
+        {me && !readOnly && <GuestsForm sessionId={s.id} guests={guests} />}
         {me === "playing" && guests > 0 && (
           <p className="text-sm text-muted">
             Vous payez aussi la part de vos invités : {1 + guests} × {formatEuros(share)} ={" "}
@@ -91,7 +103,7 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
         )}
       </section>
 
-      {qrs.length > 0 && (
+      {qrs.length > 0 && !cancelled && (
         <section className="flex flex-col gap-3">
           <h2 className={sectionTitle}>QR codes d&apos;entrée</h2>
           <div className="grid grid-cols-2 gap-2">
@@ -130,7 +142,7 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
         </section>
       )}
 
-      {!past && (
+      {!readOnly && (
         <StickyFooter>
           <JoinButton session={s} userId={userId} />
         </StickyFooter>
