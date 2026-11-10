@@ -377,11 +377,25 @@ export async function setGuests(sessionId: string, _prev: FormState, formData: F
   return {};
 }
 
-// Désinscription : le premier de la liste d'attente prend la place et reçoit un e-mail.
+// Désinscription : le groupe est prévenu, le premier de la liste d'attente prend la place et
+// reçoit un e-mail.
 export async function removeParticipant(sessionId: string, playerId: string) {
   const { supabase, userId } = await requirePlayer();
   const before = await snapshot(supabase, sessionId);
-  await supabase.from("session_participants").delete().eq("session_id", sessionId).eq("player_id", playerId);
+  const { data: removed } = await supabase
+    .from("session_participants")
+    .delete()
+    .eq("session_id", sessionId)
+    .eq("player_id", playerId)
+    .select("guests");
+  // Rien de renvoyé = le joueur n'était plus inscrit : pas de message.
+  if (removed?.length) {
+    await notifyGroup(supabase, playerId, sessionId, {
+      kind: "left",
+      guests: removed[0].guests,
+      playing: before.playing.has(playerId),
+    });
+  }
   await notifyPromotions(supabase, sessionId, before, userId);
   refresh();
 }

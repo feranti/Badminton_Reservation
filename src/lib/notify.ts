@@ -119,7 +119,9 @@ export type GroupEvent =
   // Inscription d'un joueur, avec ses invités extérieurs ; playing = false s'il est en liste d'attente.
   | { kind: "joined"; guests: number; playing: boolean }
   // Un joueur déjà inscrit change son nombre d'invités.
-  | { kind: "guests"; guests: number; playing: boolean };
+  | { kind: "guests"; guests: number; playing: boolean }
+  // Désinscription d'un joueur (et de ses invités) ; playing = false s'il était en liste d'attente.
+  | { kind: "left"; guests: number; playing: boolean };
 
 // « le terrain 7 », « les terrains 6 et 9 », « les terrains 6, 7 et 9 »
 export function courtsLabel(courts: number[]) {
@@ -171,7 +173,7 @@ const BAR = "▎ ";
 // names : le ou les payeurs pour une réservation, sinon la personne qui annule ou supprime.
 export function groupMessage(names: string[], event: GroupEvent, current: SessionState | null, link: string, now = Date.now()) {
   const actor = names.join(" et ");
-  const ref = current ?? (event.kind === "added" || event.kind === "joined" || event.kind === "guests" ? null : event.before);
+  const ref = current ?? (event.kind === "added" || event.kind === "joined" || event.kind === "guests" || event.kind === "left" ? null : event.before);
   if (!ref || Date.parse(ref.ends_at) < now) return null;
   if (event.kind === "deleted") {
     const s = event.before;
@@ -186,6 +188,11 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
     const guests = event.guests ? ` avec ${event.guests} invité${event.guests > 1 ? "s" : ""}` : "";
     const waiting = event.playing ? "" : " (en liste d'attente)";
     return [`🙋 ${actor} s'inscrit${guests}${waiting}`, ...sessionLines(ref, link, { courts: false })].join("\n");
+  }
+  if (event.kind === "left") {
+    const guests = event.guests ? ` avec ${event.guests} invité${event.guests > 1 ? "s" : ""}` : "";
+    const waiting = event.playing ? "" : " (était en liste d'attente)";
+    return [`👋 ${actor} se désinscrit${guests}${waiting}`, ...sessionLines(ref, link, { courts: false })].join("\n");
   }
   if (event.kind === "guests") {
     const guests = event.guests ? `avec ${event.guests} invité${event.guests > 1 ? "s" : ""}` : "sans invité";
