@@ -3,7 +3,8 @@
 # qui correspond à 23 h à Paris appelle le site (21 h UTC en heure d'été, 22 h UTC en hiver).
 # Un lancement en retard reste rattaché à son horaire prévu, donc le récap ne part qu'une fois.
 # « Run workflow » (onglet Actions) l'envoie tout de suite.
-# Secret GitHub nécessaire : CRON_SECRET, la même valeur que sur Vercel.
+# Secret GitHub nécessaire : CRON_SECRET, la même valeur que sur le site. Variable du dépôt : APP_URL,
+# l'adresse du site (sans elle, l'ancienne adresse Vercel).
 name: Récap des comptes
 
 on:
@@ -20,6 +21,7 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           SCHEDULE: ${{ github.event.schedule }}
+          APP_URL: ${{ vars.APP_URL || 'https://bad-resas.vercel.app' }}
         run: |
           if [ -n "$SCHEDULE" ]; then
             # +0200 en heure d'été (lancement de 21 h UTC), +0100 en hiver (lancement de 22 h UTC).
@@ -30,4 +32,4 @@ jobs:
               exit 0
             fi
           fi
-          curl -fsS --max-time 30 -H "Authorization: Bearer $CRON_SECRET" https://bad-resas.vercel.app/api/cron/recap-comptes
+          curl -fsS --max-time 30 -H "Authorization: Bearer $CRON_SECRET" "${APP_URL%/}/api/cron/recap-comptes"

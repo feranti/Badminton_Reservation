@@ -11,8 +11,10 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient();
   if (!admin) return NextResponse.json({ error: "SUPABASE_SECRET_KEY absente" }, { status: 500 });
 
-  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  const link = `${host ? `https://${host}` : request.nextUrl.origin}/comptes`;
+  // Adresse publique du site (APP_URL) : derrière le proxy du VPS, l'adresse de la requête peut
+  // être celle du conteneur.
+  const origin = process.env.APP_URL?.replace(/\/$/, "") || request.nextUrl.origin;
+  const link = `${origin}/comptes`;
   await sendToGroup(await buildRecap(admin, link));
   return NextResponse.json({ sent: true });
 }

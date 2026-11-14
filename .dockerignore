@@ -1,0 +1,16 @@
+# Fichiers inutiles (ou secrets) pour construire l'image : seuls le code et public/ comptent.
+.git
+.github
+.claude
+.next
+.vercel
+node_modules
+.env*
+.mcp.json
+*.log
+docs
+supabase
+tests
+scripts
+Dockerfile
+.dockerignore
