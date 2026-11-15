@@ -28,6 +28,9 @@ done
 
 step "Lint et types"
 npm run lint
+# PageProps, LayoutProps… sont générés par Next.js (.next/types, non suivi par git) : sur un
+# clone neuf, il faut les créer avant tsc.
+npx next typegen >/dev/null
 npx tsc --noEmit
 
 step "Copie locale de Supabase"
