@@ -161,7 +161,7 @@ Le site est construit par le `Dockerfile` (serveur Next.js autonome, `output: "s
 
 1. Dans Dokploy, créez une application à partir de ce dépôt GitHub, avec le type de build **Dockerfile** et le déploiement automatique à chaque push.
 2. Dans **Environment > Build-time Arguments**, ajoutez `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` : elles sont inscrites dans le JavaScript au moment du build, les mettre seulement en variables d'exécution ne suffit pas.
-3. Dans **Environment > Environment Settings**, ajoutez `APP_URL` et les variables des e-mails de liste d'attente, de WhatsApp et des tâches planifiées si vous les utilisez (voir ci-dessus).
+3. Dans **Environment > Environment Settings**, ajoutez `APP_URL` (adresse publique du site, utilisée pour les liens des messages WhatsApp et, en secours, pour celui de l'e-mail de connexion) et les variables des e-mails de liste d'attente, de WhatsApp et des tâches planifiées si vous les utilisez (voir ci-dessus).
 4. Dans **Domains**, ajoutez le domaine du site, port `3000`, avec HTTPS (Let's Encrypt).
 5. Déployez, puis reportez l'adresse dans la configuration Supabase (étape 1.4) et dans la variable GitHub `APP_URL`.
 
