@@ -11,7 +11,8 @@ export async function sendMagicLink(_prev: LoginState, formData: FormData): Prom
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email) return { status: "error", message: "Indiquez votre adresse e-mail." };
 
-  const origin = (await headers()).get("origin") ?? process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  // Adresse du lien de l'e-mail : celle du navigateur, sinon l'adresse publique du site (APP_URL).
+  const origin = (await headers()).get("origin") ?? process.env.APP_URL?.replace(/\/$/, "") ?? "";
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
