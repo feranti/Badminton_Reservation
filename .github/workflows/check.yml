@@ -1,0 +1,31 @@
+# Vérification complète (npm run check) sur chaque pull request vers main, et à la main depuis
+# l'onglet Actions. La règle de protection de main exige que ce check soit vert pour fusionner.
+# Aucun secret : le script lance une copie locale de Supabase et utilise des valeurs de test.
+name: Check
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Navigateur du test de bout en bout, avec ses bibliothèques système.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check
