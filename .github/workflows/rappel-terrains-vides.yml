@@ -1,6 +1,7 @@
 # Rappel WhatsApp des terrains vides à 72h, toutes les 6 heures (et à la main depuis l'onglet Actions).
 # Secret du dépôt à créer (Settings > Secrets and variables > Actions) : CRON_SECRET, avec la
-# même valeur que la variable CRON_SECRET sur Vercel.
+# même valeur que la variable CRON_SECRET du site. Variable du dépôt (onglet Variables) : APP_URL,
+# l'adresse du site (sans elle, l'ancienne adresse Vercel).
 name: Rappel des terrains vides
 
 on:
@@ -16,6 +17,7 @@ jobs:
       - name: Rappel WhatsApp des terrains vides à 72h
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL || 'https://bad-resas.vercel.app' }}
         # Bloc « | » : sans lui, le « : » de l'en-tête Authorization casse la syntaxe YAML.
         run: |
-          curl -fsS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" "https://bad-resas.vercel.app/api/cron/rappel-terrains-vides"
+          curl -fsS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" "${APP_URL%/}/api/cron/rappel-terrains-vides"

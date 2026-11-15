@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Serveur autonome (.next/standalone) pour l'image Docker déployée par Dokploy (voir Dockerfile).
+  output: "standalone",
   cacheComponents: true,
   experimental: {
     // Le cache de build de Turbopack a servi en ligne une ancienne version de globals.css

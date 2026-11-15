@@ -10,7 +10,7 @@ Application web pour un groupe d'amis qui joue au badminton :
 
 Le site s'utilise surtout sur téléphone (icône sur l'écran d'accueil), en thème clair ou sombre.
 
-Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site, [Supabase](https://supabase.com) pour la base PostgreSQL, la connexion par e-mail, le temps réel et le stockage des QR codes, [Vercel](https://vercel.com) pour l'hébergement. Les e-mails de liste d'attente partent par SMTP (Gmail) et les messages au groupe WhatsApp par [Green API](https://green-api.com).
+Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site, [Supabase](https://supabase.com) pour la base PostgreSQL, la connexion par e-mail, le temps réel et le stockage des QR codes, un VPS avec [Dokploy](https://dokploy.com) (Docker) pour l'hébergement. Les e-mails de liste d'attente partent par SMTP (Gmail) et les messages au groupe WhatsApp par [Green API](https://green-api.com).
 
 ## Captures d'écran
 
@@ -36,13 +36,13 @@ Prises sur téléphone avec le jeu de données fictif (`supabase/donnees-test/`)
 
 ## Architecture
 
-![Architecture : les joueurs, le site sur Vercel, Supabase, Gmail, Green API et GitHub](docs/architecture.svg)
+![Architecture : les joueurs, le site sur le VPS, Supabase, Gmail, Green API et GitHub](docs/architecture.svg)
 
-- **Vercel** héberge le site Next.js. Les pages sont rendues sur le serveur et les formulaires passent par des Server Actions, qui envoient aussi les e-mails et les messages WhatsApp.
+- Le **VPS** héberge le site Next.js dans un conteneur Docker, géré par Dokploy, derrière Traefik (HTTPS). Les pages sont rendues sur le serveur et les formulaires passent par des Server Actions, qui envoient aussi les e-mails et les messages WhatsApp.
 - **Supabase** fournit la connexion par lien ou code e-mail (Auth), la base Postgres avec les règles d'accès par joueur (RLS), le temps réel et le stockage privé des QR codes.
 - Le **navigateur** parle directement à Supabase pour deux choses seulement : l'abonnement temps réel et l'envoi des photos de QR codes, avec le jeton du joueur.
 - **Gmail (SMTP)** envoie l'e-mail « une place s'est libérée ». **Green API** envoie au groupe WhatsApp les terrains réservés ou annulés.
-- **GitHub** garde le code ; Vercel reconstruit le site à chaque push.
+- **GitHub** garde le code ; Dokploy reconstruit l'image et redéploie le site à chaque push.
 
 ## Règles de calcul
 
@@ -65,7 +65,7 @@ Les montants sont stockés en centimes, les heures sont saisies et affichées à
 1. Créez un compte et un projet gratuit sur [supabase.com](https://supabase.com) (région Europe, par exemple Paris ou Francfort).
 2. Dans **SQL Editor**, collez et exécutez le contenu de `supabase/migrations/0001_init.sql` (bouton « Raw » de GitHub pour copier le fichier brut). Ce seul script crée toute la base : tables, vues des soldes et de la liste d'attente, règles d'accès, droits, stockage des QR codes et temps réel. Il ne s'exécute qu'une fois, sur un projet neuf. Si d'autres fichiers `0002_…`, `0003_…` existent un jour dans `supabase/migrations/`, exécutez-les ensuite dans l'ordre.
 3. Dans **Authentication > Sign In / Providers**, désactivez **Allow new users to sign up** : seuls les amis invités pourront se connecter.
-4. Dans **Authentication > URL Configuration**, mettez l'adresse du site dans **Site URL** (`http://localhost:3000` en local, puis l'adresse Vercel) et ajoutez-la aussi dans **Redirect URLs**.
+4. Dans **Authentication > URL Configuration**, mettez l'adresse du site dans **Site URL** (`http://localhost:3000` en local, puis l'adresse du site en ligne) et ajoutez-la aussi dans **Redirect URLs**.
 5. Ajoutez les joueurs dans **Authentication > Users > Add user > Create new user**, en cochant **Auto Confirm User** (le mot de passe ne sert pas). Aucun e-mail n'est envoyé : chacun se connecte ensuite depuis la page de connexion du site.
 
 Par défaut, le lien de connexion doit être ouvert dans le même navigateur que celui où on l'a demandé.
@@ -96,7 +96,7 @@ Pour développer sans toucher au vrai projet, on peut aussi lancer une copie loc
 
 ### E-mails de liste d'attente
 
-Ils partent d'un compte Gmail avec un **mot de passe d'application** (Compte Google > Sécurité > Validation en deux étapes activée > Mots de passe des applications). Ajoutez dans `.env.local` (et sur Vercel) :
+Ils partent d'un compte Gmail avec un **mot de passe d'application** (Compte Google > Sécurité > Validation en deux étapes activée > Mots de passe des applications). Ajoutez dans `.env.local` (et dans les variables du site sur Dokploy) :
 
 ```
 SUPABASE_SECRET_KEY=...    # Supabase > Project Settings > API Keys > Secret keys
@@ -118,7 +118,7 @@ un numéro dédié, membre du groupe) : l'appli n'a rien à héberger.
 
 1. Sur green-api.com, créez une instance (l'offre gratuite Developer suffit) et scannez son QR code avec le WhatsApp du numéro.
 2. Récupérez l'identifiant du groupe (`...@g.us`), par exemple avec la méthode `getChats` de Green API.
-3. Ajoutez dans `.env.local` (et sur Vercel) :
+3. Ajoutez dans `.env.local` (et dans les variables du site sur Dokploy) :
 
 ```
 GREEN_API_URL=https://7105.api.greenapi.com   # « apiUrl » affiché sur la page de l'instance
@@ -136,8 +136,8 @@ Toutes les 6 heures, GitHub Actions (`.github/workflows/rappel-terrains-vides.ym
 4 joueurs (un terrain entier vide), le groupe WhatsApp reçoit un rappel, une seule fois : les oubliés peuvent
 s'inscrire, ou le groupe décide de jouer en simple ou d'annuler un terrain (au Prisme, au plus tard 48h avant).
 
-1. Sur Vercel, ajoutez `SUPABASE_SECRET_KEY` (clé secrète du projet Supabase) et `CRON_SECRET` (une longue valeur au hasard).
-2. Sur GitHub, dans Settings > Secrets and variables > Actions, créez le secret `CRON_SECRET` avec la même valeur.
+1. Dans les variables du site sur Dokploy, ajoutez `SUPABASE_SECRET_KEY` (clé secrète du projet Supabase), `CRON_SECRET` (une longue valeur au hasard) et `APP_URL` (adresse publique du site, utilisée pour les liens des messages).
+2. Sur GitHub, dans Settings > Secrets and variables > Actions, créez le secret `CRON_SECRET` avec la même valeur, et dans l'onglet **Variables** la variable `APP_URL` (adresse du site appelée par les workflows).
 3. Exécutez `supabase/migrations/0006_rappel_terrains_vides.sql` sur le projet en ligne.
 
 ### Récap hebdomadaire des comptes
@@ -147,19 +147,25 @@ remettre tout le monde à zéro (la même que la page Comptes), en signalant ceu
 avec le lien vers la page Comptes. Quand personne ne doit rien, le message dit que tout le monde est à jour.
 
 Le workflow GitHub Actions `.github/workflows/recap-comptes.yml` appelle `/api/cron/recap-comptes`
-(Vercel gratuit ne permet pas de choisir l'heure aussi finement). Il faut :
+(GitHub gère le passage à l'heure d'été). Il faut :
 
-- sur Vercel : `CRON_SECRET` (une longue chaîne au hasard) et `SUPABASE_SECRET_KEY` (voir les e-mails de liste d'attente) ;
-- sur GitHub (Settings > Secrets and variables > Actions) : `CRON_SECRET`, la même valeur ;
+- dans les variables du site sur Dokploy : `CRON_SECRET` (une longue chaîne au hasard), `SUPABASE_SECRET_KEY` (voir les e-mails de liste d'attente) et `APP_URL` ;
+- sur GitHub (Settings > Secrets and variables > Actions) : le secret `CRON_SECRET`, la même valeur, et la variable `APP_URL` ;
 - le script `supabase/migrations/0004_recap_comptes.sql` exécuté sur le projet en ligne.
 
 Pour envoyer le récap tout de suite : onglet **Actions** > « Récap des comptes » > **Run workflow**.
 
-### 3. Mettre en ligne sur Vercel
+### 3. Mettre en ligne sur le VPS (Dokploy)
 
-1. Sur [vercel.com](https://vercel.com), importez ce dépôt GitHub.
-2. Ajoutez les variables `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, et celles des e-mails de liste d'attente et de WhatsApp si vous les utilisez (voir ci-dessus).
-3. Déployez, puis reportez l'adresse obtenue dans la configuration Supabase (étape 1.4).
+Le site est construit par le `Dockerfile` (serveur Next.js autonome, `output: "standalone"`).
+
+1. Dans Dokploy, créez une application à partir de ce dépôt GitHub, avec le type de build **Dockerfile** et le déploiement automatique à chaque push.
+2. Dans **Environment > Build-time Arguments**, ajoutez `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` : elles sont inscrites dans le JavaScript au moment du build, les mettre seulement en variables d'exécution ne suffit pas.
+3. Dans **Environment > Environment Settings**, ajoutez `APP_URL` et les variables des e-mails de liste d'attente, de WhatsApp et des tâches planifiées si vous les utilisez (voir ci-dessus).
+4. Dans **Domains**, ajoutez le domaine du site, port `3000`, avec HTTPS (Let's Encrypt).
+5. Déployez, puis reportez l'adresse dans la configuration Supabase (étape 1.4) et dans la variable GitHub `APP_URL`.
+
+Pour essayer l'image en local : `docker build -t bad-resas --build-arg NEXT_PUBLIC_SUPABASE_URL=... --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=... .` puis `docker run -p 3000:3000 --env-file .env.local bad-resas`.
 
 ## Modifier la base
 
