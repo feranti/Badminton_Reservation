@@ -136,6 +136,13 @@ Toutes les 6 heures, GitHub Actions (`.github/workflows/rappel-terrains-vides.ym
 4 joueurs (un terrain entier vide), le groupe WhatsApp reçoit un rappel, une seule fois : les oubliés peuvent
 s'inscrire, ou le groupe décide de jouer en simple ou d'annuler un terrain (au Prisme, au plus tard 48h avant).
 
+### Tâches planifiées toujours actives
+
+GitHub désactive les tâches planifiées d'un dépôt resté 60 jours sans commit. Chaque dimanche,
+`.github/workflows/garder-actif.yml` les réactive par l'API (lui compris), ce qui remet ce délai à zéro.
+Ces tâches gardent aussi le projet Supabase gratuit éveillé, puisque le rappel des terrains vides interroge
+la base toutes les 6 heures.
+
 1. Dans les variables du site sur Dokploy, ajoutez `SUPABASE_SECRET_KEY` (clé secrète du projet Supabase), `CRON_SECRET` (une longue valeur au hasard) et `APP_URL` (adresse publique du site, utilisée pour les liens des messages).
 2. Sur GitHub, dans Settings > Secrets and variables > Actions, créez le secret `CRON_SECRET` avec la même valeur, et dans l'onglet **Variables** la variable `APP_URL` (adresse du site appelée par les workflows).
 3. Exécutez `supabase/migrations/0006_rappel_terrains_vides.sql` sur le projet en ligne.
