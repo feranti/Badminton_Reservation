@@ -42,7 +42,7 @@ Prises sur téléphone avec le jeu de données fictif (`supabase/donnees-test/`)
 - **Supabase** fournit la connexion par lien ou code e-mail (Auth), la base Postgres avec les règles d'accès par joueur (RLS), le temps réel et le stockage privé des QR codes.
 - Le **navigateur** parle directement à Supabase pour deux choses seulement : l'abonnement temps réel et l'envoi des photos de QR codes, avec le jeton du joueur.
 - **Gmail (SMTP)** envoie l'e-mail « une place s'est libérée ». **Green API** envoie au groupe WhatsApp les terrains réservés ou annulés.
-- **GitHub** garde le code ; Dokploy reconstruit l'image et redéploie le site à chaque push.
+- **GitHub** garde le code, construit l'image Docker à chaque push sur `main`, la publie sur GHCR et demande à Dokploy de la déployer.
 
 ## Règles de calcul
 
@@ -81,7 +81,7 @@ Pour inviter le groupe : l'envoi d'e-mails intégré à Supabase est limité à 
 Il faut Node.js 20 ou plus récent.
 
 ```bash
-cp .env.example .env.local   # puis remplissez avec Project Settings > API de Supabase
+# créez .env.local avec NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (Project Settings > API de Supabase)
 npm install
 npm run dev
 ```
@@ -157,13 +157,16 @@ Pour envoyer le récap tout de suite : onglet **Actions** > « Récap des compte
 
 ### 3. Mettre en ligne sur le VPS (Dokploy)
 
-Le site est construit par le `Dockerfile` (serveur Next.js autonome, `output: "standalone"`).
+Le site est construit par le `Dockerfile` (serveur Next.js autonome, `output: "standalone"`). L'image n'est pas construite sur le VPS : à chaque push sur `main`, le workflow `.github/workflows/deploy.yml` la construit sur GitHub, la publie sur GHCR (`ghcr.io/feranti/badminton_reservation`, étiquettes `latest` et `sha-<commit>`), demande à Dokploy de la déployer et ne garde que les 10 dernières versions.
 
-1. Dans Dokploy, créez une application à partir de ce dépôt GitHub, avec le type de build **Dockerfile** et le déploiement automatique à chaque push.
-2. Dans **Environment > Build-time Arguments**, ajoutez `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` : elles sont inscrites dans le JavaScript au moment du build, les mettre seulement en variables d'exécution ne suffit pas.
-3. Dans **Environment > Environment Settings**, ajoutez `APP_URL` (adresse publique du site, utilisée pour les liens des messages WhatsApp et, en secours, pour celui de l'e-mail de connexion) et les variables des e-mails de liste d'attente, de WhatsApp et des tâches planifiées si vous les utilisez (voir ci-dessus).
-4. Dans **Domains**, ajoutez le domaine du site, port `3000`, avec HTTPS (Let's Encrypt).
-5. Déployez, puis reportez l'adresse dans la configuration Supabase (étape 1.4) et dans la variable GitHub `APP_URL`.
+1. Sur GitHub (Settings > Secrets and variables > Actions), ajoutez les **variables** `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` : elles sont inscrites dans le JavaScript au moment du build.
+2. Le paquet GHCR reste privé : créez un jeton GitHub classique (Settings > Developer settings > Personal access tokens > Tokens (classic)) avec la seule permission `read:packages`, puis dans Dokploy, **Registry > Add Registry** : URL `ghcr.io`, utilisateur `feranti`, mot de passe = ce jeton. Un même registre sert à toutes les applications du VPS.
+3. Dans Dokploy, créez une application avec la source **Docker**, image `ghcr.io/feranti/badminton_reservation:latest`, le registre `ghcr.io` ci-dessus, et laissez **Auto Deploy** activé.
+4. Dans **Environment**, ajoutez `APP_URL` (adresse publique du site, utilisée pour les liens des messages WhatsApp et, en secours, pour celui de l'e-mail de connexion) et les variables des e-mails de liste d'attente, de WhatsApp et des tâches planifiées si vous les utilisez (voir ci-dessus). Les `NEXT_PUBLIC_*` n'y servent à rien : elles sont déjà dans l'image.
+5. Dans **Domains**, ajoutez le domaine du site, port `3000`, avec HTTPS (Let's Encrypt).
+6. Copiez la **Webhook URL** de l'onglet **Deployments** dans le secret GitHub `DOKPLOY_WEBHOOK_URL`, déployez, puis reportez l'adresse dans la configuration Supabase (étape 1.4) et dans la variable GitHub `APP_URL`.
+
+Pour revenir à une version précédente : dans Dokploy, remplacez `latest` par l'étiquette `sha-<commit>` voulue et redéployez.
 
 Pour essayer l'image en local : `docker build -t bad-resas --build-arg NEXT_PUBLIC_SUPABASE_URL=... --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=... .` puis `docker run -p 3000:3000 --env-file .env.local bad-resas`.
 
