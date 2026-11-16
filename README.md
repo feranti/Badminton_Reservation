@@ -81,7 +81,7 @@ Pour inviter le groupe : l'envoi d'e-mails intégré à Supabase est limité à 
 Il faut Node.js 20 ou plus récent.
 
 ```bash
-cp .env.example .env.local   # puis remplissez avec Project Settings > API de Supabase
+# créez .env.local avec NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (Project Settings > API de Supabase)
 npm install
 npm run dev
 ```
