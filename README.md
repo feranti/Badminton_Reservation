@@ -36,7 +36,7 @@ Prises sur téléphone avec le jeu de données fictif (`supabase/donnees-test/`)
 
 ## Architecture
 
-![Architecture : les joueurs, le site sur le VPS, Supabase, Gmail, Green API et GitHub](docs/architecture.svg)
+![Architecture : les joueurs, le site sur le VPS, Supabase, Gmail, Green API, GitHub et GHCR](docs/architecture.svg)
 
 - Le **VPS** héberge le site Next.js dans un conteneur Docker, géré par Dokploy, derrière Traefik (HTTPS). Les pages sont rendues sur le serveur et les formulaires passent par des Server Actions, qui envoient aussi les e-mails et les messages WhatsApp.
 - **Supabase** fournit la connexion par lien ou code e-mail (Auth), la base Postgres avec les règles d'accès par joueur (RLS), le temps réel et le stockage privé des QR codes.
