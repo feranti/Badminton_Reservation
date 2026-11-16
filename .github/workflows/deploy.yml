@@ -1,0 +1,105 @@
+# Mise en ligne : à chaque push sur main, GitHub construit l'image Docker du site, la publie sur
+# GHCR (ghcr.io/<propriétaire>/<dépôt>) puis demande à Dokploy de la déployer. Le VPS ne fait plus
+# que télécharger l'image : il ne compile plus rien.
+#
+# Modèle réutilisable pour un autre site sur le même VPS : copier ce fichier et le Dockerfile, puis
+# adapter la liste des arguments de build (étape « Construire et publier »).
+#
+# Réglages du dépôt (Settings > Secrets and variables > Actions) :
+# - variables NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY : inscrites dans le
+#   JavaScript au moment du build (valeurs publiques, d'où des variables et non des secrets) ;
+# - secret DOKPLOY_WEBHOOK_URL : « Webhook URL » de l'onglet Deployments de l'application Dokploy.
+#   Tant qu'il est absent, l'image est publiée mais rien n'est déployé.
+name: Déploiement
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Un seul déploiement à la fois ; un push plus récent remplace celui en attente.
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Vérifier les variables de build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Variable de dépôt $name manquante : l'image serait construite sans elle."
+              exit 1
+            fi
+          done
+
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Étiquettes : « latest » (celle que Dokploy déploie) et le SHA du commit (pour revenir en
+      # arrière à la main dans Dokploy). Le nom de l'image est mis en minuscules automatiquement.
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      - name: Construire et publier
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          # Une seule image par version, sans attestation : le nettoyage ci-dessous reste simple.
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Déployer sur Dokploy
+        env:
+          DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DOKPLOY_WEBHOOK_URL" ]; then
+            echo "::warning::Secret DOKPLOY_WEBHOOK_URL absent : image publiée, aucun déploiement."
+            exit 0
+          fi
+          # Sans corps, Dokploy déploie l'image configurée dans l'application (…:latest).
+          curl --fail-with-body --silent --show-error --max-time 60 -X POST "$DOKPLOY_WEBHOOK_URL"
+
+  # Garde les 10 versions les plus récentes de l'image sur GHCR et supprime les autres.
+  nettoyage:
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      # GHCR range l'image sous le nom du dépôt en minuscules.
+      - id: paquet
+        run: echo "nom=$(echo "${GITHUB_REPOSITORY#*/}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ steps.paquet.outputs.nom }}
+          package-type: container
+          min-versions-to-keep: 10

@@ -1,8 +1,9 @@
-# Image de production du site, construite par Dokploy sur le VPS à chaque push.
+# Image de production du site, construite par GitHub Actions (.github/workflows/deploy.yml) à chaque
+# push sur main, publiée sur GHCR puis déployée par Dokploy sur le VPS.
 # Les variables NEXT_PUBLIC_* sont inscrites dans le JavaScript envoyé au navigateur au moment du
-# build : elles se passent en « Build-time Arguments » dans Dokploy, pas seulement en variables
-# d'exécution. Les autres (clé secrète Supabase, CRON_SECRET, SMTP, Green API, APP_URL) se donnent
-# à l'exécution, dans l'onglet « Environment ».
+# build : le workflow les passe en arguments de build (variables du dépôt GitHub). Les autres (clé
+# secrète Supabase, CRON_SECRET, SMTP, Green API, APP_URL) se donnent à l'exécution, dans l'onglet
+# « Environment » de Dokploy.
 
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
