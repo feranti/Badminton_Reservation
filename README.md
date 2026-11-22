@@ -10,7 +10,7 @@ Application web pour un groupe d'amis qui joue au badminton :
 
 Le site s'utilise surtout sur téléphone (icône sur l'écran d'accueil), en thème clair ou sombre.
 
-Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site, [Supabase](https://supabase.com) pour la base PostgreSQL, la connexion par e-mail, le temps réel et le stockage des QR codes, un VPS avec [Dokploy](https://dokploy.com) (Docker) pour l'hébergement. Les e-mails de liste d'attente partent par SMTP (Gmail) et les messages au groupe WhatsApp par [Green API](https://green-api.com).
+Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site, [Supabase](https://supabase.com) pour la base PostgreSQL et la connexion par e-mail, un VPS avec [Dokploy](https://dokploy.com) (Docker) pour l'hébergement. Les e-mails de liste d'attente partent par SMTP (Gmail) et les messages au groupe WhatsApp par [Green API](https://green-api.com).
 
 ## Captures d'écran
 
@@ -39,7 +39,7 @@ Prises sur téléphone avec le jeu de données fictif (`supabase/donnees-test/`)
 ![Architecture : les joueurs, le site sur le VPS, Supabase, Gmail, Green API, GitHub et GHCR](docs/architecture.svg)
 
 - Le **VPS** héberge le site Next.js dans un conteneur Docker, géré par Dokploy, derrière Traefik (HTTPS). Les pages sont rendues sur le serveur et les formulaires passent par des Server Actions, qui envoient aussi les e-mails et les messages WhatsApp.
-- **Supabase** fournit la connexion par lien ou code e-mail (Auth), la base Postgres avec les règles d'accès par joueur (RLS), le temps réel et le stockage privé des QR codes. Le serveur interroge la base directement en SQL (`DATABASE_URL`), au nom du joueur connecté, pour que les règles d'accès s'appliquent.
+- **Supabase** fournit la connexion par lien ou code e-mail (Auth) et la base Postgres avec les règles d'accès par joueur (RLS). Le serveur interroge la base directement en SQL (`DATABASE_URL`), au nom du joueur connecté, pour que les règles d'accès s'appliquent. Les images des QR codes sont gardées dans la base (table `qr_images`), et le temps réel passe aussi par elle : chaque modification envoie un signal (`pg_notify`) que le serveur relaie aux pages ouvertes (`/api/changements`).
 - Le **navigateur** parle directement à Supabase pour deux choses seulement : l'abonnement temps réel et l'envoi des photos de QR codes, avec le jeton du joueur.
 - **Gmail (SMTP)** envoie l'e-mail « une place s'est libérée ». **Green API** envoie au groupe WhatsApp les terrains réservés ou annulés.
 - **GitHub** garde le code, construit l'image Docker à chaque push sur `main`, la publie sur GHCR et demande à Dokploy de la déployer.

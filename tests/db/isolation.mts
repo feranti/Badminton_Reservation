@@ -2,7 +2,7 @@
 // chaque requête d'un joueur garde son identité et son rôle, même avec des requêtes simultanées
 // sur les mêmes connexions, et rien ne déborde sur la requête suivante.
 // Usage : DATABASE_URL=… node --conditions=react-server --experimental-strip-types tests/db/isolation.mts
-import { adminDb, playerDb } from "../../src/lib/db.ts";
+import { adminDb, onDbChange, playerDb } from "../../src/lib/db.ts";
 
 let failed = false;
 const check = (ok: boolean, label: string) => {
@@ -78,6 +78,35 @@ check(echo.v === trap && n === 1, "une valeur piégée est transmise comme texte
     output = `${err.stdout ?? ""}${err.stderr ?? ""}`;
   }
   check(output.includes("DATABASE_URL invalide") && !output.includes(secret), "une DATABASE_URL invalide est refusée sans recopier sa valeur");
+}
+
+// 7. Images des QR codes : un joueur n'en ajoute qu'en son nom, et ne peut ni les modifier ni
+//    les supprimer.
+{
+  const code = (q: Promise<unknown>) => q.then(() => "ok", (e: { code?: string }) => e.code ?? "erreur");
+  const bytes = Buffer.from("%PDF-1.4 test");
+  const asOther = await code(playerDb(a)`insert into public.qr_images (path, content_type, data, created_by) values ('test/b.pdf', 'application/pdf', ${bytes}, ${b})`);
+  const own = await code(playerDb(a)`insert into public.qr_images (path, content_type, data) values ('test/a.pdf', 'application/pdf', ${bytes})`);
+  const svg = await code(playerDb(a)`insert into public.qr_images (path, content_type, data) values ('test/a.svg', 'image/svg+xml', ${bytes})`);
+  const edit = await code(playerDb(b)`update public.qr_images set data = ${bytes} where path = 'test/a.pdf'`);
+  const del = await code(playerDb(b)`delete from public.qr_images where path = 'test/a.pdf'`);
+  check(asOther === "42501" && own === "ok" && svg === "23514" && edit === "42501" && del === "42501",
+    `images des QR codes : ajout en son nom seulement, types limités, ni modification ni suppression (${asOther}, ${own}, ${svg}, ${edit}, ${del})`);
+  await adminDb`delete from public.qr_images where path like 'test/%'`;
+}
+
+// 8. Temps réel : une modification d'une table affichée est signalée, avec son seul nom.
+{
+  const received = new Promise<string>((resolve) => {
+    const stop = onDbChange((table) => {
+      stop();
+      resolve(table);
+    });
+  });
+  await new Promise((r) => setTimeout(r, 1000)); // le temps d'ouvrir l'écoute
+  await playerDb(a)`update public.sessions set notes = notes where false`;
+  const table = await Promise.race([received, new Promise((r) => setTimeout(() => r("rien"), 5000))]);
+  check(table === "sessions", `une modification de sessions est signalée aux pages ouvertes (${table})`);
 }
 
 if (failed) process.exit(1);

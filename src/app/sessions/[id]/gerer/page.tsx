@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { addParticipantFromForm, deleteSession, removeBooking, removeParticipant, removePartner, setQrPath } from "@/app/sessions/actions";
+import { addParticipantFromForm, deleteSession, removeBooking, removeParticipant, removePartner, removeQr } from "@/app/sessions/actions";
 import { AddBookingForm } from "@/components/add-booking-form";
 import { Loading, SubPage } from "@/components/app-shell";
 import { ConfirmButton } from "@/components/confirm-button";
@@ -141,7 +141,7 @@ async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/ger
                           {label ?? "QR code"}
                         </span>
                         {qr && (
-                          <form action={setQrPath.bind(null, b.id, h.hour, null)}>
+                          <form action={removeQr.bind(null, b.id, h.hour)}>
                             <button
                               type="submit"
                               aria-label={`Supprimer le QR code${label ? ` · ${label}` : ""}`}

@@ -1,16 +1,19 @@
-import { setQrPath } from "@/app/sessions/actions";
-import { createClient } from "@/lib/supabase/client";
+import { uploadQr as uploadQrAction } from "@/app/sessions/actions";
+import { QR_MAX_BYTES } from "@/lib/qr-image";
 
-// Envoie l'image du QR code d'une heure de terrain dans le stockage privé de Supabase.
-// Renvoie false si l'envoi a échoué.
+// Envoie l'image du QR code d'une heure de terrain au serveur, qui la garde dans la base.
+// Renvoie false si l'envoi a échoué (fichier trop lourd, d'un type refusé, réseau…).
 export async function uploadQr(bookingId: string, hour: number, file: Blob, name = "qr.png") {
-  const ext = (name.split(".").pop() || "png").toLowerCase();
-  const path = `${bookingId}/${hour}-${Date.now()}.${ext}`;
-  const supabase = createClient();
-  const { error } = await supabase.storage.from("qr-codes").upload(path, file, { contentType: file.type });
-  if (error) return false;
-  await setQrPath(bookingId, hour, path);
-  return true;
+  if (file.size === 0 || file.size > QR_MAX_BYTES) return false;
+  const form = new FormData();
+  form.set("booking_id", bookingId);
+  form.set("hour", String(hour));
+  form.set("file", file, name);
+  try {
+    return await uploadQrAction(form);
+  } catch {
+    return false;
+  }
 }
 
 // Première image du presse-papiers (copiée depuis Gmail, les photos…), ou null.

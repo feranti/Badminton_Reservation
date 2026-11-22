@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
     // Le cache de build de Turbopack a servi en ligne une ancienne version de globals.css
     // (thème et couleurs absents) : on reconstruit les styles à chaque build.
     turbopackFileSystemCacheForBuild: false,
+    // Les QR codes (jusqu'à 10 Mo, voir src/lib/qr-image.ts) passent par une action serveur.
+    serverActions: { bodySizeLimit: "11mb" },
+    proxyClientMaxBodySize: "11mb",
   },
   partialPrefetching: true,
   // Le service worker doit toujours être relu pour que ses mises à jour arrivent.

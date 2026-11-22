@@ -10,7 +10,7 @@ const action = "inline-flex min-h-11 items-center gap-1.5 text-sm disabled:opaci
 // Boutons d'une tuile QR code (une heure de terrain) :
 // « Ajouter » ouvre les photos ou captures d'écran, « Coller » reprend une image copiée
 // (depuis Gmail par exemple), « Remplacer » quand il y a déjà un QR code.
-// L'image va directement dans le stockage privé de Supabase.
+// L'image est gardée dans la base (src/lib/qr-upload.ts).
 // hour : rang de l'heure dans la réservation ; label : l'heure, pour les noms accessibles.
 // children : actions placées avant (Voir).
 export function QrUpload({

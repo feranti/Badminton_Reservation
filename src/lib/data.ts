@@ -22,7 +22,7 @@ export async function getPlayers() {
 
 async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = {}): Promise<Session[]> {
   if (sessions.length === 0) return [];
-  const { supabase, db } = await requirePlayer();
+  const { db } = await requirePlayer();
   const ids = sessions.map((s) => s.id);
   // Les trois lectures dans la même transaction : un seul passage par la base.
   const { bookings, players, qrs } = await db.tx(async (tx) => {
@@ -45,13 +45,8 @@ async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = 
     return { bookings, players, qrs };
   });
 
-  // Liens temporaires vers les QR codes (stockage privé), seulement quand la page les affiche.
-  const urls = new Map<string, string>();
-  const paths = qrs.map((q) => q.qr_path);
-  if (qrUrls && paths.length > 0) {
-    const { data } = await supabase.storage.from("qr-codes").createSignedUrls(paths, 60 * 60);
-    for (const item of data ?? []) if (item.path && item.signedUrl) urls.set(item.path, item.signedUrl);
-  }
+  // Adresse de l'image de chaque QR code (servie par /api/qr aux seuls joueurs connectés).
+  const qrUrl = (path: string) => (qrUrls ? `/api/qr?chemin=${encodeURIComponent(path)}` : null);
 
   return sessions.map((s) => {
     const sessionBookings = bookings
@@ -60,7 +55,7 @@ async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = 
         ...b,
         qrs: qrs
           .filter((q) => q.booking_id === b.id)
-          .map((q) => ({ hour: q.hour, path: q.qr_path, url: urls.get(q.qr_path) ?? null })),
+          .map((q) => ({ hour: q.hour, path: q.qr_path, url: qrUrl(q.qr_path) })),
       }));
     return {
       ...s,

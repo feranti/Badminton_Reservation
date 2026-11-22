@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 
 // Renvoie l'identifiant du joueur connecté et l'accès à la base en son nom (db, avec les règles
 // d'accès de la base), ou renvoie vers /login. Le client Supabase ne sert plus qu'à la connexion
-// et au stockage des QR codes.
+// et à recopier les QR codes envoyés avant 0011.
 export async function requirePlayer() {
   // Ces pages dépendent du joueur connecté : on attend la vraie requête avant de calculer quoi que ce soit
   // (le client Supabase lit l'heure pour vérifier la session).
