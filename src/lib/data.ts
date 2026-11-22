@@ -1,5 +1,5 @@
 import { DEFAULT_VENUE, sessionCapacity } from "@/lib/courts";
-import type { Tables } from "@/lib/database.types";
+import type { Tables, Views } from "@/lib/database.types";
 import { requirePlayer } from "@/lib/session";
 
 export type Player = Tables<"profiles">;
@@ -16,48 +16,58 @@ export type Session = Tables<"sessions"> & {
 };
 
 export async function getPlayers() {
-  const { supabase } = await requirePlayer();
-  const { data, error } = await supabase.from("profiles").select("*").order("display_name");
-  if (error) throw error;
-  return data;
+  const { db } = await requirePlayer();
+  return db<Player>`select * from public.profiles order by display_name`;
 }
 
 async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = {}): Promise<Session[]> {
   if (sessions.length === 0) return [];
-  const { supabase } = await requirePlayer();
+  const { supabase, db } = await requirePlayer();
   const ids = sessions.map((s) => s.id);
-  const [bookings, players] = await Promise.all([
-    supabase.from("court_bookings").select("*").in("session_id", ids).is("cancelled_at", null).order("court").order("starts_at"),
-    supabase.from("session_players").select("session_id, player_id, position, is_playing, guests, spots").in("session_id", ids).order("position"),
-  ]);
-  if (bookings.error) throw bookings.error;
-  if (players.error) throw players.error;
-  const qrs = bookings.data.length
-    ? await supabase.from("booking_qr_codes").select("booking_id, hour, qr_path").in("booking_id", bookings.data.map((b) => b.id)).is("removed_at", null).order("hour")
-    : { data: [], error: null };
-  if (qrs.error) throw qrs.error;
+  // Les trois lectures dans la même transaction : un seul passage par la base.
+  const { bookings, players, qrs } = await db.tx(async (tx) => {
+    const [bookings, players] = await Promise.all([
+      tx<Tables<"court_bookings">[]>`
+        select * from public.court_bookings
+        where session_id = any(${ids}::uuid[]) and cancelled_at is null
+        order by court, starts_at`,
+      tx<(SessionPlayer & { session_id: string })[]>`
+        select session_id, player_id, position, is_playing, guests, spots from public.session_players
+        where session_id = any(${ids}::uuid[])
+        order by position`,
+    ]);
+    const qrs = bookings.length
+      ? await tx<{ booking_id: string; hour: number; qr_path: string }[]>`
+          select booking_id, hour, qr_path from public.booking_qr_codes
+          where booking_id = any(${bookings.map((b) => b.id)}::uuid[]) and removed_at is null
+          order by hour`
+      : [];
+    return { bookings, players, qrs };
+  });
 
   // Liens temporaires vers les QR codes (stockage privé), seulement quand la page les affiche.
   const urls = new Map<string, string>();
-  const paths = qrs.data.map((q) => q.qr_path);
+  const paths = qrs.map((q) => q.qr_path);
   if (qrUrls && paths.length > 0) {
     const { data } = await supabase.storage.from("qr-codes").createSignedUrls(paths, 60 * 60);
     for (const item of data ?? []) if (item.path && item.signedUrl) urls.set(item.path, item.signedUrl);
   }
 
   return sessions.map((s) => {
-    const sessionBookings = bookings.data
+    const sessionBookings = bookings
       .filter((b) => b.session_id === s.id)
       .map((b) => ({
         ...b,
-        qrs: qrs.data
+        qrs: qrs
           .filter((q) => q.booking_id === b.id)
           .map((q) => ({ hour: q.hour, path: q.qr_path, url: urls.get(q.qr_path) ?? null })),
       }));
     return {
       ...s,
       bookings: sessionBookings,
-      players: players.data.filter((p) => p.session_id === s.id),
+      players: players
+        .filter((p) => p.session_id === s.id)
+        .map(({ player_id, position, is_playing, guests, spots }) => ({ player_id, position, is_playing, guests, spots })),
       capacity: sessionCapacity(sessionBookings),
       totalCents: sessionBookings.reduce((sum, b) => sum + b.price_cents, 0),
     };
@@ -66,14 +76,16 @@ async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = 
 
 // À venir : dans l'ordre chronologique. Passées : les plus récentes d'abord.
 export async function getSessions(past: boolean) {
-  const { supabase } = await requirePlayer();
+  const { db } = await requirePlayer();
   const now = new Date().toISOString();
-  const query = supabase.from("sessions").select("*").is("cancelled_at", null);
-  const { data, error } = past
-    ? await query.lt("ends_at", now).order("starts_at", { ascending: false }).limit(50)
-    : await query.gte("ends_at", now).order("starts_at");
-  if (error) throw error;
-  return withDetails(data);
+  const sessions = past
+    ? await db<Tables<"sessions">>`
+        select * from public.sessions where cancelled_at is null and ends_at < ${now}
+        order by starts_at desc limit 50`
+    : await db<Tables<"sessions">>`
+        select * from public.sessions where cancelled_at is null and ends_at >= ${now}
+        order by starts_at`;
+  return withDetails(sessions);
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -81,10 +93,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // cancelled : renvoie aussi une session annulée, pour la consulter (page de la session, historique).
 export async function getSession(id: string, { cancelled = false } = {}) {
   if (!UUID.test(id)) return null;
-  const { supabase } = await requirePlayer();
-  const query = supabase.from("sessions").select("*").eq("id", id);
-  const { data, error } = await (cancelled ? query : query.is("cancelled_at", null)).maybeSingle();
-  if (error) throw error;
+  const { db } = await requirePlayer();
+  const [data] = await db<Tables<"sessions">>`
+    select * from public.sessions where id = ${id} and (${cancelled} or cancelled_at is null)`;
   if (!data) return null;
   const [session] = await withDetails([data], { qrUrls: true });
   return session;
@@ -92,34 +103,21 @@ export async function getSession(id: string, { cancelled = false } = {}) {
 
 // Gymnase par défaut d'une nouvelle réservation : repris de la dernière saisie.
 export async function getLastVenue() {
-  const { supabase } = await requirePlayer();
-  const { data: session } = await supabase
-    .from("sessions")
-    .select("venue")
-    .is("cancelled_at", null)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { db } = await requirePlayer();
+  const [session] = await db<{ venue: string }>`
+    select venue from public.sessions where cancelled_at is null order by created_at desc limit 1`;
   return session?.venue ?? DEFAULT_VENUE;
 }
 
 export async function getBalances() {
-  const { supabase } = await requirePlayer();
-  const { data, error } = await supabase.from("balances").select("*").order("balance_cents", { ascending: false });
-  if (error) throw error;
-  return data;
+  const { db } = await requirePlayer();
+  return db<Views<"balances">>`select * from public.balances order by balance_cents desc`;
 }
 
 export async function getPayments() {
-  const { supabase } = await requirePlayer();
-  const { data, error } = await supabase
-    .from("payments")
-    .select("*")
-    .is("cancelled_at", null)
-    .order("created_at", { ascending: false })
-    .limit(100);
-  if (error) throw error;
-  return data;
+  const { db } = await requirePlayer();
+  return db<Tables<"payments">>`
+    select * from public.payments where cancelled_at is null order by created_at desc limit 100`;
 }
 
 export function isPast(session: { ends_at: string }) {
@@ -130,15 +128,12 @@ export type SessionEvent = Tables<"session_events">;
 
 // Historique d'une session, du plus récent au plus ancien, avec le nombre total d'événements.
 export async function getSessionEvents(sessionId: string, limit?: number) {
-  const { supabase } = await requirePlayer();
-  let query = supabase
-    .from("session_events")
-    .select("*", { count: "exact" })
-    .eq("session_id", sessionId)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false });
-  if (limit) query = query.limit(limit);
-  const { data, error, count } = await query;
-  if (error) throw error;
-  return { events: data, count: count ?? data.length };
+  const { db } = await requirePlayer();
+  if (!UUID.test(sessionId)) return { events: [], count: 0 };
+  const rows = await db<SessionEvent & { total: number }>`
+    select *, count(*) over () as total from public.session_events
+    where session_id = ${sessionId}
+    order by created_at desc, id desc
+    limit ${limit ?? null}`;
+  return { events: rows as SessionEvent[], count: rows[0]?.total ?? 0 };
 }

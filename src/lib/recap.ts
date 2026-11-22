@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/database.types";
+import type { Db } from "@/lib/db";
 import { formatEuros } from "@/lib/format";
 import { simplifyDebts } from "@/lib/settle";
 
@@ -24,14 +23,11 @@ export function recapMessage(balances: Balance[], pending: PendingPayment[], lin
   return lines.join("\n");
 }
 
-// Lit les soldes et les remboursements en attente avec le client à clé secrète (pas de joueur
-// connecté pour une tâche planifiée).
-export async function buildRecap(admin: SupabaseClient<Database>, link: string) {
+// Lit les soldes et les remboursements en attente sans joueur connecté (tâche planifiée).
+export async function buildRecap(admin: Db, link: string) {
   const [balances, pending] = await Promise.all([
-    admin.from("balances").select("player_id, display_name, balance_cents").order("balance_cents", { ascending: false }),
-    admin.from("payments").select("from_player, to_player").is("confirmed_at", null).is("cancelled_at", null),
+    admin<Balance>`select player_id, display_name, balance_cents from public.balances order by balance_cents desc`,
+    admin<PendingPayment>`select from_player, to_player from public.payments where confirmed_at is null and cancelled_at is null`,
   ]);
-  if (balances.error) throw balances.error;
-  if (pending.error) throw pending.error;
-  return recapMessage(balances.data, pending.data, link);
+  return recapMessage(balances, pending, link);
 }

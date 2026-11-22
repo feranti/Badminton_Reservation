@@ -39,7 +39,7 @@ Prises sur téléphone avec le jeu de données fictif (`supabase/donnees-test/`)
 ![Architecture : les joueurs, le site sur le VPS, Supabase, Gmail, Green API, GitHub et GHCR](docs/architecture.svg)
 
 - Le **VPS** héberge le site Next.js dans un conteneur Docker, géré par Dokploy, derrière Traefik (HTTPS). Les pages sont rendues sur le serveur et les formulaires passent par des Server Actions, qui envoient aussi les e-mails et les messages WhatsApp.
-- **Supabase** fournit la connexion par lien ou code e-mail (Auth), la base Postgres avec les règles d'accès par joueur (RLS), le temps réel et le stockage privé des QR codes.
+- **Supabase** fournit la connexion par lien ou code e-mail (Auth), la base Postgres avec les règles d'accès par joueur (RLS), le temps réel et le stockage privé des QR codes. Le serveur interroge la base directement en SQL (`DATABASE_URL`), au nom du joueur connecté, pour que les règles d'accès s'appliquent.
 - Le **navigateur** parle directement à Supabase pour deux choses seulement : l'abonnement temps réel et l'envoi des photos de QR codes, avec le jeton du joueur.
 - **Gmail (SMTP)** envoie l'e-mail « une place s'est libérée ». **Green API** envoie au groupe WhatsApp les terrains réservés ou annulés.
 - **GitHub** garde le code, construit l'image Docker à chaque push sur `main`, la publie sur GHCR et demande à Dokploy de la déployer.
@@ -82,6 +82,7 @@ Il faut Node.js 20 ou plus récent.
 
 ```bash
 # créez .env.local avec NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (Project Settings > API de Supabase)
+# et DATABASE_URL (voir « Connexion à la base » ci-dessous)
 npm install
 npm run dev
 ```
@@ -89,6 +90,29 @@ npm run dev
 Ouvrez http://localhost:3000, saisissez votre e-mail et cliquez sur le lien reçu.
 
 Pour développer sans toucher au vrai projet, on peut aussi lancer une copie locale de Supabase avec Docker : `npx supabase start` crée la base avec `supabase/migrations/`, et les e-mails de connexion arrivent sur http://127.0.0.1:54324.
+
+### Connexion à la base
+
+Le serveur lit et écrit la base directement en SQL (`src/lib/db.ts`), sans passer par l'API de Supabase.
+Chaque requête d'un joueur s'exécute avec son identifiant et le rôle `authenticated` : les règles d'accès (RLS),
+les fonctions et l'historique de la base marchent exactement comme avant. Les tâches planifiées et l'envoi
+des e-mails de liste d'attente utilisent la même connexion, sans joueur.
+
+Ajoutez dans `.env.local` (et dans les variables du site sur Dokploy) l'adresse de connexion, à prendre dans
+Supabase > bouton **Connect** en haut de la page du projet > **Session pooler** (le VPS n'a pas besoin d'IPv6
+avec cette adresse), en remplaçant `[YOUR-PASSWORD]` par le mot de passe de la base :
+
+```
+DATABASE_URL=postgresql://postgres.<id du projet>:<mot de passe>@aws-0-<région>.pooler.supabase.com:5432/postgres
+```
+
+Le mot de passe se réinitialise dans Supabase > Project Settings > Database si vous ne l'avez plus.
+
+La connexion est toujours chiffrée (TLS) vers une base distante. Pour que le site vérifie aussi qu'il parle bien
+à Supabase, téléchargez le certificat dans Project Settings > Database > **SSL Configuration** et collez son contenu
+dans la variable `DATABASE_CA_CERT` (les retours à la ligne peuvent être écrits `\n`). Dans la même page, activez
+**Enforce SSL on incoming connections** pour refuser toute connexion non chiffrée.
+Avec la copie locale (`npx supabase start`) : `DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres`.
 
 ### Vérifier avant de livrer
 
@@ -99,7 +123,6 @@ Pour développer sans toucher au vrai projet, on peut aussi lancer une copie loc
 Ils partent d'un compte Gmail avec un **mot de passe d'application** (Compte Google > Sécurité > Validation en deux étapes activée > Mots de passe des applications). Ajoutez dans `.env.local` (et dans les variables du site sur Dokploy) :
 
 ```
-SUPABASE_SECRET_KEY=...    # Supabase > Project Settings > API Keys > Secret keys
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_USER=votre.adresse@gmail.com
@@ -143,7 +166,7 @@ GitHub désactive les tâches planifiées d'un dépôt resté 60 jours sans comm
 Ces tâches gardent aussi le projet Supabase gratuit éveillé, puisque le rappel des terrains vides interroge
 la base toutes les 6 heures.
 
-1. Dans les variables du site sur Dokploy, ajoutez `SUPABASE_SECRET_KEY` (clé secrète du projet Supabase), `CRON_SECRET` (une longue valeur au hasard) et `APP_URL` (adresse publique du site, utilisée pour les liens des messages).
+1. Dans les variables du site sur Dokploy, ajoutez `CRON_SECRET` (une longue valeur au hasard) et `APP_URL` (adresse publique du site, utilisée pour les liens des messages).
 2. Sur GitHub, dans Settings > Secrets and variables > Actions, créez le secret `CRON_SECRET` avec la même valeur, et dans l'onglet **Variables** la variable `APP_URL` (adresse du site appelée par les workflows).
 3. Exécutez `supabase/migrations/0006_rappel_terrains_vides.sql` sur le projet en ligne.
 
@@ -156,7 +179,7 @@ avec le lien vers la page Comptes. Quand personne ne doit rien, le message dit q
 Le workflow GitHub Actions `.github/workflows/recap-comptes.yml` appelle `/api/cron/recap-comptes`
 (GitHub gère le passage à l'heure d'été). Il faut :
 
-- dans les variables du site sur Dokploy : `CRON_SECRET` (une longue chaîne au hasard), `SUPABASE_SECRET_KEY` (voir les e-mails de liste d'attente) et `APP_URL` ;
+- dans les variables du site sur Dokploy : `CRON_SECRET` (une longue chaîne au hasard) et `APP_URL` ;
 - sur GitHub (Settings > Secrets and variables > Actions) : le secret `CRON_SECRET`, la même valeur, et la variable `APP_URL` ;
 - le script `supabase/migrations/0004_recap_comptes.sql` exécuté sur le projet en ligne.
 
@@ -169,7 +192,7 @@ Le site est construit par le `Dockerfile` (serveur Next.js autonome, `output: "s
 1. Sur GitHub (Settings > Secrets and variables > Actions), ajoutez les **variables** `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` : elles sont inscrites dans le JavaScript au moment du build.
 2. Le paquet GHCR reste privé : créez un jeton GitHub classique (Settings > Developer settings > Personal access tokens > Tokens (classic)) avec la seule permission `read:packages`.
 3. Dans Dokploy, créez une application avec la source **Docker** : image `ghcr.io/feranti/badminton_reservation:latest`, registre `ghcr.io`, utilisateur `feranti`, mot de passe = ce jeton. Laissez **Auto Deploy** activé (le webhook en a besoin).
-4. Dans **Environment**, ajoutez `APP_URL` (adresse publique du site, utilisée pour les liens des messages WhatsApp et, en secours, pour celui de l'e-mail de connexion) et les variables des e-mails de liste d'attente, de WhatsApp et des tâches planifiées si vous les utilisez (voir ci-dessus). Les `NEXT_PUBLIC_*` n'y servent à rien : elles sont déjà dans l'image.
+4. Dans **Environment**, ajoutez `DATABASE_URL` (voir « Connexion à la base »), `APP_URL` (adresse publique du site, utilisée pour les liens des messages WhatsApp et, en secours, pour celui de l'e-mail de connexion) et les variables des e-mails de liste d'attente, de WhatsApp et des tâches planifiées si vous les utilisez (voir ci-dessus). Les `NEXT_PUBLIC_*` n'y servent à rien : elles sont déjà dans l'image.
 5. Dans **Domains**, ajoutez le domaine du site, port `3000`, avec HTTPS (Let's Encrypt).
 6. Copiez la **Webhook URL** de l'onglet **Deployments** dans le secret GitHub `DOKPLOY_WEBHOOK_URL`, déployez, puis reportez l'adresse dans la configuration Supabase (étape 1.4) et dans la variable GitHub `APP_URL`.
 
