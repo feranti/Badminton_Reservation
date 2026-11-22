@@ -61,6 +61,25 @@ const [echo] = await playerDb(a)<{ v: string }>`select ${trap}::text as v`;
 const [{ n }] = await adminDb<{ n: number }>`select count(*) as n from pg_tables where schemaname = 'public' and tablename = 'sessions'`;
 check(echo.v === trap && n === 1, "une valeur piégée est transmise comme texte, sans être exécutée");
 
+// 6. Une adresse de base invalide n'apparaît jamais dans le message d'erreur (mot de passe).
+{
+  const { execFileSync } = await import("node:child_process");
+  const secret = "motdepasse-secret-123";
+  let output = "";
+  try {
+    execFileSync(
+      process.execPath,
+      ["--conditions=react-server", "--experimental-strip-types", "--no-warnings", "--input-type=module", "-e",
+        `const { adminDb } = await import(${JSON.stringify(new URL("../../src/lib/db.ts", import.meta.url).href)}); await adminDb\`select 1\`;`],
+      { env: { ...process.env, DATABASE_URL: secret }, stdio: "pipe" },
+    );
+  } catch (e) {
+    const err = e as { stdout?: Buffer; stderr?: Buffer };
+    output = `${err.stdout ?? ""}${err.stderr ?? ""}`;
+  }
+  check(output.includes("DATABASE_URL invalide") && !output.includes(secret), "une DATABASE_URL invalide est refusée sans recopier sa valeur");
+}
+
 if (failed) process.exit(1);
 console.log("Accès direct à la base : tout est bon.");
 process.exit(0);

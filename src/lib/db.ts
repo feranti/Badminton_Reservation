@@ -40,6 +40,10 @@ function getSql() {
   if (globalForSql.badmintonSql) return globalForSql.badmintonSql;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL absente : adresse de connexion à la base Postgres.");
+  // Le message ne doit jamais recopier la valeur : elle contient le mot de passe de la base.
+  if (!URL.canParse(url) || !/^postgres(ql)?:$/.test(new URL(url).protocol)) {
+    throw new Error("DATABASE_URL invalide : il faut l'adresse complète postgresql://utilisateur:mot-de-passe@hôte:port/base.");
+  }
   const sql = postgres(url, {
     ssl: sslOptions(url),
     // Le pooler de Supabase en mode transaction ne garde pas les requêtes préparées.
