@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { attempt } from "@/lib/db";
 import { parseEurosToCents } from "@/lib/format";
 import { requirePlayer } from "@/lib/session";
 
@@ -9,7 +10,7 @@ export type PaymentState = { error?: string; done?: boolean };
 // Signale un remboursement. Déclaré par celui qui reçoit l'argent, il est confirmé tout de suite ;
 // déclaré par celui qui paie, il attend la confirmation du bénéficiaire.
 export async function declarePayment(_prev: PaymentState, formData: FormData): Promise<PaymentState> {
-  const { supabase, userId } = await requirePlayer();
+  const { db, userId } = await requirePlayer();
   const fromPlayer = String(formData.get("from_player") ?? "");
   const toPlayer = String(formData.get("to_player") ?? "");
   const amountCents = parseEurosToCents(String(formData.get("amount") ?? ""));
@@ -25,33 +26,26 @@ export async function declarePayment(_prev: PaymentState, formData: FormData): P
   if (amountCents > 1_000_000) return { error: "Le montant ne peut pas dépasser 10 000 €." };
   if (note && note.length > 200) return { error: "Note : 200 caractères maximum." };
 
-  const { error } = await supabase.from("payments").insert({
-    from_player: fromPlayer,
-    to_player: toPlayer,
-    amount_cents: amountCents,
-    note,
-    confirmed_at: userId === toPlayer ? new Date().toISOString() : null,
-  });
+  const confirmedAt = userId === toPlayer ? new Date().toISOString() : null;
+  const { error } = await attempt(db`
+    insert into public.payments (from_player, to_player, amount_cents, note, confirmed_at)
+    values (${fromPlayer}, ${toPlayer}, ${amountCents}, ${note}, ${confirmedAt})`);
   if (error) return { error: "Le remboursement n'a pas pu être enregistré." };
   refresh();
   return { done: true };
 }
 
 export async function confirmPayment(paymentId: string) {
-  const { supabase, userId } = await requirePlayer();
-  await supabase
-    .from("payments")
-    .update({ confirmed_at: new Date().toISOString() })
-    .eq("id", paymentId)
-    .eq("to_player", userId);
+  const { db, userId } = await requirePlayer();
+  await attempt(db`update public.payments set confirmed_at = now() where id = ${paymentId} and to_player = ${userId}`);
   refresh();
 }
 
 // Annule (par celui qui l'a déclaré) ou refuse (par le bénéficiaire) un remboursement en attente.
 export async function cancelPayment(paymentId: string) {
-  const { supabase } = await requirePlayer();
+  const { db } = await requirePlayer();
   // Le remboursement reste en base, marqué comme annulé.
-  await supabase.rpc("cancel_payment", { p_payment: paymentId });
+  await attempt(db`select public.cancel_payment(${paymentId}::uuid)`);
   refresh();
 }
 

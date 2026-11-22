@@ -32,5 +32,8 @@ Dans le conteneur cloud, lancer `dockerd` s'il ne tourne pas, et passer
   `requirePlayer()` appelle `connection()` en premier.
 - Les heures sont saisies et affichées à l'heure de Paris (`src/lib/format.ts`), jamais dans le
   fuseau du navigateur ou du serveur.
+- Le serveur interroge la base en SQL avec `db` de `requirePlayer()` (`src/lib/db.ts`), jamais avec
+  `supabase.from` ou `.rpc` : chaque requête porte l'identifiant du joueur, donc les règles RLS
+  s'appliquent. `adminDb` (sans RLS) est réservé aux tâches planifiées et aux e-mails.
 - Le temps réel a besoin du jeton du joueur avant l'abonnement (`src/components/realtime-refresh.tsx`).
 - Les formulaires utilisent `useFormAction` pour ne pas perdre la saisie en cas d'erreur.

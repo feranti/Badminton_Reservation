@@ -31,9 +31,9 @@ export default function ProfilePage() {
 }
 
 async function Profile() {
-  const { supabase, userId } = await requirePlayer();
-  const [{ data }, { data: auth }] = await Promise.all([
-    supabase.from("profiles").select("display_name").eq("id", userId).single(),
+  const { supabase, userId, db } = await requirePlayer();
+  const [[data], { data: auth }] = await Promise.all([
+    db<{ display_name: string }>`select display_name from public.profiles where id = ${userId}`,
     supabase.auth.getClaims(),
   ]);
   const displayName = data?.display_name ?? "";

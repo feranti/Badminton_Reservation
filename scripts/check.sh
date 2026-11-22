@@ -57,7 +57,10 @@ sleep 15 # le service temps réel redémarre après la remise à zéro
 export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
 export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$PUBLISHABLE_KEY"
 export MAIL_URL="$MAILPIT_URL"
+# Le serveur lit et écrit la base directement (src/lib/db.ts), avec les règles d'accès de chaque joueur.
+export DATABASE_URL="$DB_URL"
 # E-mails de liste d'attente : envoyés au serveur de test (Mailpit) de la copie locale.
+# (SUPABASE_SECRET_KEY ne sert plus qu'au test de bout en bout, pour préparer les données.)
 export SUPABASE_SECRET_KEY="$SECRET_KEY" SMTP_HOST=127.0.0.1 SMTP_PORT=54325 MAIL_FROM="resas@test.fr"
 # Messages du groupe WhatsApp : envoyés au faux Green API lancé par le test de bout en bout.
 export GREEN_API_PORT=54399 GREEN_API_URL="http://127.0.0.1:54399" GREEN_API_INSTANCE=1101 GREEN_API_TOKEN=jeton WHATSAPP_GROUP_ID="groupe@g.us"

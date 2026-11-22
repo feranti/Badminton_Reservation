@@ -1,23 +1,21 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { PLAYERS_PER_COURT, sessionCapacity } from "@/lib/courts";
-import type { Database } from "@/lib/database.types";
+import type { Tables } from "@/lib/database.types";
+import { adminDb, type Db } from "@/lib/db";
 import { formatDay, formatSlot, formatTime, formatTimes } from "@/lib/format";
 import { sendMail } from "@/lib/mail";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { sendToGroup } from "@/lib/whatsapp";
-
-type Client = SupabaseClient<Database>;
 
 export type Snapshot = { registered: Set<string>; playing: Set<string> };
 
 // Inscrits et joueurs effectifs (hors liste d'attente) d'une session, à un instant donné.
-export async function snapshot(supabase: Client, sessionId: string): Promise<Snapshot> {
-  const { data } = await supabase.from("session_players").select("player_id, is_playing").eq("session_id", sessionId);
+export async function snapshot(db: Db, sessionId: string): Promise<Snapshot> {
+  const data = await db<{ player_id: string; is_playing: boolean }>`
+    select player_id, is_playing from public.session_players where session_id = ${sessionId}`;
   return {
-    registered: new Set((data ?? []).map((p) => p.player_id)),
-    playing: new Set((data ?? []).filter((p) => p.is_playing).map((p) => p.player_id)),
+    registered: new Set(data.map((p) => p.player_id)),
+    playing: new Set(data.filter((p) => p.is_playing).map((p) => p.player_id)),
   };
 }
 
@@ -31,16 +29,23 @@ async function sessionLink(sessionId: string) {
 
 // Note dans l'historique de la session les joueurs passés de la liste d'attente aux joueurs
 // effectifs, ou l'inverse (terrain retiré). Renvoie l'état après le changement.
-async function logWaitingChanges(supabase: Client, sessionId: string, before: Snapshot) {
-  const after = await snapshot(supabase, sessionId);
+async function logWaitingChanges(db: Db, sessionId: string, before: Snapshot) {
+  const after = await snapshot(db, sessionId);
   const stayed = [...after.registered].filter((id) => before.registered.has(id));
   const events = [
     ...stayed.filter((id) => after.playing.has(id) && !before.playing.has(id)).map((player_id) => ({ player_id, kind: "promoted" as const })),
     ...stayed.filter((id) => !after.playing.has(id) && before.playing.has(id)).map((player_id) => ({ player_id, kind: "demoted" as const })),
   ];
   if (events.length) {
-    const { error } = await supabase.from("session_events").insert(events.map((e) => ({ ...e, session_id: sessionId })));
-    if (error) console.error("[historique] liste d'attente non notée", error);
+    try {
+      await db.tx(async (tx) => {
+        for (const e of events) {
+          await tx`insert into public.session_events (session_id, player_id, kind) values (${sessionId}, ${e.player_id}, ${e.kind})`;
+        }
+      });
+    } catch (error) {
+      console.error("[historique] liste d'attente non notée", error);
+    }
   }
   return after;
 }
@@ -48,28 +53,24 @@ async function logWaitingChanges(supabase: Client, sessionId: string, before: Sn
 // Note dans l'historique les passages liste d'attente ↔ joueurs, et prévient par e-mail les joueurs
 // qui viennent de passer de la liste d'attente aux joueurs effectifs.
 // N'interrompt jamais l'action en cours : une erreur d'envoi est seulement journalisée.
-export async function notifyPromotions(supabase: Client, sessionId: string, before: Snapshot, actorId: string) {
+export async function notifyPromotions(db: Db, sessionId: string, before: Snapshot, actorId: string) {
   try {
-    const after = await logWaitingChanges(supabase, sessionId, before);
+    const after = await logWaitingChanges(db, sessionId, before);
     // Promus = étaient inscrits mais en liste d'attente, et jouent maintenant.
     const waiting = [...after.playing]
       .filter((id) => before.registered.has(id) && !before.playing.has(id) && id !== actorId)
       .map((player_id) => ({ player_id }));
     if (waiting.length === 0) return;
-    const { data: session } = await supabase.from("sessions").select("*").eq("id", sessionId).single();
+    const [session] = await db<Tables<"sessions">>`select * from public.sessions where id = ${sessionId}`;
     if (!session) return;
 
-    const admin = createAdminClient();
-    if (!admin) {
-      console.info(`[liste d'attente] ${waiting.length} joueur(s) promu(s), clé SUPABASE_SECRET_KEY absente : pas d'e-mail.`);
-      return;
-    }
     const link = await sessionLink(sessionId);
     const slot = formatSlot(session.starts_at, session.ends_at);
 
     for (const { player_id } of waiting) {
-      const { data } = await admin.auth.admin.getUserById(player_id);
-      const email = data.user?.email;
+      // Les adresses e-mail sont dans auth.users, lisible seulement par le propriétaire de la base.
+      const [user] = await adminDb<{ email: string | null }>`select email from auth.users where id = ${player_id}`;
+      const email = user?.email;
       if (!email) continue;
       await sendMail({
         to: email,
@@ -100,30 +101,30 @@ export type SessionState = {
   waiting: number;
 };
 
-export async function sessionState(supabase: Client, sessionId: string): Promise<SessionState | null> {
-  const [{ data: session }, { data: bookings }, { data: players }] = await Promise.all([
-    supabase.from("sessions").select("*").eq("id", sessionId).is("cancelled_at", null).maybeSingle(),
-    supabase
-      .from("court_bookings")
-      .select("court, starts_at, ends_at")
-      .eq("session_id", sessionId)
-      .is("cancelled_at", null)
-      .order("court")
-      .order("starts_at"),
-    supabase.from("session_players").select("is_playing, spots").eq("session_id", sessionId),
-  ]);
+export async function sessionState(db: Db, sessionId: string): Promise<SessionState | null> {
+  const [[session], bookings, players] = await db.tx((tx) =>
+    Promise.all([
+      tx<Tables<"sessions">[]>`select * from public.sessions where id = ${sessionId} and cancelled_at is null`,
+      tx<{ court: number; starts_at: string; ends_at: string }[]>`
+        select court, starts_at, ends_at from public.court_bookings
+        where session_id = ${sessionId} and cancelled_at is null
+        order by court, starts_at`,
+      tx<{ is_playing: boolean; spots: number }[]>`
+        select is_playing, spots from public.session_players where session_id = ${sessionId}`,
+    ]),
+  );
   if (!session) return null;
-  const courts = [...new Set((bookings ?? []).map((b) => b.court))].sort((a, b) => a - b);
+  const courts = [...new Set(bookings.map((b) => b.court))].sort((a, b) => a - b);
   const spots = (playing: boolean) =>
-    (players ?? []).filter((p) => p.is_playing === playing).reduce((sum, p) => sum + p.spots, 0);
+    players.filter((p) => p.is_playing === playing).reduce((sum, p) => sum + p.spots, 0);
   return {
     id: session.id,
     venue: session.venue,
     starts_at: session.starts_at,
     ends_at: session.ends_at,
     courts,
-    slots: bookings ?? [],
-    capacity: sessionCapacity(bookings ?? []),
+    slots: [...bookings],
+    capacity: sessionCapacity(bookings),
     taken: spots(true),
     waiting: spots(false),
   };
@@ -246,16 +247,16 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
 // Prévient le groupe WhatsApp d'une réservation ajoutée ou annulée, ou d'une session supprimée.
 // Le message est préparé tout de suite (état de la session à cet instant) et envoyé après la
 // réponse, pour ne pas ralentir l'action. Une erreur d'envoi est seulement journalisée.
-export async function notifyGroup(supabase: Client, actorId: string, sessionId: string, event: GroupEvent) {
+export async function notifyGroup(db: Db, actorId: string, sessionId: string, event: GroupEvent) {
   try {
     // Une réservation est annoncée au nom de ses payeurs, pas de la personne qui l'a saisie ;
     // une inscription au nom du joueur inscrit (actorId).
     const ids = event.kind === "added" ? event.payers : [actorId];
-    const [state, { data: profiles }] = await Promise.all([
-      event.kind === "deleted" ? Promise.resolve(null) : sessionState(supabase, sessionId),
-      supabase.from("profiles").select("id, display_name").in("id", ids),
+    const [state, profiles] = await Promise.all([
+      event.kind === "deleted" ? Promise.resolve(null) : sessionState(db, sessionId),
+      db<{ id: string; display_name: string }>`select id, display_name from public.profiles where id = any(${ids}::uuid[])`,
     ]);
-    const names = ids.map((id) => profiles?.find((p) => p.id === id)?.display_name ?? "Quelqu'un");
+    const names = ids.map((id) => profiles.find((p) => p.id === id)?.display_name ?? "Quelqu'un");
     // Lien aussi pour une session annulée : elle reste consultable.
     const link = await sessionLink(sessionId);
     const message = groupMessage(names, event, state, link);

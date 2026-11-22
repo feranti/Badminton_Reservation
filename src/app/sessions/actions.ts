@@ -3,6 +3,8 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { cardPrice, COURTS, MAX_GUESTS } from "@/lib/courts";
+import { attempt, type Db } from "@/lib/db";
+import type { Tables } from "@/lib/database.types";
 import { parisToIso, parseEurosToCents } from "@/lib/format";
 import { notifyGroup, notifyPromotions, sessionState, snapshot } from "@/lib/notify";
 import { requirePlayer } from "@/lib/session";
@@ -56,6 +58,28 @@ function readBooking(formData: FormData, userId: string) {
   } as const;
 }
 
+type BookingFields = Extract<ReturnType<typeof readBooking>, { booking: unknown }>["booking"];
+
+// Fonctions de la base (supabase/migrations) : elles vérifient elles-mêmes le joueur (auth.uid()).
+async function addCourtBooking(db: Db, booking: BookingFields, venue: string, court: number) {
+  const b = booking;
+  const [row] = await db<{ id: string }>`
+    select public.add_court_booking(
+      p_venue => ${venue}, p_court => ${court}::smallint, p_starts_at => ${b.p_starts_at}::timestamptz,
+      p_ends_at => ${b.p_ends_at}::timestamptz, p_price_cents => ${b.p_price_cents}::integer,
+      p_booked_by => ${b.p_booked_by}::uuid, p_co_payer => ${b.p_co_payer}::uuid,
+      p_card_pricing => ${b.p_card_pricing}, p_booked_by_card => ${b.p_booked_by_card}, p_co_payer_card => ${b.p_co_payer_card}
+    ) as id`;
+  return row.id;
+}
+
+// Renvoie les joueurs vraiment ajoutés (rien pour un joueur déjà inscrit).
+async function addParticipants(db: Db, sessionId: string, players: string[], guests = 0) {
+  const rows = await db<{ id: string }>`
+    select id from public.add_participants(${sessionId}::uuid, ${players}::uuid[], ${guests}::smallint) as id`;
+  return rows.map((r) => r.id);
+}
+
 // Payeur de la réservation, puis le second payeur s'il y en a un.
 function payers(booking: { p_booked_by: string; p_co_payer: string | null }) {
   return booking.p_co_payer ? [booking.p_booked_by, booking.p_co_payer] : [booking.p_booked_by];
@@ -64,7 +88,7 @@ function payers(booking: { p_booked_by: string; p_co_payer: string | null }) {
 // Inscrit les payeurs de la réservation (sauf la personne qui la saisit, qui choisit avec « Je joue »)
 // et, s'il joue, le joueur connecté. Un joueur déjà inscrit garde sa place et ses invités.
 async function joinPayers(
-  supabase: Awaited<ReturnType<typeof requirePlayer>>["supabase"],
+  db: Db,
   sessionId: string,
   booking: { p_booked_by: string; p_co_payer: string | null },
   userId: string,
@@ -72,12 +96,13 @@ async function joinPayers(
 ) {
   const ids = [...new Set([...(iPlay ? [userId] : []), ...payers(booking).filter((id) => id !== userId)])];
   if (ids.length === 0) return;
-  await supabase.rpc("add_participants", { p_session: sessionId, p_players: ids });
+  const { error } = await attempt(addParticipants(db, sessionId, ids));
+  if (error) console.error("[inscription] payeurs non inscrits", error);
 }
 
 // Ajoute une ou plusieurs réservations (un terrain chacune). L'appli les range dans la bonne session.
 export async function createBookings(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { supabase, userId } = await requirePlayer();
+  const { db, userId } = await requirePlayer();
   const venue = String(formData.get("venue") ?? "").trim();
   if (!venue) return { error: "Indiquez le gymnase." };
   if (venue.length > MAX_VENUE) return { error: `Nom du gymnase : ${MAX_VENUE} caractères maximum.` };
@@ -91,7 +116,7 @@ export async function createBookings(_prev: FormState, formData: FormData): Prom
   // Un seul message au groupe pour tous les terrains réservés, même si l'un d'eux échoue.
   const notify = () =>
     booked.length > 0 &&
-    notifyGroup(supabase, userId, sessionId, {
+    notifyGroup(db, userId, sessionId, {
       kind: "added",
       courts: booked,
       startsAt: fields.booking.p_starts_at,
@@ -99,47 +124,43 @@ export async function createBookings(_prev: FormState, formData: FormData): Prom
       payers: payers(fields.booking),
     });
   for (const court of courts) {
-    const { data, error } = await supabase.rpc("add_court_booking", { ...fields.booking, p_venue: venue, p_court: court! });
+    const { data, error } = await attempt(addCourtBooking(db, fields.booking, venue, court!));
     if (error) {
-      if (sessionId) await joinPayers(supabase, sessionId, fields.booking, userId, formData.get("i_play") === "on");
+      if (sessionId) await joinPayers(db, sessionId, fields.booking, userId, formData.get("i_play") === "on");
       await notify();
       return {
-        error: error.code === "23505" ? `Le terrain ${court} est déjà réservé sur ce créneau.` : "La réservation n'a pas pu être enregistrée.",
+        error: "code" in error && error.code === "23505" ? `Le terrain ${court} est déjà réservé sur ce créneau.` : "La réservation n'a pas pu être enregistrée.",
       };
     }
     sessionId = data;
     booked.push(court!);
   }
 
-  await joinPayers(supabase, sessionId, fields.booking, userId, formData.get("i_play") === "on");
+  await joinPayers(db, sessionId, fields.booking, userId, formData.get("i_play") === "on");
   await notify();
   redirect(`/sessions/${sessionId}`);
 }
 
 // Ajoute une réservation depuis la page d'une session (même lieu, même jour).
 export async function addBooking(sessionId: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  const { supabase, userId } = await requirePlayer();
+  const { db, userId } = await requirePlayer();
   const court = readCourt(formData.get("court"));
   if (court === null) return { error: "Choisissez un terrain." };
   const fields = readBooking(formData, userId);
   if ("error" in fields) return { error: fields.error };
-  const { data: session } = await supabase.from("sessions").select("venue").eq("id", sessionId).is("cancelled_at", null).maybeSingle();
+  const [session] = await db<{ venue: string }>`select venue from public.sessions where id = ${sessionId} and cancelled_at is null`;
   if (!session) return { error: "Cette session n'existe plus." };
 
-  const before = await snapshot(supabase, sessionId);
-  const { data: newSessionId, error } = await supabase.rpc("add_court_booking", {
-    ...fields.booking,
-    p_venue: session.venue,
-    p_court: court,
-  });
+  const before = await snapshot(db, sessionId);
+  const { data: newSessionId, error } = await attempt(addCourtBooking(db, fields.booking, session.venue, court));
   if (error) {
-    return { error: error.code === "23505" ? `Le terrain ${court} est déjà réservé sur ce créneau.` : "La réservation n'a pas pu être ajoutée." };
+    return { error: "code" in error && error.code === "23505" ? `Le terrain ${court} est déjà réservé sur ce créneau.` : "La réservation n'a pas pu être ajoutée." };
   }
   // Plus de terrains = plus de places : des joueurs en attente peuvent passer joueurs.
-  await notifyPromotions(supabase, newSessionId, before, userId);
+  await notifyPromotions(db, newSessionId, before, userId);
   // Après les promotions : un payeur qui arrive ne passe pas devant la liste d'attente.
-  await joinPayers(supabase, newSessionId, fields.booking, userId, false);
-  await notifyGroup(supabase, userId, newSessionId, {
+  await joinPayers(db, newSessionId, fields.booking, userId, false);
+  await notifyGroup(db, userId, newSessionId, {
     kind: "added",
     courts: [court],
     startsAt: fields.booking.p_starts_at,
@@ -152,20 +173,17 @@ export async function addBooking(sessionId: string, _prev: FormState, formData: 
 }
 
 export async function removeBooking(bookingId: string) {
-  const { supabase, userId } = await requirePlayer();
-  const { data: booking } = await supabase
-    .from("court_bookings")
-    .select("session_id, court, starts_at, ends_at")
-    .eq("id", bookingId)
-    .is("cancelled_at", null)
-    .maybeSingle();
-  const before = booking ? await sessionState(supabase, booking.session_id) : null;
-  const players = booking ? await snapshot(supabase, booking.session_id) : null;
-  const { error } = await supabase.rpc("remove_court_booking", { p_booking: bookingId });
+  const { db, userId } = await requirePlayer();
+  const [booking] = await db<{ session_id: string; court: number; starts_at: string; ends_at: string }>`
+    select session_id, court, starts_at, ends_at from public.court_bookings
+    where id = ${bookingId} and cancelled_at is null`;
+  const before = booking ? await sessionState(db, booking.session_id) : null;
+  const players = booking ? await snapshot(db, booking.session_id) : null;
+  const { error } = await attempt(db`select public.remove_court_booking(${bookingId}::uuid)`);
   // Moins de places : des joueurs peuvent repasser en liste d'attente (noté dans l'historique).
-  if (booking && players && !error) await notifyPromotions(supabase, booking.session_id, players, userId);
+  if (booking && players && !error) await notifyPromotions(db, booking.session_id, players, userId);
   if (booking && before && !error) {
-    await notifyGroup(supabase, userId, booking.session_id, {
+    await notifyGroup(db, userId, booking.session_id, {
       kind: "removed",
       courts: [booking.court],
       startsAt: booking.starts_at,
@@ -173,9 +191,9 @@ export async function removeBooking(bookingId: string) {
       before,
     });
   }
-  const { data: still } = booking
-    ? await supabase.from("sessions").select("id").eq("id", booking.session_id).is("cancelled_at", null).maybeSingle()
-    : { data: null };
+  const [still] = booking
+    ? await db`select id from public.sessions where id = ${booking.session_id} and cancelled_at is null`
+    : [];
   if (!still) redirect("/");
   refresh();
 }
@@ -183,19 +201,17 @@ export async function removeBooking(bookingId: string) {
 // Change le prix d'un terrain déjà réservé (prix réel différent, remise…). Les comptes et la part
 // de chacun sont recalculés à partir des prix : rien d'autre à mettre à jour.
 export async function updateBookingPrice(bookingId: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  const { supabase } = await requirePlayer();
+  const { db } = await requirePlayer();
   const priceCents = parseEurosToCents(String(formData.get("price") ?? ""));
   if (priceCents === null) return { error: "Le prix doit être un montant en euros, par exemple 12,50." };
   if (priceCents > MAX_PRICE_CENTS) return { error: "Le prix d'un terrain ne peut pas dépasser 1 000 €." };
   // Un montant saisi remplace le tarif carte : les deux payeurs avancent alors la moitié chacun.
-  const { data, error } = await supabase
-    .from("court_bookings")
-    .update({ price_cents: priceCents, card_pricing: false })
-    .eq("id", bookingId)
-    .is("cancelled_at", null)
-    .select("id");
+  const { data, error } = await attempt(db`
+    update public.court_bookings set price_cents = ${priceCents}, card_pricing = false
+    where id = ${bookingId} and cancelled_at is null
+    returning id`);
   if (error) return { error: "Le prix n'a pas pu être modifié." };
-  if (!data?.length) return { error: "Ce terrain n'existe plus." };
+  if (!data.length) return { error: "Ce terrain n'existe plus." };
   refresh();
   return { added: true };
 }
@@ -206,30 +222,37 @@ type Payers = { booked_by: string; co_payer: string | null; booked_by_card: bool
 // (seul, le capitaine paie le supplément du partenaire absent) ; sinon il ne change pas.
 // Un nouveau payeur est inscrit à la session, comme à la réservation.
 async function savePayers(bookingId: string, payers: Payers): Promise<FormState> {
-  const { supabase } = await requirePlayer();
-  const { data: booking } = await supabase
-    .from("court_bookings")
-    .select("session_id, starts_at, ends_at, card_pricing, booked_by, co_payer")
-    .eq("id", bookingId)
-    .is("cancelled_at", null)
-    .maybeSingle();
+  const { db } = await requirePlayer();
+  const [booking] = await db<Pick<Tables<"court_bookings">, "session_id" | "starts_at" | "ends_at" | "card_pricing" | "booked_by" | "co_payer">>`
+    select session_id, starts_at, ends_at, card_pricing, booked_by, co_payer from public.court_bookings
+    where id = ${bookingId} and cancelled_at is null`;
   if (!booking) return { error: "Ce terrain n'existe plus." };
   if (payers.co_payer === payers.booked_by) return { error: "Choisissez deux payeurs différents." };
   const coPayerCard = payers.co_payer !== null && payers.co_payer_card;
   const minutes = (Date.parse(booking.ends_at) - Date.parse(booking.starts_at)) / 60000;
   const price = booking.card_pricing
-    ? { price_cents: cardPrice({ captainCard: payers.booked_by_card, partner: payers.co_payer !== null, partnerCard: coPayerCard }, minutes).total }
-    : {};
-  const { error } = await supabase
-    .from("court_bookings")
-    .update({ ...payers, co_payer_card: coPayerCard, ...price })
-    .eq("id", bookingId);
+    ? cardPrice({ captainCard: payers.booked_by_card, partner: payers.co_payer !== null, partnerCard: coPayerCard }, minutes).total
+    : null;
+  // Le prix n'est écrit que s'il est recalculé : l'historique note chaque colonne modifiée.
+  const { error } = await attempt(
+    price === null
+      ? db`
+          update public.court_bookings
+          set booked_by = ${payers.booked_by}, co_payer = ${payers.co_payer}, booked_by_card = ${payers.booked_by_card}, co_payer_card = ${coPayerCard}
+          where id = ${bookingId}`
+      : db`
+          update public.court_bookings
+          set booked_by = ${payers.booked_by}, co_payer = ${payers.co_payer}, booked_by_card = ${payers.booked_by_card}, co_payer_card = ${coPayerCard},
+              price_cents = ${price}
+          where id = ${bookingId}`,
+  );
   if (error) return { error: "Les payeurs n'ont pas pu être modifiés." };
   const added = [payers.booked_by, payers.co_payer].filter(
     (id): id is string => id !== null && id !== booking.booked_by && id !== booking.co_payer,
   );
   if (added.length) {
-    await supabase.rpc("add_participants", { p_session: booking.session_id, p_players: added });
+    const { error } = await attempt(addParticipants(db, booking.session_id, added));
+    if (error) console.error("[inscription] nouveaux payeurs non inscrits", error);
   }
   refresh();
   return { added: true };
@@ -252,25 +275,22 @@ export async function updateBookingPayers(bookingId: string, _prev: FormState, f
 // au tarif carte, paie le supplément du partenaire absent. (Si le capitaine annule, le gymnase
 // annule le terrain : on le retire.)
 export async function removePartner(bookingId: string) {
-  const { supabase } = await requirePlayer();
-  const { data: b } = await supabase
-    .from("court_bookings")
-    .select("booked_by, co_payer, booked_by_card")
-    .eq("id", bookingId)
-    .maybeSingle();
+  const { db } = await requirePlayer();
+  const [b] = await db<{ booked_by: string; co_payer: string | null; booked_by_card: boolean }>`
+    select booked_by, co_payer, booked_by_card from public.court_bookings where id = ${bookingId}`;
   if (!b?.co_payer) return;
   await savePayers(bookingId, { booked_by: b.booked_by, co_payer: null, booked_by_card: b.booked_by_card, co_payer_card: false });
 }
 
 export async function updateSession(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { supabase } = await requirePlayer();
+  const { db } = await requirePlayer();
   const id = String(formData.get("id") ?? "");
   const venue = String(formData.get("venue") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
   if (!venue) return { error: "Indiquez le gymnase." };
   if (venue.length > MAX_VENUE) return { error: `Nom du gymnase : ${MAX_VENUE} caractères maximum.` };
   if (notes && notes.length > MAX_NOTES) return { error: `Note : ${MAX_NOTES} caractères maximum.` };
-  const { error } = await supabase.from("sessions").update({ venue, notes }).eq("id", id);
+  const { error } = await attempt(db`update public.sessions set venue = ${venue}, notes = ${notes} where id = ${id}`);
   if (error) return { error: "La modification n'a pas pu être enregistrée." };
   // Le bouton OK de l'écran Gérer enregistre puis revient à la session.
   if (formData.get("done")) redirect(`/sessions/${id}`);
@@ -281,31 +301,24 @@ export async function updateSession(_prev: FormState, formData: FormData): Promi
 // La session est annulée, pas supprimée : elle reste en base avec ses terrains, ses inscriptions
 // et ses QR codes (seul son créateur peut l'annuler, règle vérifiée en base).
 export async function deleteSession(id: string) {
-  const { supabase, userId } = await requirePlayer();
-  const before = await sessionState(supabase, id);
-  const { data, error } = await supabase
-    .from("sessions")
-    .update({ cancelled_at: new Date().toISOString() })
-    .eq("id", id)
-    .is("cancelled_at", null)
-    .select("id");
-  if (before && !error && data?.length) await notifyGroup(supabase, userId, id, { kind: "deleted", before });
+  const { db, userId } = await requirePlayer();
+  const before = await sessionState(db, id);
+  const { data } = await attempt(db`
+    update public.sessions set cancelled_at = now() where id = ${id} and cancelled_at is null returning id`);
+  if (before && data?.length) await notifyGroup(db, userId, id, { kind: "deleted", before });
   redirect("/");
 }
 
 // Inscrit un joueur (lui-même ou un autre depuis la page de la session) et prévient le groupe.
 export async function addParticipant(sessionId: string, playerId: string, guests = 0) {
-  const { supabase } = await requirePlayer();
-  const { data: added } = await supabase.rpc("add_participants", { p_session: sessionId, p_players: [playerId], p_guests: guests });
+  const { db } = await requirePlayer();
+  const { data: added, error } = await attempt(addParticipants(db, sessionId, [playerId], guests));
+  if (error) console.error("[inscription] impossible", error);
   // Rien de renvoyé = le joueur était déjà inscrit : pas de nouveau message.
   if (added?.length) {
-    const { data: me } = await supabase
-      .from("session_players")
-      .select("is_playing")
-      .eq("session_id", sessionId)
-      .eq("player_id", playerId)
-      .maybeSingle();
-    await notifyGroup(supabase, playerId, sessionId, { kind: "joined", guests, playing: me?.is_playing ?? true });
+    const [me] = await db<{ is_playing: boolean }>`
+      select is_playing from public.session_players where session_id = ${sessionId} and player_id = ${playerId}`;
+    await notifyGroup(db, playerId, sessionId, { kind: "joined", guests, playing: me?.is_playing ?? true });
   }
   refresh();
 }
@@ -328,15 +341,13 @@ export async function joinSession(sessionId: string, _prev: FormState, formData:
 // Change le nombre d'invités du joueur connecté. Un joueur qui a déjà sa place ne peut ajouter
 // des invités que dans les places libres : il ne fait pas passer les autres en liste d'attente.
 export async function setGuests(sessionId: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  const { supabase, userId } = await requirePlayer();
+  const { db, userId } = await requirePlayer();
   const guests = readGuests(formData);
   if (guests === null) return { error: "Nombre d'invités incorrect." };
-  const { data: players } = await supabase
-    .from("session_players")
-    .select("player_id, is_playing, guests, spots, capacity")
-    .eq("session_id", sessionId);
-  const me = players?.find((p) => p.player_id === userId);
-  if (!players || !me) return { error: "Vous n'êtes plus inscrit à cette session." };
+  const players = await db<{ player_id: string; is_playing: boolean; guests: number; spots: number; capacity: number }>`
+    select player_id, is_playing, guests, spots, capacity from public.session_players where session_id = ${sessionId}`;
+  const me = players.find((p) => p.player_id === userId);
+  if (!me) return { error: "Vous n'êtes plus inscrit à cette session." };
   if (me.is_playing && guests > me.guests) {
     const used = players.filter((p) => p.is_playing).reduce((sum, p) => sum + p.spots, 0);
     const free = Math.max(me.capacity - used, 0);
@@ -350,25 +361,18 @@ export async function setGuests(sessionId: string, _prev: FormState, formData: F
     }
   }
 
-  const before = await snapshot(supabase, sessionId);
-  const { error } = await supabase
-    .from("session_participants")
-    .update({ guests })
-    .eq("session_id", sessionId)
-    .eq("player_id", userId)
-    .is("left_at", null);
+  const before = await snapshot(db, sessionId);
+  const { error } = await attempt(db`
+    update public.session_participants set guests = ${guests}
+    where session_id = ${sessionId} and player_id = ${userId} and left_at is null`);
   if (error) return { error: "Le nombre d'invités n'a pas pu être modifié." };
   // Moins d'invités = des places libérées pour la liste d'attente.
-  await notifyPromotions(supabase, sessionId, before, userId);
+  await notifyPromotions(db, sessionId, before, userId);
   // Le groupe voit les places restantes avec les invités ajoutés ou retirés.
   if (guests !== me.guests) {
-    const { data: now } = await supabase
-      .from("session_players")
-      .select("is_playing")
-      .eq("session_id", sessionId)
-      .eq("player_id", userId)
-      .maybeSingle();
-    await notifyGroup(supabase, userId, sessionId, { kind: "guests", guests, playing: now?.is_playing ?? true });
+    const [now] = await db<{ is_playing: boolean }>`
+      select is_playing from public.session_players where session_id = ${sessionId} and player_id = ${userId}`;
+    await notifyGroup(db, userId, sessionId, { kind: "guests", guests, playing: now?.is_playing ?? true });
   }
   refresh();
   return {};
@@ -377,24 +381,21 @@ export async function setGuests(sessionId: string, _prev: FormState, formData: F
 // Désinscription : l'inscription est marquée comme quittée (jamais supprimée), le groupe est
 // prévenu, le premier de la liste d'attente prend la place et reçoit un e-mail.
 export async function removeParticipant(sessionId: string, playerId: string) {
-  const { supabase, userId } = await requirePlayer();
-  const before = await snapshot(supabase, sessionId);
-  const { data: removed } = await supabase
-    .from("session_participants")
-    .update({ left_at: new Date().toISOString() })
-    .eq("session_id", sessionId)
-    .eq("player_id", playerId)
-    .is("left_at", null)
-    .select("guests");
+  const { db, userId } = await requirePlayer();
+  const before = await snapshot(db, sessionId);
+  const { data: removed } = await attempt(db<{ guests: number }>`
+    update public.session_participants set left_at = now()
+    where session_id = ${sessionId} and player_id = ${playerId} and left_at is null
+    returning guests`);
   // Rien de renvoyé = le joueur n'était plus inscrit : pas de message.
   if (removed?.length) {
-    await notifyGroup(supabase, playerId, sessionId, {
+    await notifyGroup(db, playerId, sessionId, {
       kind: "left",
       guests: removed[0].guests,
       playing: before.playing.has(playerId),
     });
   }
-  await notifyPromotions(supabase, sessionId, before, userId);
+  await notifyPromotions(db, sessionId, before, userId);
   refresh();
 }
 
@@ -407,9 +408,15 @@ export async function addParticipantFromForm(sessionId: string, formData: FormDa
 // QR code d'une heure d'un terrain (hour = 0 pour la première heure) ; path = null le retire.
 // Un QR code retiré reste en base (removed_at) et son image reste dans le stockage.
 export async function setQrPath(bookingId: string, hour: number, path: string | null) {
-  const { supabase } = await requirePlayer();
+  const { db } = await requirePlayer();
   if (!Number.isInteger(hour) || hour < 0 || hour > 23) return;
-  if (path) await supabase.from("booking_qr_codes").upsert({ booking_id: bookingId, hour, qr_path: path, removed_at: null });
-  else await supabase.from("booking_qr_codes").update({ removed_at: new Date().toISOString() }).eq("booking_id", bookingId).eq("hour", hour);
+  const { error } = await attempt(
+    path
+      ? db`
+          insert into public.booking_qr_codes (booking_id, hour, qr_path, removed_at) values (${bookingId}, ${hour}, ${path}, null)
+          on conflict (booking_id, hour) do update set qr_path = excluded.qr_path, removed_at = null`
+      : db`update public.booking_qr_codes set removed_at = now() where booking_id = ${bookingId} and hour = ${hour}`,
+  );
+  if (error) console.error("[QR code] non enregistré", error);
   refresh();
 }
