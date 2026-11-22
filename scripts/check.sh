@@ -18,6 +18,15 @@ cleanup() { for pid in "${PIDS[@]:-}"; do [ -n "$pid" ] && kill -- "-$pid" 2>/de
 trap cleanup EXIT
 
 step() { echo; echo "▶ $1"; }
+# Attend qu'un serveur réponde (jusqu'à 60 s) : le premier démarrage de next dev peut être lent.
+wait_for() {
+  for _ in $(seq 1 60); do
+    curl -s -o /dev/null "$1" && return 0
+    sleep 1
+  done
+  echo "✗ $1 ne répond pas après 60 s."
+  exit 1
+}
 
 for port in $PROD_PORT $DEV_PORT; do
   if curl -s -o /dev/null "http://127.0.0.1:$port"; then
@@ -73,7 +82,7 @@ npm run build >"$LOG_DIR/build.log" 2>&1 || { cat "$LOG_DIR/build.log"; exit 1; 
 step "Test de bout en bout (build de production)"
 setsid npx next start -p $PROD_PORT -H 127.0.0.1 >"$LOG_DIR/prod.log" 2>&1 &
 PIDS+=($!)
-sleep 4
+wait_for "http://127.0.0.1:$PROD_PORT/login"
 APP_URL="http://127.0.0.1:$PROD_PORT" node tests/e2e/run.mjs
 
 step "Rien n'est supprimé en base"
@@ -82,10 +91,13 @@ psql "$DB_URL" -q -v ON_ERROR_STOP=1 -f tests/sql/annulations.sql
 step "Droits de l'API"
 psql "$DB_URL" -q -v ON_ERROR_STOP=1 -f tests/sql/droits.sql
 
+step "Accès direct à la base : identité des joueurs et règles d'accès"
+node --conditions=react-server --experimental-strip-types --no-warnings tests/db/isolation.mts
+
 step "Visite des pages avec next dev"
 setsid npx next dev -p $DEV_PORT -H 127.0.0.1 >"$LOG_DIR/dev.log" 2>&1 &
 PIDS+=($!)
-sleep 8
+wait_for "http://127.0.0.1:$DEV_PORT/login"
 APP_URL="http://127.0.0.1:$DEV_PORT" node tests/e2e/visit-pages.mjs
 # (la ligne « ⨯ turbopackFileSystemCacheForBuild » est la liste des réglages désactivés, pas une erreur)
 if grep -E "Error|⨯" "$LOG_DIR/dev.log" | grep -v "⨯ turbopackFileSystemCacheForBuild$"; then

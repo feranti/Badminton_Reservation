@@ -1,3 +1,4 @@
+import "server-only";
 import postgres from "postgres";
 
 // Accès direct à Postgres (DATABASE_URL), sans passer par l'API de Supabase.
@@ -7,7 +8,8 @@ import postgres from "postgres";
 // faisait l'API de Supabase. auth.uid() le lit dans request.jwt.claims, et les règles, les
 // fonctions et les triggers de supabase/migrations marchent sans changement.
 //
-// Uniquement côté serveur : DATABASE_URL contient le mot de passe de la base.
+// Uniquement côté serveur (« server-only » fait échouer le build si un composant client l'importe) :
+// DATABASE_URL contient le mot de passe de la base.
 
 export type Tx = postgres.TransactionSql;
 type Param = postgres.ParameterOrFragment<never>;
@@ -21,16 +23,30 @@ export type Db = {
 
 const globalForSql = globalThis as unknown as { badmintonSql?: postgres.Sql };
 
+// Chiffrement de la connexion : obligatoire hors de la machine (le mot de passe et les données
+// passent par Internet entre le VPS et Supabase). Avec DATABASE_CA_CERT (certificat racine de
+// Supabase, Project Settings > Database > SSL Configuration), le serveur est aussi authentifié.
+// Sans chiffrement seulement pour une base locale (copie de test, ou Postgres sur le même VPS).
+function sslOptions(url: string) {
+  const ca = process.env.DATABASE_CA_CERT?.replace(/\\n/g, "\n");
+  if (ca) return { ca, rejectUnauthorized: true };
+  const host = new URL(url).hostname;
+  const local = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(host) || !host.includes(".");
+  return local ? false : ("require" as const);
+}
+
 // Connexion créée à la première requête : le build n'a pas besoin de DATABASE_URL.
 function getSql() {
   if (globalForSql.badmintonSql) return globalForSql.badmintonSql;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL absente : adresse de connexion à la base Postgres.");
   const sql = postgres(url, {
+    ssl: sslOptions(url),
     // Le pooler de Supabase en mode transaction ne garde pas les requêtes préparées.
     prepare: false,
     max: 5,
     idle_timeout: 30,
+    connect_timeout: 10,
     connection: { application_name: "badminton-resas" },
     types: {
       // Entiers longs et numeric (count, row_number, sommes) en nombres, comme l'API de Supabase.
@@ -66,12 +82,19 @@ function makeDb(setup: ((tx: Tx) => Promise<unknown>) | null): Db {
 }
 
 // Requêtes au nom d'un joueur connecté : RLS et auth.uid() comme dans l'API de Supabase.
+// Les réglages sont locaux à la transaction (true) : ils disparaissent au COMMIT et ne passent
+// jamais à la requête suivante qui reprend la même connexion. userId vient du jeton vérifié par
+// requirePlayer() et part en paramètre, jamais dans le texte SQL.
 export function playerDb(userId: string): Db {
+  if (!UUID.test(userId)) throw new Error("Identifiant de joueur invalide.");
   const claims = JSON.stringify({ sub: userId, role: "authenticated" });
   return makeDb((t) =>
-    t`select set_config('role', 'authenticated', true), set_config('request.jwt.claims', ${claims}, true)`.execute(),
+    t`select set_config('role', 'authenticated', true), set_config('request.jwt.claims', ${claims}, true),
+             set_config('statement_timeout', '8s', true)`.execute(),
   );
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Requêtes sans joueur (tâches planifiées, e-mails) : propriétaire de la base, sans RLS.
 // Remplace le client Supabase à clé secrète.

@@ -107,6 +107,11 @@ DATABASE_URL=postgresql://postgres.<id du projet>:<mot de passe>@aws-0-<région>
 ```
 
 Le mot de passe se réinitialise dans Supabase > Project Settings > Database si vous ne l'avez plus.
+
+La connexion est toujours chiffrée (TLS) vers une base distante. Pour que le site vérifie aussi qu'il parle bien
+à Supabase, téléchargez le certificat dans Project Settings > Database > **SSL Configuration** et collez son contenu
+dans la variable `DATABASE_CA_CERT` (les retours à la ligne peuvent être écrits `\n`). Dans la même page, activez
+**Enforce SSL on incoming connections** pour refuser toute connexion non chiffrée.
 Avec la copie locale (`npx supabase start`) : `DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres`.
 
 ### Vérifier avant de livrer
