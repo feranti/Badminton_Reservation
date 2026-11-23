@@ -10,7 +10,7 @@ Application web pour un groupe d'amis qui joue au badminton :
 
 Le site s'utilise surtout sur téléphone (icône sur l'écran d'accueil), en thème clair ou sombre.
 
-Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site, [Supabase](https://supabase.com) pour la base PostgreSQL et la connexion par e-mail, un VPS avec [Dokploy](https://dokploy.com) (Docker) pour l'hébergement. Les e-mails de liste d'attente partent par SMTP (Gmail) et les messages au groupe WhatsApp par [Green API](https://green-api.com).
+Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site, [Supabase](https://supabase.com) pour la base PostgreSQL, un VPS avec [Dokploy](https://dokploy.com) (Docker) pour l'hébergement. Les e-mails de liste d'attente partent par SMTP (Gmail) et les messages au groupe WhatsApp par [Green API](https://green-api.com).
 
 ## Captures d'écran
 
@@ -39,9 +39,9 @@ Prises sur téléphone avec le jeu de données fictif (`supabase/donnees-test/`)
 ![Architecture : les joueurs, le site sur le VPS, Supabase, Gmail, Green API, GitHub et GHCR](docs/architecture.svg)
 
 - Le **VPS** héberge le site Next.js dans un conteneur Docker, géré par Dokploy, derrière Traefik (HTTPS). Les pages sont rendues sur le serveur et les formulaires passent par des Server Actions, qui envoient aussi les e-mails et les messages WhatsApp.
-- **Supabase** fournit la connexion par lien ou code e-mail (Auth) et la base Postgres avec les règles d'accès par joueur (RLS). Le serveur interroge la base directement en SQL (`DATABASE_URL`), au nom du joueur connecté, pour que les règles d'accès s'appliquent. Les images des QR codes sont gardées dans la base (table `qr_images`), et le temps réel passe aussi par elle : chaque modification envoie un signal (`pg_notify`) que le serveur relaie aux pages ouvertes (`/api/changements`).
-- Le **navigateur** parle directement à Supabase pour deux choses seulement : l'abonnement temps réel et l'envoi des photos de QR codes, avec le jeton du joueur.
-- **Gmail (SMTP)** envoie l'e-mail « une place s'est libérée ». **Green API** envoie au groupe WhatsApp les terrains réservés ou annulés.
+- **Supabase** fournit la base Postgres, avec les règles d'accès par joueur (RLS). La connexion par lien ou code e-mail est gérée par le site lui-même (`src/lib/auth.ts`) : l'e-mail part par SMTP, et la session est un cookie dont la base garde l'empreinte (tables `login_tokens` et `auth_sessions`). Le serveur interroge la base directement en SQL (`DATABASE_URL`), au nom du joueur connecté, pour que les règles d'accès s'appliquent. Les images des QR codes sont gardées dans la base (table `qr_images`), et le temps réel passe aussi par elle : chaque modification envoie un signal (`pg_notify`) que le serveur relaie aux pages ouvertes (`/api/changements`).
+- Le **navigateur** ne parle qu'au site, jamais directement à Supabase.
+- **Gmail (SMTP)** envoie les e-mails de connexion et « une place s'est libérée ». **Green API** envoie au groupe WhatsApp les terrains réservés ou annulés.
 - **GitHub** garde le code, construit l'image Docker à chaque push sur `main`, la publie sur GHCR et demande à Dokploy de la déployer.
 
 ## Règles de calcul
@@ -74,7 +74,7 @@ Par défaut, le lien de connexion doit être ouvert dans le même navigateur que
 
 Pour essayer l'appli avec des sessions déjà remplies, exécutez `supabase/donnees-test/remplir.sql` dans **SQL Editor** : il ajoute 8 joueurs fictifs (qui ne peuvent pas se connecter), 9 sessions passées et à venir et quelques remboursements. Votre compte (le plus ancien du projet) y joue le rôle de « vous ». Tout est marqué `(test)` ou `[TEST]`, et `supabase/donnees-test/vider.sql` efface tout sans toucher aux vraies données.
 
-Pour inviter le groupe : l'envoi d'e-mails intégré à Supabase est limité à quelques messages par heure, et les modèles d'e-mail ne sont modifiables qu'avec un service d'envoi à vous. Branchez un service SMTP (Gmail avec un mot de passe d'application, Resend, Brevo…) dans **Authentication > Emails > SMTP Settings**, puis collez le contenu de `supabase/templates/magic_link.html` dans le modèle **Magic Link** : l'e-mail contiendra un lien qui marche dans n'importe quel navigateur et un code à saisir dans l'appli (pratique depuis l'icône de l'écran d'accueil).
+Pour inviter le groupe : un joueur ne peut se connecter que s'il existe déjà. Ajoutez chaque adresse dans **Authentication > Users > Add user** de Supabase (« Create new user », sans mot de passe, « Auto Confirm User » coché). L'e-mail de connexion part du SMTP du site (voir « E-mails » plus bas) : un lien et un code de 8 chiffres, valables une heure.
 
 ### 2. Lancer le site en local
 
@@ -118,7 +118,7 @@ Avec la copie locale (`npx supabase start`) : `DATABASE_URL=postgresql://postgre
 
 `npm run check` (Docker et Node.js requis) enchaîne le lint, les types, le build de production, remet à zéro la copie locale de Supabase, joue un test de bout en bout à deux joueurs (`tests/e2e/run.mjs`) et ouvre chaque page avec `next dev` en échouant au moindre message d'erreur.
 
-### E-mails de liste d'attente
+### E-mails (connexion et liste d'attente)
 
 Ils partent d'un compte Gmail avec un **mot de passe d'application** (Compte Google > Sécurité > Validation en deux étapes activée > Mots de passe des applications). Ajoutez dans `.env.local` (et dans les variables du site sur Dokploy) :
 
@@ -130,7 +130,7 @@ SMTP_PASS=...              # le mot de passe d'application, 16 lettres
 MAIL_FROM=Badminton Résas <votre.adresse@gmail.com>
 ```
 
-Sans ces variables, l'appli marche normalement mais n'envoie pas d'e-mail.
+Ces variables sont **indispensables en ligne** : sans elles, aucun e-mail de connexion ne part (en local, le lien et le code sont alors écrits dans le journal du serveur).
 
 ### Messages au groupe WhatsApp
 
@@ -209,12 +209,12 @@ La base d'un projet neuf est créée par le seul script `supabase/migrations/000
 ```
 supabase/migrations/       0001_init.sql : création complète de la base (tables, vues, règles d'accès, droits, temps réel)
 supabase/donnees-test/     Jeu de données factice : remplir.sql et vider.sql
-supabase/templates/        Modèle de l'e-mail de connexion (lien + code)
 supabase/config.toml       Réglages de la copie locale de Supabase (npx supabase start)
 scripts/check.sh           Vérification complète avant livraison (npm run check)
 tests/e2e/                 Test de bout en bout à deux joueurs et visite de toutes les pages
-src/proxy.ts               Rafraîchit la session et renvoie vers /login si besoin
-src/lib/supabase/          Clients Supabase (navigateur, serveur, proxy)
+src/proxy.ts               Renvoie vers /login sans session (et reprend les anciennes sessions Supabase)
+src/lib/auth.ts            Connexion par e-mail : lien, code et sessions
+src/lib/supabase/proxy.ts  Reprise des anciennes sessions Supabase (transition)
 src/lib/data.ts            Lecture des sessions, réservations et joueurs
 src/lib/notify.ts          E-mail aux joueurs qui sortent de la liste d'attente
 src/lib/whatsapp.ts        Envoi d'un message au groupe WhatsApp par Green API
