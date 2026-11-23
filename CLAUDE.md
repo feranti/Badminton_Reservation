@@ -25,6 +25,9 @@ Dans le conteneur cloud, lancer `dockerd` s'il ne tourne pas, et passer
   (`yiwhkzxafkpadmvxqwhe`) avec le connecteur Supabase. Si la demande de validation n'aboutit pas,
   donner le fichier à Antoine pour qu'il l'exécute dans le SQL Editor.
 - Après une migration, vérifier les avis de sécurité Supabase (advisors).
+- Après la bascule de la base sur le VPS (README, « Base sur le VPS »), les migrations ne passent
+  plus par Supabase : donner le fichier à Antoine pour qu'il l'exécute en `postgres` avec DBeaver.
+  `scripts/vps/copier-base.sh` doit rester compatible avec le schéma (testé par `npm run check`).
 
 ## Pièges connus
 

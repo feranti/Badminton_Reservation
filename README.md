@@ -200,6 +200,49 @@ Pour revenir à une version précédente : dans Dokploy, remplacez `latest` par 
 
 Pour essayer l'image en local : `docker build -t bad-resas --build-arg NEXT_PUBLIC_SUPABASE_URL=... --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=... .` puis `docker run -p 3000:3000 --env-file .env.local bad-resas`.
 
+## Base sur le VPS
+
+La base peut quitter Supabase pour un Postgres 17 dans Dokploy, sur le même VPS que le site. Le script `scripts/vps/copier-base.sh` recopie tout (joueurs, sessions, comptes, historique, QR codes, sessions de connexion) et crée le compte du site, `resas_app`, qui lit et écrit les données sans pouvoir modifier le schéma ni devenir superutilisateur. `npm run check` le rejoue à chaque livraison sur un Postgres neuf.
+
+### Bascule (une fois)
+
+Les modifications faites sur l'ancien site entre la copie et la fin de la bascule seraient perdues : faites-la à un moment calme, en 15 minutes.
+
+1. **Dokploy** : Create Service > Database > PostgreSQL, version 17, nom `badminton-db`, un mot de passe long. Ne remplissez pas « External Port » : la base reste invisible d'Internet. Notez l'**Internal Host** (onglet General) et le mot de passe.
+2. Ouvrez, avant la copie, chaque QR code des sessions à venir sur le site : les images envoyées avant le 22 novembre sont alors recopiées de Supabase dans la base.
+3. **Sur le VPS** (SSH) :
+   ```sh
+   mkdir -p ~/bascule && cd ~/bascule
+   curl -fsSLO https://raw.githubusercontent.com/feranti/Badminton_Reservation/main/scripts/vps/copier-base.sh
+   nano copie.env      # trois lignes, sans guillemets (voir ci-dessous)
+   docker run --rm -i --network dokploy-network --env-file copie.env postgres:17 bash -s < copier-base.sh
+   ```
+   Contenu de `copie.env` :
+   ```
+   SOURCE_URL=postgresql://postgres.xxx:MOT_DE_PASSE_SUPABASE@aws-….pooler.supabase.com:5432/postgres
+   TARGET_URL=postgresql://postgres:MOT_DE_PASSE_DOKPLOY@INTERNAL_HOST:5432/postgres
+   APP_PASSWORD=une-longue-valeur-au-hasard-de-32-caracteres-ou-plus
+   ```
+   (`SOURCE_URL` est la `DATABASE_URL` actuelle du site ; `openssl rand -hex 24` donne un bon `APP_PASSWORD`.) Le script se termine par le nombre de lignes de chaque table, identique des deux côtés. Il refuse de remplir une base qui n'est pas vide.
+4. **Dokploy**, variables du site : `DATABASE_URL=postgresql://resas_app:APP_PASSWORD@INTERNAL_HOST:5432/postgres`, supprimez `DATABASE_CA_CERT` s'il existe, puis **Deploy**.
+5. Effacez le fichier : `shred -u ~/bascule/copie.env`.
+6. **GitHub** (Settings > Secrets and variables > Actions > Variables) : `APP_URL` = l'adresse du site sur le VPS, pour que les tâches planifiées l'appellent. Puis mettez en pause le projet Vercel, qui écrirait encore dans Supabase.
+
+Supabase n'est que lu par le script : en cas de problème, remettre l'ancienne `DATABASE_URL` dans Dokploy suffit à revenir en arrière. Gardez le projet Supabase quelques semaines (les joueurs encore connectés avec une ancienne session Supabase sont repris automatiquement), puis supprimez-le.
+
+### Ouvrir la base avec DBeaver
+
+La base n'est pas exposée sur Internet : DBeaver passe par SSH.
+
+1. Sur le VPS, ouvrez un relais local vers la base (il ne répond que sur la machine elle-même) :
+   ```sh
+   docker run -d --name badminton-db-relais --restart unless-stopped --network dokploy-network \
+     -p 127.0.0.1:5433:5432 alpine/socat tcp-listen:5432,fork,reuseaddr tcp-connect:INTERNAL_HOST:5432
+   ```
+2. Dans DBeaver : New Database Connection > PostgreSQL. Onglet **SSH** : cochez « Use SSH Tunnel », hôte du VPS, votre utilisateur et votre clé SSH. Onglet **Main** : Host `localhost`, Port `5433`, Database `postgres`, utilisateur `postgres` et le mot de passe de Dokploy.
+
+Ajouter un joueur : `insert into auth.users (email) values ('nom@exemple.fr');` (son profil est créé automatiquement, avec le début de l'adresse comme nom). Une nouvelle migration `supabase/migrations/NNNN_….sql` s'exécute de la même façon, en `postgres`.
+
 ## Modifier la base
 
 La base d'un projet neuf est créée par le seul script `supabase/migrations/0001_init.sql` (il regroupe les anciennes migrations 0001 à 0009). Pour toute modification ultérieure, ajoutez un nouveau fichier `supabase/migrations/0002_nom.sql` (puis `0003`…) sans retoucher les précédents, exécutez-le dans **SQL Editor** du projet en ligne, et pensez aux règles RLS et aux `grant` pour `authenticated` de toute nouvelle table : le projet en ligne n'ouvre pas les tables à l'API par défaut.
@@ -214,6 +257,7 @@ scripts/check.sh           Vérification complète avant livraison (npm run chec
 tests/e2e/                 Test de bout en bout à deux joueurs et visite de toutes les pages
 src/proxy.ts               Renvoie vers /login sans session (et reprend les anciennes sessions Supabase)
 src/lib/auth.ts            Connexion par e-mail : lien, code et sessions
+scripts/vps/copier-base.sh Copie de la base Supabase vers le Postgres du VPS (bascule)
 src/lib/supabase/proxy.ts  Reprise des anciennes sessions Supabase (transition)
 src/lib/data.ts            Lecture des sessions, réservations et joueurs
 src/lib/notify.ts          E-mail aux joueurs qui sortent de la liste d'attente
