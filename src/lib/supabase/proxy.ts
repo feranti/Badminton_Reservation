@@ -1,42 +1,21 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 
-// Les tâches planifiées (/api/cron/…) sont appelées par GitHub Actions, sans compte : chaque route vérifie elle-même le secret (src/lib/cron.ts).
-const PUBLIC_PATHS = ["/login", "/auth", "/api/cron/"];
+// Transition : un joueur encore connecté avec l'ancienne session Supabase reçoit une session du
+// site sans avoir à se reconnecter. À supprimer quand la base aura quitté Supabase.
+export function supabaseCookies(request: NextRequest) {
+  return request.cookies.getAll().filter((c) => /^sb-.+-auth-token(\.\d+)?$/.test(c.name));
+}
 
-// Rafraîchit la session Supabase à chaque requête et renvoie vers /login si besoin.
-export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          );
-        },
-      },
-    },
-  );
-
-  // Ne rien placer entre la création du client et getClaims() : la session doit être vérifiée ici.
-  const { data } = await supabase.auth.getClaims();
-  const isLoggedIn = Boolean(data?.claims);
-  const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
-
-  if (!isLoggedIn && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
-  return response;
+// Identifiant du joueur de l'ancienne session Supabase (jeton vérifié par Supabase), ou null.
+export async function supabaseUserId(request: NextRequest) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) return null;
+  const supabase = createServerClient(url, key, {
+    cookies: { getAll: () => request.cookies.getAll(), setAll: () => {} },
+  });
+  const { data } = await supabase.auth.getClaims().catch(() => ({ data: null }));
+  const sub = data?.claims.sub;
+  return typeof sub === "string" ? sub : null;
 }

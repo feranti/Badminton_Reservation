@@ -1,18 +1,19 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { cache } from "react";
+import { SESSION_COOKIE, sessionUser } from "@/lib/auth";
 import { playerDb } from "@/lib/db";
-import { createClient } from "@/lib/supabase/server";
+
+// Joueur de la session, lu une seule fois par requête même si plusieurs composants le demandent.
+const currentUser = cache(async () => sessionUser((await cookies()).get(SESSION_COOKIE)?.value));
 
 // Renvoie l'identifiant du joueur connecté et l'accès à la base en son nom (db, avec les règles
-// d'accès de la base), ou renvoie vers /login. Le client Supabase ne sert plus qu'à la connexion
-// et à recopier les QR codes envoyés avant 0011.
+// d'accès de la base), ou renvoie vers /login.
 export async function requirePlayer() {
-  // Ces pages dépendent du joueur connecté : on attend la vraie requête avant de calculer quoi que ce soit
-  // (le client Supabase lit l'heure pour vérifier la session).
+  // Ces pages dépendent du joueur connecté : on attend la vraie requête avant de calculer quoi que ce soit.
   await connection();
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims.sub;
+  const userId = await currentUser();
   if (!userId) redirect("/login");
-  return { supabase, userId, db: playerDb(userId) };
+  return { userId, db: playerDb(userId) };
 }

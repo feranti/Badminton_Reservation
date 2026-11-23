@@ -95,7 +95,17 @@ check(echo.v === trap && n === 1, "une valeur piégée est transmise comme texte
   await adminDb`delete from public.qr_images where path like 'test/%'`;
 }
 
-// 8. Temps réel : une modification d'une table affichée est signalée, avec son seul nom.
+// 8. Connexion : les demandes de connexion et les sessions sont fermées aux joueurs.
+{
+  const code = (q: Promise<unknown>) => q.then(() => "ok", (e: { code?: string }) => e.code ?? "erreur");
+  const tokens = await code(playerDb(a)`select * from public.login_tokens`);
+  const sessions = await code(playerDb(a)`select * from public.auth_sessions`);
+  const insert = await code(playerDb(a)`insert into public.auth_sessions (token_hash, user_id, expires_at) values ('x', ${a}, now() + interval '1 day')`);
+  check(tokens === "42501" && sessions === "42501" && insert === "42501",
+    `un joueur ne peut ni lire ni créer de session ou de demande de connexion (${tokens}, ${sessions}, ${insert})`);
+}
+
+// 9. Temps réel : une modification d'une table affichée est signalée, avec son seul nom.
 {
   const received = new Promise<string>((resolve) => {
     const stop = onDbChange((table) => {

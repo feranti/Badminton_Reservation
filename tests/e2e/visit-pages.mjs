@@ -1,4 +1,5 @@
 // Se connecte et ouvre chaque page, pour faire apparaître les erreurs du serveur de développement.
+// Avec frank, que le test de bout en bout ne connecte pas : un seul e-mail de connexion par minute.
 import { chromium } from "playwright";
 
 const APP = process.env.APP_URL ?? "http://127.0.0.1:3001";
@@ -9,11 +10,11 @@ const browser = await chromium.launch(
 const page = await (await browser.newContext()).newPage();
 await fetch(`${MAIL}/api/v1/messages`, { method: "DELETE" });
 await page.goto(APP + "/login");
-await page.fill("#email", "alice@test.fr");
+await page.fill("#email", "frank@test.fr");
 await page.click("text=Recevoir un lien de connexion");
 await page.waitForSelector("text=E-mail envoyé");
 await new Promise((r) => setTimeout(r, 1500));
-const list = await (await fetch(`${MAIL}/api/v1/search?query=to:alice@test.fr`)).json();
+const list = await (await fetch(`${MAIL}/api/v1/search?query=to:frank@test.fr`)).json();
 const msg = await (await fetch(`${MAIL}/api/v1/message/${list.messages[0].ID}`)).json();
 await page.goto(msg.HTML.match(/href="([^"]+)"/)[1].replaceAll("&amp;", "&"));
 await page.waitForSelector('nav[aria-label="Navigation principale"]');

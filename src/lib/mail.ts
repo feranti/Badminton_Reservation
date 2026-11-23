@@ -2,10 +2,12 @@ import nodemailer from "nodemailer";
 
 // Envoi d'e-mails par SMTP (Gmail avec mot de passe d'application, Brevo…).
 // Sans configuration, les e-mails sont seulement écrits dans le journal du serveur.
-export async function sendMail({ to, subject, text }: { to: string; subject: string; text: string }) {
+export async function sendMail({ to, subject, text, html }: { to: string; subject: string; text: string; html?: string }) {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM } = process.env;
   if (!SMTP_HOST) {
     console.info(`[e-mail non envoyé, SMTP non configuré] à ${to} : ${subject}`);
+    // En local seulement, le texte (lien et code de connexion) : en ligne, il ne doit pas finir dans le journal.
+    if (process.env.NODE_ENV !== "production") console.info(text);
     return;
   }
   const port = Number(SMTP_PORT ?? 465);
@@ -15,5 +17,5 @@ export async function sendMail({ to, subject, text }: { to: string; subject: str
     secure: port === 465,
     auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
   });
-  await transport.sendMail({ from: MAIL_FROM ?? SMTP_USER, to, subject, text });
+  await transport.sendMail({ from: MAIL_FROM ?? SMTP_USER, to, subject, text, html });
 }

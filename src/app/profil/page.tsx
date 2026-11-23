@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { signOut } from "@/app/login/actions";
 import { Loading, SubPage } from "@/components/app-shell";
 import { ThemePicker } from "@/components/theme-picker";
+import { adminDb } from "@/lib/db";
 import { requirePlayer } from "@/lib/session";
 import { ProfileForm } from "./profile-form";
 
@@ -31,10 +32,11 @@ export default function ProfilePage() {
 }
 
 async function Profile() {
-  const { supabase, userId, db } = await requirePlayer();
-  const [[data], { data: auth }] = await Promise.all([
+  const { userId, db } = await requirePlayer();
+  // L'adresse e-mail est dans auth.users, fermée aux joueurs : lue par le serveur, pour soi seulement.
+  const [[data], [auth]] = await Promise.all([
     db<{ display_name: string }>`select display_name from public.profiles where id = ${userId}`,
-    supabase.auth.getClaims(),
+    adminDb<{ email: string }>`select email from auth.users where id = ${userId}`,
   ]);
   const displayName = data?.display_name ?? "";
   return (
@@ -45,7 +47,7 @@ async function Profile() {
         </div>
         <div className="flex min-w-0 flex-col">
           <span className="text-lg font-semibold">Bonjour {displayName}</span>
-          <span className="truncate text-sm text-muted">{auth?.claims.email}</span>
+          <span className="truncate text-sm text-muted">{auth?.email}</span>
         </div>
       </div>
       <ProfileForm displayName={displayName} />

@@ -105,6 +105,59 @@ try {
   const bob = await login(browser, "bob@test.fr", { withCode: true });
   ok("alice se connecte par le lien de l'e-mail, bob avec le code reçu (8 chiffres comme en ligne) (un mauvais code est refusé)");
 
+  // Le lien ne sert qu'une fois, un seul e-mail par minute, et « Se déconnecter » ferme la session
+  {
+    const carol = await login(browser, "carol@test.fr");
+    const { link } = await loginMail("carol@test.fr");
+    const other = await (await browser.newContext()).newPage();
+    await other.goto(link);
+    await other.waitForSelector("text=Le lien a expiré");
+    await other.fill("#email", "carol@test.fr");
+    await other.click("text=Recevoir un lien de connexion");
+    await other.waitForSelector("text=patientez une minute");
+    const session = (await carol.context().cookies()).find((c) => c.name === "resas_session");
+    if (!session?.httpOnly || session.sameSite !== "Lax") throw new Error("Le cookie de session doit être httpOnly et SameSite=Lax");
+    await carol.goto(APP + "/profil");
+    await carol.getByRole("button", { name: "Se déconnecter" }).click();
+    await carol.waitForURL(/\/login$/);
+    const thief = await browser.newContext();
+    await thief.addCookies([{ ...session, expires: -1 }]);
+    const stolen = await thief.newPage();
+    await stolen.goto(APP + "/comptes");
+    await stolen.waitForURL(/\/login$/);
+    await Promise.all([carol.context().close(), other.context().close(), thief.close()]);
+    ok("le lien de l'e-mail ne sert qu'une fois, un 2e e-mail attend une minute, et une session fermée ne rouvre plus rien");
+  }
+
+  // Transition : un joueur encore connecté avec l'ancienne session Supabase le reste, sans e-mail
+  {
+    const { createServerClient } = await import("@supabase/ssr");
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const secret = process.env.SUPABASE_SECRET_KEY;
+    const res = await fetch(`${url}/auth/v1/admin/generate_link`, {
+      method: "POST",
+      headers: { apikey: secret, Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "magiclink", email: "dave@test.fr" }),
+    });
+    const { hashed_token } = await res.json();
+    let jar = [];
+    const supabase = createServerClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
+      cookies: { getAll: () => jar, setAll: (list) => (jar = list.filter((c) => c.value)) },
+    });
+    const { error } = await supabase.auth.verifyOtp({ type: "email", token_hash: hashed_token });
+    if (error || jar.length === 0) throw new Error(`Session Supabase de test impossible : ${error?.message}`);
+    const context = await browser.newContext();
+    await context.addCookies(jar.map((c) => ({ name: c.name, value: c.value, url: APP })));
+    const dave = await context.newPage();
+    await dave.goto(APP + "/comptes");
+    await dave.waitForSelector('nav[aria-label="Navigation principale"]');
+    const names = (await context.cookies()).map((c) => c.name);
+    if (!names.includes("resas_session") || names.some((n) => n.startsWith("sb-")))
+      throw new Error(`Cookies après la transition : ${names.join(", ")}`);
+    await context.close();
+    ok("un joueur connecté avec l'ancienne session Supabase reçoit une session du site sans se reconnecter");
+  }
+
   // Session du soir avec deux terrains
   const DATE = new Date(Date.now() + 2 * 86400e3).toISOString().slice(0, 10);
   const stat = (page, label, value) => page.locator("div", { has: page.locator(`dt:text-is("${label}")`) }).locator(`dd:text-is("${value}")`);

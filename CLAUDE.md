@@ -34,6 +34,6 @@ Dans le conteneur cloud, lancer `dockerd` s'il ne tourne pas, et passer
   fuseau du navigateur ou du serveur.
 - Le serveur interroge la base en SQL avec `db` de `requirePlayer()` (`src/lib/db.ts`), jamais avec
   `supabase.from` ou `.rpc` : chaque requête porte l'identifiant du joueur, donc les règles RLS
-  s'appliquent. `adminDb` (sans RLS) est réservé aux tâches planifiées et aux e-mails.
-- Le temps réel a besoin du jeton du joueur avant l'abonnement (`src/components/realtime-refresh.tsx`).
+  s'appliquent. `adminDb` (sans RLS) est réservé aux tâches planifiées, aux e-mails et à la connexion.
+- La connexion est gérée par le site (`src/lib/auth.ts`), plus par Supabase Auth : l'e-mail de connexion part par le SMTP du site (au plus un par minute et par adresse), et les tables `login_tokens` et `auth_sessions` ne sont lisibles que par le serveur.
 - Les formulaires utilisent `useFormAction` pour ne pas perdre la saisie en cas d'erreur.
