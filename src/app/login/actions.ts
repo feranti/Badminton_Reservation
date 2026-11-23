@@ -29,19 +29,23 @@ export async function sendMagicLink(_prev: LoginState, formData: FormData): Prom
   try {
     await sendMail({
       to: request.email,
-      subject: "Connexion à Badminton Résas",
+      // Format repéré par Gmail (« Copier le code ») et iOS : le code dans l'objet, puis en tête du
+      // corps juste après « code de connexion : », et aucun autre nombre dans l'e-mail.
+      subject: `${request.code} est votre code de connexion à Badminton Résas`,
       text: [
-        "Pour vous connecter à Badminton Résas, ouvrez ce lien :",
+        `Votre code de connexion : ${request.code}`,
+        "",
+        "Saisissez-le dans l'appli Badminton Résas. Il est valable une heure.",
+        "",
+        "Vous pouvez aussi vous connecter avec ce lien :",
         request.link,
         "",
-        `Ou saisissez ce code dans l'appli : ${request.code}`,
-        "",
-        "Le lien et le code sont valables une heure. Si vous n'avez rien demandé, ignorez cet e-mail.",
+        "Si vous n'avez rien demandé, ignorez cet e-mail.",
       ].join("\n"),
-      html: `<h2>Connexion à Badminton Résas</h2>
-<p><a href="${escapeHtml(request.link)}">Se connecter</a></p>
-<p>Ou saisissez ce code dans l'appli : <strong style="font-size:24px;letter-spacing:4px">${request.code}</strong></p>
-<p>Le lien et le code sont valables une heure. Si vous n'avez rien demandé, ignorez cet e-mail.</p>`,
+      html: `<p>Votre code de connexion : <strong style="font-size:24px;letter-spacing:4px">${request.code}</strong></p>
+<p>Saisissez-le dans l'appli Badminton Résas. Il est valable une heure.</p>
+<p>Vous pouvez aussi vous connecter avec ce lien : <a href="${escapeHtml(request.link)}">Se connecter</a></p>
+<p>Si vous n'avez rien demandé, ignorez cet e-mail.</p>`,
     });
   } catch (error) {
     console.error("[connexion] e-mail non envoyé", error);

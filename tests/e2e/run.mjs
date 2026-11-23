@@ -41,10 +41,16 @@ async function loginMail(email) {
     const list = await (await fetch(`${MAIL}/api/v1/search?query=to:${email}`)).json();
     if (list.messages?.length) {
       const msg = await (await fetch(`${MAIL}/api/v1/message/${list.messages[0].ID}`)).json();
-      return {
-        link: msg.HTML.match(/href="([^"]+)"/)[1].replaceAll("&amp;", "&"),
-        code: msg.Text.match(/\b\d{6,10}\b/)[0],
-      };
+      const link = msg.HTML.match(/href="([^"]+)"/)[1].replaceAll("&amp;", "&");
+      const code = msg.Text.match(/^Votre code de connexion : (\d{8})$/m)?.[1];
+      // Pour que Gmail propose « Copier le code » : le code dans l'objet et en tête du corps,
+      // et aucun autre nombre dans l'e-mail (hors lien).
+      const withoutLink = (t) => t.replaceAll(link, "").replace(/href="[^"]*"/g, "").replace(/style="[^"]*"/g, "");
+      const numbers = [msg.Subject, withoutLink(msg.Text), withoutLink(msg.HTML)].flatMap((t) => t.match(/\d+/g) ?? []);
+      if (!code || msg.Subject !== `${code} est votre code de connexion à Badminton Résas` || numbers.some((n) => n !== code)) {
+        throw new Error(`E-mail de connexion mal formé pour Gmail :\n${msg.Subject}\n${msg.Text}`);
+      }
+      return { link, code };
     }
     await sleep(500);
   }
