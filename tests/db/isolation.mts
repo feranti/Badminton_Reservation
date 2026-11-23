@@ -10,6 +10,9 @@ const check = (ok: boolean, label: string) => {
   if (!ok) failed = true;
 };
 
+// Compte du serveur : postgres sur la copie de Supabase, resas_app sur la base du VPS.
+const [{ server }] = await adminDb<{ server: string }>`select current_user as server`;
+
 const players = await adminDb<{ id: string }>`select id from public.profiles order by created_at limit 2`;
 if (players.length < 2) throw new Error("Il faut au moins deux joueurs en base.");
 const [a, b] = players.map((p) => p.id);
@@ -27,7 +30,7 @@ const runs = await Promise.all(
 );
 check(
   runs.every(({ kind, w }) =>
-    kind === 2 ? w.uid === null && w.role === "postgres" && w.claims === null : w.role === "authenticated" && w.uid === (kind === 0 ? a : b),
+    kind === 2 ? w.uid === null && w.role === server && w.claims === null : w.role === "authenticated" && w.uid === (kind === 0 ? a : b),
   ),
   "300 requêtes simultanées : chaque joueur garde son identité, et les requêtes sans joueur n'héritent de rien",
 );
@@ -35,7 +38,7 @@ check(
 // 2. Une requête de joueur en erreur ne laisse pas son rôle sur la connexion.
 await playerDb(a)`select 1 / 0`.catch(() => null);
 const after = await Promise.all(Array.from({ length: 10 }, () => who(adminDb)));
-check(after.every(([w]) => w.role === "postgres" && w.uid === null), "après une erreur, la connexion revient au rôle du serveur");
+check(after.every(([w]) => w.role === server && w.uid === null), "après une erreur, la connexion revient au rôle du serveur");
 
 // 3. Les règles d'accès s'appliquent : A ne peut ni renommer B, ni lire les adresses e-mail.
 const renamed = await playerDb(a)`update public.profiles set display_name = 'pirate' where id = ${b} returning id`;
@@ -117,6 +120,17 @@ check(echo.v === trap && n === 1, "une valeur piégée est transmise comme texte
   await playerDb(a)`update public.sessions set notes = notes where false`;
   const table = await Promise.race([received, new Promise((r) => setTimeout(() => r("rien"), 5000))]);
   check(table === "sessions", `une modification de sessions est signalée aux pages ouvertes (${table})`);
+}
+
+// 10. Base du VPS : le compte du site n'est ni superutilisateur ni propriétaire du schéma.
+if (server !== "postgres") {
+  const code = (q: Promise<unknown>) => q.then(() => "ok", (e: { code?: string }) => e.code ?? "erreur");
+  const escalate = await code(playerDb(a)`select set_config('role', 'postgres', true)`);
+  const ddl = await code(adminDb`create table public.pirate (id int)`);
+  const drop = await code(adminDb`drop table public.payments`);
+  const [{ superuser }] = await adminDb<{ superuser: boolean }>`select rolsuper as superuser from pg_roles where rolname = current_user`;
+  check(escalate === "42501" && ddl === "42501" && drop === "42501" && !superuser,
+    `le compte du site ne peut ni devenir postgres, ni créer ou supprimer une table (${escalate}, ${ddl}, ${drop})`);
 }
 
 if (failed) process.exit(1);

@@ -14,7 +14,10 @@ DEV_PORT=3001
 LOG_DIR=$(mktemp -d)
 PIDS=()
 # Chaque serveur est lancé dans son propre groupe de processus pour pouvoir tout arrêter à la fin.
-cleanup() { for pid in "${PIDS[@]:-}"; do [ -n "$pid" ] && kill -- "-$pid" 2>/dev/null || true; done; }
+cleanup() {
+  for pid in "${PIDS[@]:-}"; do [ -n "$pid" ] && kill -- "-$pid" 2>/dev/null || true; done
+  docker rm -f resas_vps_test >/dev/null 2>&1 || true
+}
 trap cleanup EXIT
 
 step() { echo; echo "▶ $1"; }
@@ -93,6 +96,33 @@ psql "$DB_URL" -q -v ON_ERROR_STOP=1 -f tests/sql/droits.sql
 
 step "Accès direct à la base : identité des joueurs et règles d'accès"
 node --conditions=react-server --experimental-strip-types --no-warnings tests/db/isolation.mts
+
+step "Base du VPS : copie dans un Postgres seul (scripts/vps/copier-base.sh)"
+# Même script que pour la bascule, de la copie locale de Supabase vers un Postgres 17 neuf (lancé
+# avec l'image Postgres de Supabase, mais sans ses scripts : rien de Supabase n'y est installé).
+PG_IMAGE=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -m1 'supabase/postgres:')
+VPS_PORT=54398
+VPS_PASSWORD=mot-de-passe-de-test-assez-long
+docker rm -f resas_vps_test >/dev/null 2>&1 || true
+docker run -d --name resas_vps_test --network host -u postgres --entrypoint bash "$PG_IMAGE" -c \
+  "initdb -D /tmp/pg -U postgres --auth=trust >/dev/null && exec postgres -D /tmp/pg -c listen_addresses=127.0.0.1 -c port=$VPS_PORT" >/dev/null
+for _ in $(seq 1 30); do psql "postgresql://postgres@127.0.0.1:$VPS_PORT/postgres" -Atqc "select 1" >/dev/null 2>&1 && break; sleep 1; done
+docker run --rm -i --network host --entrypoint bash \
+  -e SOURCE_URL="$DB_URL" -e TARGET_URL="postgresql://postgres@127.0.0.1:$VPS_PORT/postgres" -e APP_PASSWORD="$VPS_PASSWORD" \
+  "$PG_IMAGE" -s <scripts/vps/copier-base.sh
+VPS_URL="postgresql://resas_app:$VPS_PASSWORD@127.0.0.1:$VPS_PORT/postgres"
+DATABASE_URL="$VPS_URL" node --conditions=react-server --experimental-strip-types --no-warnings tests/db/isolation.mts
+# Le site de production branché sur cette base : connexion par e-mail et visite de toutes les pages.
+VPS_APP_PORT=3002
+DATABASE_URL="$VPS_URL" setsid npx next start -p $VPS_APP_PORT -H 127.0.0.1 >"$LOG_DIR/vps.log" 2>&1 &
+PIDS+=($!)
+wait_for "http://127.0.0.1:$VPS_APP_PORT/login"
+APP_URL="http://127.0.0.1:$VPS_APP_PORT" node tests/e2e/visit-pages.mjs
+if grep -E "Error|⨯" "$LOG_DIR/vps.log"; then
+  echo "✗ Le site branché sur la base du VPS a affiché des erreurs (voir ci-dessus)."
+  exit 1
+fi
+echo "✓ Le site marche sur la base copiée, avec le compte resas_app"
 
 step "Visite des pages avec next dev"
 setsid npx next dev -p $DEV_PORT -H 127.0.0.1 >"$LOG_DIR/dev.log" 2>&1 &
