@@ -226,7 +226,7 @@ Les modifications faites sur l'ancien site entre la copie et la fin de la bascul
    (`SOURCE_URL` est la `DATABASE_URL` actuelle du site ; `openssl rand -hex 24` donne un bon `APP_PASSWORD`.) Le script se termine par le nombre de lignes de chaque table, identique des deux côtés. Il refuse de remplir une base qui n'est pas vide.
 4. **Dokploy**, variables du site : `DATABASE_URL=postgresql://resas_app:APP_PASSWORD@INTERNAL_HOST:5432/postgres`, supprimez `DATABASE_CA_CERT` s'il existe, puis **Deploy**.
 5. Effacez le fichier : `shred -u ~/bascule/copie.env`.
-6. **GitHub** (Settings > Secrets and variables > Actions > Variables) : `APP_URL` = l'adresse du site sur le VPS, pour que les tâches planifiées l'appellent. Puis mettez en pause le projet Vercel, qui écrirait encore dans Supabase.
+6. **GitHub** (Settings > Secrets and variables > Actions > Variables) : `APP_URL` = l'adresse du site sur le VPS, pour que les tâches planifiées l'appellent. Puis, dans le projet Vercel, ajoutez la variable `NOUVEAU_SITE` = l'adresse du site sur le VPS (par exemple `https://bad-resas.feranti.dev`) et redéployez : l'ancien site affiche alors sur chaque page un message de déménagement et renvoie au même chemin sur le nouveau site, sans plus toucher à Supabase (`src/lib/demenagement.ts`). Mettez le projet Vercel en pause quand l'ancienne adresse peut fermer.
 
 Supabase n'est que lu par le script : en cas de problème, remettre l'ancienne `DATABASE_URL` dans Dokploy suffit à revenir en arrière. Gardez le projet Supabase quelques semaines (les joueurs encore connectés avec une ancienne session Supabase sont repris automatiquement), puis supprimez-le.
 

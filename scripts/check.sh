@@ -31,7 +31,7 @@ wait_for() {
   exit 1
 }
 
-for port in $PROD_PORT $DEV_PORT; do
+for port in $PROD_PORT $DEV_PORT 3002 3003; do
   if curl -s -o /dev/null "http://127.0.0.1:$port"; then
     echo "✗ Le port $port est déjà utilisé : arrêtez le serveur qui l'occupe."
     exit 1
@@ -123,6 +123,14 @@ if grep -E "Error|⨯" "$LOG_DIR/vps.log"; then
   exit 1
 fi
 echo "✓ Le site marche sur la base copiée, avec le compte resas_app"
+
+step "Ancien site : message de déménagement (NOUVEAU_SITE)"
+MOVED_PORT=3003
+NOUVEAU_SITE=https://nouveau.exemple.fr DATABASE_URL=postgresql://personne@127.0.0.1:1/aucune \
+  setsid npx next start -p $MOVED_PORT -H 127.0.0.1 >"$LOG_DIR/moved.log" 2>&1 &
+PIDS+=($!)
+wait_for "http://127.0.0.1:$MOVED_PORT/login"
+APP_URL="http://127.0.0.1:$MOVED_PORT" NOUVEAU_SITE=https://nouveau.exemple.fr node tests/e2e/demenagement.mjs
 
 step "Visite des pages avec next dev"
 setsid npx next dev -p $DEV_PORT -H 127.0.0.1 >"$LOG_DIR/dev.log" 2>&1 &

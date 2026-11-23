@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSession, SESSION_COOKIE, sessionCookie } from "@/lib/auth";
 import { supabaseCookies, supabaseUserId } from "@/lib/supabase/proxy";
+import { movedResponse, newSiteOrigin } from "@/lib/demenagement";
 
 // Les tâches planifiées (/api/cron/…) sont appelées par GitHub Actions, sans compte : chaque route vérifie elle-même le secret (src/lib/cron.ts).
 const PUBLIC_PATHS = ["/login", "/auth", "/api/cron/"];
@@ -8,6 +9,10 @@ const PUBLIC_PATHS = ["/login", "/auth", "/api/cron/"];
 // Renvoie vers /login un visiteur sans session. La session elle-même est vérifiée en base par
 // requirePlayer() (src/lib/session.ts), qui renvoie aussi vers /login si elle n'est plus valable.
 export async function proxy(request: NextRequest) {
+  // Ancien site : message de déménagement sur toutes les pages (src/lib/demenagement.ts).
+  const newSite = newSiteOrigin();
+  if (newSite) return movedResponse(request, newSite);
+
   if (request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
 
   // Ancienne session Supabase : on la remplace par une session du site, puis on recharge la page.
