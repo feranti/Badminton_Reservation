@@ -36,6 +36,10 @@ WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
 echo "▶ Vérifications"
+src -c "select 1" >/dev/null 2>"$WORK/err" \
+  || { echo "✗ Impossible de joindre la base Supabase (SOURCE_URL) :" >&2; cat "$WORK/err" >&2; exit 1; }
+dst -c "select 1" >/dev/null 2>"$WORK/err" \
+  || { echo "✗ Impossible de joindre la base du VPS (TARGET_URL) : vérifiez qu'elle est démarrée dans Dokploy et que l'hôte est son Internal Host." >&2; cat "$WORK/err" >&2; exit 1; }
 [ "$(src -At -c "select to_regclass('public.auth_sessions') is not null")" = "t" ] \
   || { echo "✗ La base source n'a pas encore les migrations 0011 et 0012." >&2; exit 1; }
 [ "$(dst -At -c "select to_regclass('public.sessions') is null and to_regnamespace('auth') is null")" = "t" ] \
