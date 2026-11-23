@@ -3,9 +3,10 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { cardPrice, COURTS, MAX_GUESTS } from "@/lib/courts";
-import { attempt, type Db } from "@/lib/db";
+import { attempt, type Db, UUID } from "@/lib/db";
 import type { Tables } from "@/lib/database.types";
 import { parisToIso, parseEurosToCents } from "@/lib/format";
+import { QR_MAX_BYTES, QR_TYPES, sniffQrType } from "@/lib/qr-image";
 import { notifyGroup, notifyPromotions, sessionState, snapshot } from "@/lib/notify";
 import { requirePlayer } from "@/lib/session";
 
@@ -405,18 +406,43 @@ export async function addParticipantFromForm(sessionId: string, formData: FormDa
   if (playerId) await addParticipant(sessionId, playerId);
 }
 
-// QR code d'une heure d'un terrain (hour = 0 pour la première heure) ; path = null le retire.
-// Un QR code retiré reste en base (removed_at) et son image reste dans le stockage.
-export async function setQrPath(bookingId: string, hour: number, path: string | null) {
+// QR code d'une heure d'un terrain (hour = 0 pour la première heure), envoyé depuis la page de
+// la session ou le menu « Partager » du téléphone. L'image va dans la base (qr_images) et le QR
+// code de l'heure la désigne, dans la même transaction. Renvoie false si l'envoi est refusé.
+export async function uploadQr(formData: FormData) {
+  const { db } = await requirePlayer();
+  const bookingId = String(formData.get("booking_id") ?? "");
+  const hour = Number(formData.get("hour"));
+  const file = formData.get("file");
+  if (!UUID.test(bookingId) || !Number.isInteger(hour) || hour < 0 || hour > 23) return false;
+  if (!(file instanceof File) || file.size === 0 || file.size > QR_MAX_BYTES) return false;
+  const data = Buffer.from(await file.arrayBuffer());
+  const type = sniffQrType(data);
+  if (!type) return false;
+  const path = `${bookingId}/${hour}-${Date.now()}.${QR_TYPES[type]}`;
+  const { error } = await attempt(
+    db.tx(async (tx) => {
+      await tx`insert into public.qr_images (path, content_type, data) values (${path}, ${type}, ${data})`;
+      await tx`
+        insert into public.booking_qr_codes (booking_id, hour, qr_path, removed_at) values (${bookingId}, ${hour}, ${path}, null)
+        on conflict (booking_id, hour) do update set qr_path = excluded.qr_path, removed_at = null`;
+    }),
+  );
+  if (error) {
+    console.error("[QR code] non enregistré", error);
+    return false;
+  }
+  refresh();
+  return true;
+}
+
+// Retire le QR code d'une heure. Il reste en base (removed_at), son image aussi.
+export async function removeQr(bookingId: string, hour: number) {
   const { db } = await requirePlayer();
   if (!Number.isInteger(hour) || hour < 0 || hour > 23) return;
   const { error } = await attempt(
-    path
-      ? db`
-          insert into public.booking_qr_codes (booking_id, hour, qr_path, removed_at) values (${bookingId}, ${hour}, ${path}, null)
-          on conflict (booking_id, hour) do update set qr_path = excluded.qr_path, removed_at = null`
-      : db`update public.booking_qr_codes set removed_at = now() where booking_id = ${bookingId} and hour = ${hour}`,
+    db`update public.booking_qr_codes set removed_at = now() where booking_id = ${bookingId} and hour = ${hour}`,
   );
-  if (error) console.error("[QR code] non enregistré", error);
+  if (error) console.error("[QR code] non retiré", error);
   refresh();
 }

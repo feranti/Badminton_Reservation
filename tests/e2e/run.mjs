@@ -321,12 +321,27 @@ try {
   await alice.mouse.click(5, 5);
   await fenetre.waitFor({ state: "hidden" });
   ok("alice ouvre un QR code dans une fenêtre et la ferme par la croix, Échap ou un clic à côté");
+  // L'image est servie par le site aux seuls joueurs connectés, avec son vrai type
+  const qrSrc = await alice.locator("dialog img").first().getAttribute("src");
+  if (!qrSrc?.startsWith("/api/qr?chemin=")) throw new Error(`Adresse du QR code inattendue : ${qrSrc}`);
+  const qrRes = await alice.context().request.get(APP + qrSrc);
+  const qrBody = await qrRes.body();
+  if (qrRes.status() !== 200 || qrRes.headers()["content-type"] !== "image/png" || qrRes.headers()["x-content-type-options"] !== "nosniff" || !qrBody.equals(png))
+    throw new Error(`QR code mal servi : ${qrRes.status()} ${qrRes.headers()["content-type"]}`);
+  const qrAnonyme = await stranger.context().request.get(APP + qrSrc, { maxRedirects: 0 });
+  if (qrAnonyme.status() === 200) throw new Error("Un visiteur non connecté ne doit pas voir les QR codes");
+  ok("l'image du QR code est servie aux joueurs connectés (type vérifié), pas aux visiteurs");
   // Supprimer le QR code d'une heure ne touche pas à l'autre
   await terrain6.getByRole("button", { name: "Supprimer le QR code · 21:00 – 22:00" }).click();
   await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
   await terrain6.getByRole("button", { name: "Remplacer le QR code · 20:00 – 21:00" }).waitFor();
   await qrLinks.filter({ hasText: "21:00" }).waitFor({ state: "detached", timeout: 10000 });
   ok("supprimer le QR code de 21:00 garde celui de 20:00");
+  // Un fichier qui n'est pas une image (page web renommée en .png) est refusé
+  await terrain6.getByLabel("Fichier du QR code · 21:00 – 22:00").setInputFiles({ name: "qr.png", mimeType: "image/png", buffer: Buffer.from("<html><script>alert(1)</script></html>") });
+  await terrain6.getByText("Échec, réessayez.").waitFor();
+  await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
+  ok("un fichier qui n'est pas une image ni un PDF est refusé comme QR code");
 
   // Coller un QR code copié (depuis Gmail par exemple)
   await bob.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: APP });

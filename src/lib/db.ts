@@ -21,7 +21,10 @@ export type Db = {
   tx<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
 };
 
-const globalForSql = globalThis as unknown as { badmintonSql?: postgres.Sql };
+const globalForSql = globalThis as unknown as {
+  badmintonSql?: postgres.Sql;
+  badmintonListeners?: Set<(table: string) => void>;
+};
 
 // Chiffrement de la connexion : obligatoire hors de la machine (le mot de passe et les données
 // passent par Internet entre le VPS et Supabase). Avec DATABASE_CA_CERT (certificat racine de
@@ -98,11 +101,31 @@ export function playerDb(userId: string): Db {
   );
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Requêtes sans joueur (tâches planifiées, e-mails) : propriétaire de la base, sans RLS.
 // Remplace le client Supabase à clé secrète.
 export const adminDb: Db = makeDb(null);
+
+// Temps réel : la base signale chaque modification des tables affichées (pg_notify, voir
+// 0011_qr_et_temps_reel_dans_la_base.sql) avec le seul nom de la table. Une connexion LISTEN
+// partagée par tout le serveur, ouverte au premier abonné ; postgres.js la rouvre si elle tombe.
+// Renvoie la fonction de désabonnement.
+export function onDbChange(listener: (table: string) => void): () => void {
+  let listeners = globalForSql.badmintonListeners;
+  if (!listeners) {
+    const all = new Set<(table: string) => void>();
+    listeners = globalForSql.badmintonListeners = all;
+    getSql()
+      .listen("changements", (table) => all.forEach((l) => l(table)))
+      .catch((error) => {
+        console.error("[temps réel] écoute impossible", error);
+        globalForSql.badmintonListeners = undefined;
+      });
+  }
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
 
 // Pour une action qui ne doit pas s'interrompre sur une erreur de la base (comme le faisait le
 // client Supabase, qui renvoyait l'erreur au lieu de la lever).
