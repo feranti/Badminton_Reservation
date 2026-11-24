@@ -194,6 +194,8 @@ Le site est construit par le `Dockerfile` (serveur Next.js autonome, `output: "s
 4. Dans **Domains**, ajoutez le domaine du site, port `3000`, avec HTTPS (Let's Encrypt).
 5. Copiez la **Webhook URL** de l'onglet **Deployments** dans le secret GitHub `DOKPLOY_WEBHOOK_URL`, déployez, puis reportez l'adresse dans la variable GitHub `APP_URL`.
 
+Pour recevoir un e-mail à chaque mise en ligne : dans Dokploy, **Settings > Notifications**, ajoutez un canal **Email** (SMTP `smtp.gmail.com`, port `587` ou `465`, le compte Gmail et son mot de passe d'application, comme `SMTP_USER` et `SMTP_PASS`) et cochez **App Deploy** et **App Build Error**.
+
 Pour revenir à une version précédente : dans Dokploy, remplacez `latest` par l'étiquette `sha-<commit>` voulue et redéployez.
 
 Pour essayer l'image en local : `docker build -t bad-resas .` puis `docker run -p 3000:3000 --env-file .env.local bad-resas`.
