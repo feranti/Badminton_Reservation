@@ -342,6 +342,7 @@ try {
   await historique.getByText("bob et alice ont réservé le terrain 10").waitFor();
   await historique.getByText("bob s'est désinscrit").waitFor();
   if ((await historique.locator("li").count()) !== 4) throw new Error("La page de la session doit montrer 4 événements");
+  await historique.getByText(/^Créée aujourd'hui à \d\d:\d\d par alice$/).waitFor();
   await historique.getByRole("link", { name: "Tout voir (9)" }).click();
   // La page précédente reste chargée (cachée) : on ne regarde que le fil visible.
   const fil = bob.locator("ol").filter({ visible: true });
@@ -349,6 +350,7 @@ try {
   await fil.getByText("alice a réservé le terrain 6").waitFor();
   await fil.getByText("Note : « Volants fournis »").waitFor();
   await fil.getByText("Aujourd'hui", { exact: true }).waitFor();
+  await bob.getByText(/^Créée aujourd'hui à \d\d:\d\d par alice$/).filter({ visible: true }).waitFor();
   if ((await fil.locator("> li").count()) !== 9) throw new Error("La page Historique doit montrer les 9 événements");
   await bob.getByRole("link", { name: "Terrains", exact: true }).filter({ visible: true }).click();
   await fil.getByText("bob s'est désinscrit").waitFor({ state: "detached" });
@@ -356,7 +358,7 @@ try {
   if ((await fil.locator("> li").count()) !== 3) throw new Error("Le filtre Terrains doit garder les 3 réservations");
   await bob.getByRole("link", { name: "Retour" }).filter({ visible: true }).click();
   await stat(bob, "Joueurs", "2 / 12").waitFor();
-  ok("l'historique montre création, terrains, inscriptions, désinscription et note, avec un filtre par type");
+  ok("l'historique montre la date de création, création, terrains, inscriptions, désinscription et note, avec un filtre par type");
 
   // QR code
   const png = Buffer.from(
