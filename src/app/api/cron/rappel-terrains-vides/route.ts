@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { appOrigin } from "@/lib/app-url";
 import { isCronAuthorized } from "@/lib/cron";
 import { CANCEL_HOURS, REMINDER_HOURS, emptyCourtReminder, sessionState } from "@/lib/notify";
 import { adminDb as admin } from "@/lib/db";
@@ -22,12 +23,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 
-  const origin = process.env.APP_URL?.replace(/\/$/, "") || new URL(request.url).origin;
+  // Adresse publique du site (src/lib/app-url.ts), jamais request.url : dans le conteneur du VPS,
+  // c'est l'adresse d'écoute du serveur (https://0.0.0.0:3000).
+  const origin = await appOrigin();
   const sent: string[] = [];
   const errors: string[] = [];
   for (const { id } of due) {
     const state = await sessionState(admin, id);
-    const message = state && emptyCourtReminder(state, `${origin}/sessions/${id}`);
+    const message = state && emptyCourtReminder(state, origin ? `${origin}/sessions/${id}` : "");
     if (!message) continue;
     // La session est marquée avant l'envoi, pour qu'un second appel simultané n'envoie rien.
     const claimed = await admin`

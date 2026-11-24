@@ -126,6 +126,11 @@ if grep -E "Error|⨯" "$LOG_DIR/vps.log"; then
 fi
 echo "✓ Le site marche sur la base copiée, avec le compte resas_app"
 
+step "Serveur autonome du conteneur, sans APP_URL : liens des messages WhatsApp"
+# Comme sur le VPS (Dockerfile) : HOSTNAME=0.0.0.0 derrière un proxy. Le lien du récap doit être
+# l'adresse du site (en-tête Host), pas https://0.0.0.0:3000.
+node tests/e2e/adresse-publique.mjs
+
 step "Ancien site : message de déménagement (NOUVEAU_SITE)"
 MOVED_PORT=3003
 NOUVEAU_SITE=https://nouveau.exemple.fr DATABASE_URL=postgresql://personne@127.0.0.1:1/aucune \
