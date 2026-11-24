@@ -128,3 +128,10 @@ export function whenLabel(iso: string, now = new Date()) {
   const day = dayLabel(iso, now);
   return `${day === "Aujourd'hui" || day === "Hier" ? day : formatDay(iso, true)} à ${formatTime(iso)}`;
 }
+
+// « Créée aujourd'hui à 09:12 », « Créée hier à 22:40 », « Créée le samedi 14 nov. à 11:30 »
+export function createdLabel(iso: string, now = new Date()) {
+  const day = dayLabel(iso, now);
+  const when = day === "Aujourd'hui" || day === "Hier" ? day.toLowerCase() : `le ${formatDay(iso, true).toLowerCase()}`;
+  return `Créée ${when} à ${formatTime(iso)}`;
+}

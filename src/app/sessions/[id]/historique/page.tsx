@@ -6,7 +6,7 @@ import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { SessionHistory } from "@/components/session-history";
 import { getPlayers, getSession, getSessionEvents } from "@/lib/data";
 import { formatDay, formatTimes } from "@/lib/format";
-import { FILTERS, type Filter } from "@/lib/history";
+import { createdLabel, FILTERS, type Filter } from "@/lib/history";
 import { requirePlayer } from "@/lib/session";
 
 export default function HistoryPage({ params, searchParams }: PageProps<"/sessions/[id]/historique">) {
@@ -45,6 +45,9 @@ async function History({
       <RealtimeRefresh />
       <p className="text-muted">
         {formatDay(session.starts_at)} · {formatTimes(session.starts_at, session.ends_at)}
+      </p>
+      <p className="-mt-2 text-sm text-faint">
+        {createdLabel(session.created_at)} par {players.find((p) => p.id === session.created_by)?.display_name ?? "quelqu'un"}
       </p>
       <nav aria-label="Filtrer l'historique" className="-mx-5 flex gap-2 overflow-x-auto px-5">
         <Link href={base} replace scroll={false} className={chip(!filter)} aria-current={!filter ? "page" : undefined}>
