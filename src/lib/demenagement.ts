@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-// Ancien site (Vercel) : quand NOUVEAU_SITE est défini (par exemple https://bad-resas.feranti.dev),
+// Ancien site (Vercel) : quand NOUVEAU_SITE est défini (par exemple https://resas.exemple.fr),
 // chaque page affiche un message de déménagement puis renvoie vers la même adresse sur le nouveau
 // site. Rien n'est lu en base : l'ancien site n'a plus besoin d'y accéder.
 
