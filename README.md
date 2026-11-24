@@ -192,7 +192,7 @@ Le site est construit par le `Dockerfile` (serveur Next.js autonome, `output: "s
 1. Sur GitHub (Settings > Secrets and variables > Actions), ajoutez les **variables** `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` : elles sont inscrites dans le JavaScript au moment du build.
 2. Le paquet GHCR reste privé : créez un jeton GitHub classique (Settings > Developer settings > Personal access tokens > Tokens (classic)) avec la seule permission `read:packages`.
 3. Dans Dokploy, créez une application avec la source **Docker** : image `ghcr.io/feranti/badminton_reservation:latest`, registre `ghcr.io`, utilisateur `feranti`, mot de passe = ce jeton. Laissez **Auto Deploy** activé (le webhook en a besoin).
-4. Dans **Environment**, ajoutez `DATABASE_URL` (voir « Connexion à la base »), `APP_URL` (adresse publique du site, utilisée pour les liens des messages WhatsApp et, en secours, pour celui de l'e-mail de connexion) et les variables des e-mails de liste d'attente, de WhatsApp et des tâches planifiées si vous les utilisez (voir ci-dessus). Les `NEXT_PUBLIC_*` n'y servent à rien : elles sont déjà dans l'image.
+4. Dans **Environment**, ajoutez `DATABASE_URL` (voir « Connexion à la base »), `APP_URL` (adresse publique du site, par exemple `https://bad-resas.feranti.dev` : les liens de l'e-mail de connexion et des messages WhatsApp sont construits avec elle, jamais avec les en-têtes de la requête) et les variables des e-mails de liste d'attente, de WhatsApp et des tâches planifiées si vous les utilisez (voir ci-dessus). Les `NEXT_PUBLIC_*` n'y servent à rien : elles sont déjà dans l'image.
 5. Dans **Domains**, ajoutez le domaine du site, port `3000`, avec HTTPS (Let's Encrypt).
 6. Copiez la **Webhook URL** de l'onglet **Deployments** dans le secret GitHub `DOKPLOY_WEBHOOK_URL`, déployez, puis reportez l'adresse dans la configuration Supabase (étape 1.4) et dans la variable GitHub `APP_URL`.
 
@@ -228,7 +228,7 @@ Les modifications faites sur l'ancien site entre la copie et la fin de la bascul
 5. Effacez le fichier : `shred -u ~/bascule/copie.env`.
 6. **GitHub** (Settings > Secrets and variables > Actions > Variables) : `APP_URL` = l'adresse du site sur le VPS, pour que les tâches planifiées l'appellent. Puis, dans le projet Vercel, ajoutez la variable `NOUVEAU_SITE` = l'adresse du site sur le VPS (par exemple `https://bad-resas.feranti.dev`) et redéployez : l'ancien site affiche alors sur chaque page un message de déménagement et renvoie au même chemin sur le nouveau site, sans plus toucher à Supabase (`src/lib/demenagement.ts`). Mettez le projet Vercel en pause quand l'ancienne adresse peut fermer.
 
-Supabase n'est que lu par le script : en cas de problème, remettre l'ancienne `DATABASE_URL` dans Dokploy suffit à revenir en arrière. Gardez le projet Supabase quelques semaines (les joueurs encore connectés avec une ancienne session Supabase sont repris automatiquement), puis supprimez-le.
+Supabase n'est que lu par le script : en cas de problème, remettre l'ancienne `DATABASE_URL` dans Dokploy suffit à revenir en arrière. Gardez le projet Supabase quelques semaines au cas où, puis supprimez-le : c'est une copie qui vieillit, avec les adresses des joueurs. Après la copie, changez aussi le mot de passe de sa base et supprimez sa clé secrète (`SUPABASE_SECRET_KEY`), puis retirez cette variable de Dokploy et, une fois `NOUVEAU_SITE` posé, les secrets du projet Vercel (`DATABASE_URL`, `SMTP_PASS`, `CRON_SECRET`, `GREEN_API_TOKEN`, `SUPABASE_SECRET_KEY`). Dans Dokploy, la base ne doit pas avoir d'« External Port » : seul le site et le relais local ci-dessous la joignent.
 
 ### Ouvrir la base avec DBeaver
 
@@ -241,7 +241,7 @@ La base n'est pas exposée sur Internet : DBeaver passe par SSH.
    ```
 2. Dans DBeaver : New Database Connection > PostgreSQL. Onglet **SSH** : cochez « Use SSH Tunnel », hôte du VPS, votre utilisateur et votre clé SSH. Onglet **Main** : Host `localhost`, Port `5433`, Database `postgres`, utilisateur `postgres` et le mot de passe de Dokploy.
 
-Ajouter un joueur : `insert into auth.users (email) values ('nom@exemple.fr');` (son profil est créé automatiquement, avec le début de l'adresse comme nom). Une nouvelle migration `supabase/migrations/NNNN_….sql` s'exécute de la même façon, en `postgres`.
+Ajouter un joueur : `insert into auth.users (email) values ('nom@exemple.fr');` (son profil est créé automatiquement, avec le début de l'adresse comme nom). Retirer un joueur : `update auth.users set banned_until = 'infinity' where email = 'nom@exemple.fr';` : il ne peut plus demander d'e-mail de connexion, et ses sessions ouvertes ne valent plus rien (ses réservations et ses comptes restent). Une nouvelle migration `supabase/migrations/NNNN_….sql` s'exécute de la même façon, en `postgres`.
 
 ## Modifier la base
 
@@ -255,10 +255,11 @@ supabase/donnees-test/     Jeu de données factice : remplir.sql et vider.sql
 supabase/config.toml       Réglages de la copie locale de Supabase (npx supabase start)
 scripts/check.sh           Vérification complète avant livraison (npm run check)
 tests/e2e/                 Test de bout en bout à deux joueurs et visite de toutes les pages
-src/proxy.ts               Renvoie vers /login sans session (et reprend les anciennes sessions Supabase)
+src/proxy.ts               Renvoie vers /login sans session
+src/lib/app-url.ts         Adresse publique du site (APP_URL) pour les liens des e-mails et de WhatsApp
+src/lib/rate-limit.ts      Limites par adresse IP de la page de connexion
 src/lib/auth.ts            Connexion par e-mail : lien, code et sessions
 scripts/vps/copier-base.sh Copie de la base Supabase vers le Postgres du VPS (bascule)
-src/lib/supabase/proxy.ts  Reprise des anciennes sessions Supabase (transition)
 src/lib/data.ts            Lecture des sessions, réservations et joueurs
 src/lib/notify.ts          E-mail aux joueurs qui sortent de la liste d'attente
 src/lib/whatsapp.ts        Envoi d'un message au groupe WhatsApp par Green API

@@ -1,5 +1,5 @@
-import { headers } from "next/headers";
 import { after } from "next/server";
+import { appOrigin } from "@/lib/app-url";
 import { PLAYERS_PER_COURT, sessionCapacity } from "@/lib/courts";
 import type { Tables } from "@/lib/database.types";
 import { adminDb, type Db } from "@/lib/db";
@@ -19,12 +19,10 @@ export async function snapshot(db: Db, sessionId: string): Promise<Snapshot> {
   };
 }
 
-// Adresse complète de la page d'une session, d'après la requête en cours.
+// Adresse complète de la page d'une session, sur l'adresse publique du site (src/lib/app-url.ts).
 async function sessionLink(sessionId: string) {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  return host ? `${proto}://${host}/sessions/${sessionId}` : "";
+  const origin = await appOrigin();
+  return origin ? `${origin}/sessions/${sessionId}` : "";
 }
 
 // Note dans l'historique de la session les joueurs passés de la liste d'attente aux joueurs

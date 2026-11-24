@@ -7,21 +7,25 @@ import { adminDb } from "@/lib/db";
 // - Un e-mail contient un lien et un code de 8 chiffres, valables une heure et une seule fois.
 //   Seule leur empreinte (SHA-256) est en base : une copie de la base ne permet pas de se connecter.
 // - Le code accepte 5 essais ; un nouvel e-mail annule le précédent ; au plus un e-mail par
-//   minute et 5 par heure pour une même adresse.
+//   minute et 5 par heure pour une même adresse, et 30 par heure en tout (le quota d'envoi de
+//   Gmail reste ainsi disponible pour les vrais joueurs). Limites par adresse IP en plus :
+//   src/app/login/actions.ts.
 // - La session est un jeton aléatoire de 256 bits dans un cookie httpOnly ; la base en garde
-//   l'empreinte. Elle expire après 90 jours sans visite.
+//   l'empreinte. Elle expire après 90 jours sans visite, et ne vaut plus rien dès que le joueur
+//   est banni (banned_until) ou supprimé (deleted_at).
 
 export const SESSION_COOKIE = "resas_session";
 const LOGIN_TTL = "1 hour";
 const SESSION_DAYS = 90;
 const MAX_CODE_ATTEMPTS = 5;
+const MAX_MAILS_PER_HOUR = 30;
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 const randomToken = () => randomBytes(32).toString("base64url");
 
 export type LoginRequest =
   | { ok: true; email: string; link: string; code: string }
-  | { ok: false; reason: "unknown" | "too-soon" | "too-many" };
+  | { ok: false; reason: "unknown" | "too-soon" | "too-many" | "busy" };
 
 // Prépare un e-mail de connexion pour un joueur existant (pas d'inscription libre).
 export async function createLoginRequest(rawEmail: string, origin: string): Promise<LoginRequest> {
@@ -43,6 +47,11 @@ export async function createLoginRequest(rawEmail: string, origin: string): Prom
       from public.login_tokens where user_id = ${user.id}`;
     if (recent.last_minute > 0) return { ok: false, reason: "too-soon" } as const;
     if (recent.last_hour >= 5) return { ok: false, reason: "too-many" } as const;
+    // Limite totale : quelqu'un qui connaît les adresses des joueurs ne peut pas épuiser le quota
+    // d'envoi du SMTP (Gmail bloque le compte pour la journée au-delà d'environ 500 e-mails).
+    const [all] = await tx<{ last_hour: number }[]>`
+      select count(*) as last_hour from public.login_tokens where created_at > now() - interval '1 hour'`;
+    if (all.last_hour >= MAX_MAILS_PER_HOUR) return { ok: false, reason: "busy" } as const;
 
     await tx`update public.login_tokens set used_at = now() where user_id = ${user.id} and used_at is null`;
     const [row] = await tx<{ id: string }[]>`
@@ -108,7 +117,10 @@ export async function sessionUser(token: string | undefined) {
       set last_seen_at = now(), expires_at = now() + ${`${SESSION_DAYS} days`}::interval
       where token_hash = ${hash} and expires_at > now() and last_seen_at < now() - interval '1 day'
     )
-    select user_id from public.auth_sessions where token_hash = ${hash} and expires_at > now()`;
+    select s.user_id from public.auth_sessions s
+    join auth.users u on u.id = s.user_id
+    where s.token_hash = ${hash} and s.expires_at > now()
+      and u.deleted_at is null and (u.banned_until is null or u.banned_until < now())`;
   return row?.user_id ?? null;
 }
 
