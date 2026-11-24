@@ -1,149 +1,194 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1270 810" width="1270" height="810" role="img" aria-labelledby="t d" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" xmlns:c2pa="http://c2pa.org/manifest"><metadata><c2pa:manifest>AAAWgmp1bWIAAAAeanVtZGMycGEAEQAQgAAAqgA4m3EDYzJwYQAAABZcanVtYgAAAEdqdW1kYzJtYQARABCAAACqADibcQN1cm46YzJwYToxMDQ4NDVmYi04YWVkLTQ4OGUtYWVhYy03OWUwOTkyMGU0ZTIAAAADl2p1bWIAAAApanVtZGMyYXMAEQAQgAAAqgA4m3EDYzJwYS5hc3NlcnRpb25zAAAAALxqdW1iAAAARGp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuaW5ncmVkaWVudC52MwAAAAAYYzJzaGq17TJZqbHxlxcMtF5DyQ0AAABwY2JvcqNpZGM6Zm9ybWF0bWltYWdlL3N2Zyt4bWxqaW5zdGFuY2VJRHgseG1wOmlpZDo1NzhiZjg4ZS1mMmQzLTQxOTAtODI5NS0xODFiMWQzMmM4Y2RscmVsYXRpb25zaGlwaHBhcmVudE9mAAAB4mp1bWIAAABBanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5hY3Rpb25zLnYyAAAAABhjMnNo0l6j9tr7Q0QMjkRiojAmPAAAAZljYm9yomdhY3Rpb25zgqJmYWN0aW9ua2MycGEub3BlbmVkanBhcmFtZXRlcnOha2luZ3JlZGllbnRzgaJjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFgguNoFwuQDUEF+sMNrFcq66A34Kl0pgSt2U9F8wnRs5cqkZmFjdGlvbngdY29tLmFudGhyb3BpYy5jbGF1ZGUucHJvdmlkZWRqcGFyYW1ldGVyc6F4H2NvbS5hbnRocm9waWMub3JpZ2luLWNvbmZpZGVuY2VndW5rbm93bmtkZXNjcmlwdGlvbnhmQ2xhdWRlIHByb3ZpZGVkIHRoaXMgZmlsZSBhdCB0aGUgcmVxdWVzdCBvZiBhIHVzZXIgYW5kIG1heSBoYXZlIGNyZWF0ZWQgb3IgbW9kaWZpZWQgdGhlIGZpbGUgY29udGVudHMubXNvZnR3YXJlQWdlbnShZG5hbWVmQ2xhdWRlcmFsbEFjdGlvbnNJbmNsdWRlZPUAAADIanVtYgAAAEBqdW1kY2JvcgARABCAAACqADibcRNjMnBhLmhhc2guZGF0YQAAAAAYYzJzaIHaKbtoroiJtb6vMbYkDFkAAACAY2JvcqVjYWxnZnNoYTI1NmNwYWRMAAAAAAAAAAAAAAAAZGhhc2hYIEt03b1f0XK2crrkTPmygc3WfLQLEVutxMxR4fj/3r4OZG5hbWVuanVtYmYgbWFuaWZlc3RqZXhjbHVzaW9uc4GiZXN0YXJ0GQEJZmxlbmd0aBkeBAAAAj5qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAACD2Nib3KlY2FsZ2ZzaGEyNTZpc2lnbmF0dXJleE1zZWxmI2p1bWJmPS9jMnBhL3VybjpjMnBhOjEwNDg0NWZiLThhZWQtNDg4ZS1hZWFjLTc5ZTA5OTIwZTRlMi9jMnBhLnNpZ25hdHVyZWppbnN0YW5jZUlEeCx4bXA6aWlkOmQ3ZjhjZjExLWZiM2EtNDIxZi1hOGRhLTJjNjNhYTlkOTRhZHJjcmVhdGVkX2Fzc2VydGlvbnODomN1cmx4LXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaW5ncmVkaWVudC52M2RoYXNoWCC42gXC5ANQQX6ww2sVyrroDfgqXSmBK3ZT0XzCdGzlyqJjdXJseCpzZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmFjdGlvbnMudjJkaGFzaFggx2lA3tatn5H/zXhmQfUSmnDmhly8BzqyEd7ioVO47piiY3VybHgpc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5oYXNoLmRhdGFkaGFzaFgg3Th1mmUxhEtX5/L0sNvi1iwgoenmyFsh99p76cn30Qd0Y2xhaW1fZ2VuZXJhdG9yX2luZm+jZG5hbWVvQW50aHJvcGljIEZpbGVzZ3ZlcnNpb25lMS4wLjBrc3BlY1ZlcnNpb25lMi40LjAAABA4anVtYgAAAChqdW1kYzJjcwARABCAAACqADibcQNjMnBhLnNpZ25hdHVyZQAAABAIY2JvctKEWQISogEmGCFZAgowggIGMIIBjaADAgECAhRA5aAK7sI50L64g/oGQgU9Z1UTADAKBggqhkjOPQQDAzBJMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEuMCwGA1UEAxMlQW50aHJvcGljIENvbnRlbnQgQ3JlZGVudGlhbHMgUm9vdCBDQTAeFw0yNjA4MDcxODQzNTZaFw0yODA4MDYxOTQzNTZaMEQxFzAVBgNVBAoTDkFudGhyb3BpYywgUEJDMSkwJwYDVQQDEyBBbnRocm9waWMgQ2xhdWRlIENvbnRlbnQgU2lnbmluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJh6CmvLUBgFFNU0vUKlOVtE6djd17L5SuwX0LemFisBM3dkd/3cyjxFA3Qo5S46fX0/ihY0VZ7mfb9KF703t5OjWDBWMA4GA1UdDwEB/wQEAwIHgDAVBgNVHSUEDjAMBgorBgEEAYPoXgIBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUzlHiBIFOZFsj+OPEz5o+nMHXXMIwCgYIKoZIzj0EAwMDZwAwZAIwMXMdFJ4BetLLVY7ORuE9noqbbAZOZn/aArXyTwFAZfKrPzxF2vPoJNf1+UCdg1XGAjBwX1zd9WGqYkqmL5SFqw1QySjr1zJfpJM9+1rdDwSPLMOPOjKuiXjoU/pUUeG9RwmhY3BhZFkNngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPZYQDuzn4EcA9I8TbMEA+id0uvTVsvkqxiCHMg405VKsjhYrYWNc21jbwt7IWP1u6DMQiyLsE2I6buqC5uQ/sjlTgg=</c2pa:manifest></metadata>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1270 840" width="1270" height="840" role="img" aria-labelledby="t d" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif">
   <title id="t">Badminton Résas : architecture</title>
-  <desc id="d">Les joueurs utilisent le site Next.js hébergé sur un VPS (Docker, déployé par Dokploy), qui s'appuie sur Supabase (Auth, Postgres, Realtime, Storage), envoie des e-mails par Gmail et des messages WhatsApp par Green API. À chaque push sur main, GitHub Actions construit l'image Docker, la publie sur GHCR et appelle le webhook de Dokploy, qui télécharge l'image.</desc>
+  <desc id="d">Les joueurs utilisent le site Next.js hébergé sur un VPS : Traefik reçoit les requêtes HTTPS, Dokploy lance les conteneurs, le site interroge en SQL la base Postgres 17 du même VPS, au nom du joueur connecté, et reçoit ses signaux de modification pour le temps réel. Le site envoie les e-mails par Gmail (SMTP) et les messages WhatsApp par Green API. À chaque push sur main, GitHub Actions construit l'image Docker, la publie sur GHCR et appelle le webhook de Dokploy ; les tâches planifiées de GitHub appellent aussi le site. L'ancienne adresse Vercel ne fait plus que renvoyer vers le nouveau site.</desc>
   <defs>
     <style>
       .bg{fill:var(--d-bg,#f6f7f5)}
       .ttl{font-size:22px;font-weight:600;fill:var(--d-ink,#18201b)}
       .sub{font-size:13px;fill:var(--d-muted,#5b665f)}
       .box{fill:var(--d-card,#ffffff);stroke-width:1.5}
+      .vps{fill:var(--d-vps,#fbfcfb);stroke-width:1.8}
+      .cont{fill:var(--d-card,#ffffff);stroke-width:1.3}
       .inner{fill:var(--d-inner,#f1f4f1);stroke:var(--d-line,#cfd6d0);stroke-width:1}
       .h{font-size:16px;font-weight:600}
+      .h2{font-size:14.5px;font-weight:600}
       .n{font-size:13.5px;font-weight:600;fill:var(--d-ink,#18201b)}
       .s{font-size:11.5px;fill:var(--d-muted,#5b665f)}
       .m{font-family:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;fill:var(--d-muted,#5b665f)}
       .lab{font-size:11.5px;fill:var(--d-ink,#18201b)}
       .lab2{font-size:11px;fill:var(--d-muted,#5b665f)}
       .wire{fill:none;stroke:var(--d-wire,#6b766f);stroke-width:1.6}
-      .gap{fill:none;stroke:var(--d-bg,#f6f7f5);stroke-width:7}
       .dash{stroke-dasharray:6 5}
       .ah{fill:var(--d-wire,#6b766f)}
       .c-user{stroke:var(--d-user,#4757b8)} .t-user{fill:var(--d-user,#4757b8)}
-      .c-vercel{stroke:var(--d-ink,#18201b)} .t-vercel{fill:var(--d-ink,#18201b)}
-      .c-supa{stroke:var(--d-supa,#1f9d63)} .t-supa{fill:var(--d-supa,#1f9d63)}
+      .c-vps{stroke:var(--d-ink,#18201b)} .t-vps{fill:var(--d-ink,#18201b)}
+      .c-db{stroke:var(--d-db,#1f9d63)} .t-db{fill:var(--d-db,#1f9d63)}
       .c-mail{stroke:var(--d-mail,#c2493a)} .t-mail{fill:var(--d-mail,#c2493a)}
       .c-wa{stroke:var(--d-wa,#0f8a83)} .t-wa{fill:var(--d-wa,#0f8a83)}
       .c-git{stroke:var(--d-git,#6a5a8c)} .t-git{fill:var(--d-git,#6a5a8c)}
+      .c-old{stroke:var(--d-muted,#5b665f)} .t-old{fill:var(--d-muted,#5b665f)}
     </style>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
   </defs>
 
-  <rect class="bg" x="0" y="0" width="1270" height="810"/>
+  <rect class="bg" x="0" y="0" width="1270" height="840"/>
   <text class="ttl" x="30" y="44">Badminton Résas : architecture</text>
   <text class="sub" x="30" y="66">Qui parle à qui quand un joueur réserve, s'inscrit ou consulte les comptes</text>
 
+  <!-- Ancienne adresse Vercel -->
+  <rect class="box c-old dash" x="30" y="90" width="240" height="92" rx="8"/>
+  <text class="h t-old" x="46" y="113">Vercel (ancienne adresse)</text>
+  <text class="m" x="46" y="132">bad-resas.vercel.app</text>
+  <text class="s" x="46" y="150">annonce le déménagement, puis</text>
+  <text class="s" x="46" y="166">renvoie vers la même page du site</text>
+  <path class="wire dash" d="M140,284 V188" marker-end="url(#a)"/>
+  <text class="lab2" x="150" y="240">ancien favori</text>
+
   <!-- GitHub -->
-  <rect class="box c-git" x="300" y="84" width="240" height="70" rx="8"/>
-  <text class="h t-git" x="316" y="107">GitHub</text>
-  <text class="m" x="316" y="126">feranti/Badminton_Reservation</text>
-  <text class="s" x="316" y="143">Actions : build à chaque push sur main</text>
+  <rect class="box c-git" x="330" y="90" width="300" height="92" rx="8"/>
+  <text class="h t-git" x="346" y="113">GitHub</text>
+  <text class="m" x="346" y="132">feranti/Badminton_Reservation</text>
+  <text class="s" x="346" y="150">Actions : check sur chaque PR, image à chaque</text>
+  <text class="s" x="346" y="166">push sur main, tâches planifiées</text>
 
   <!-- GHCR -->
-  <rect class="box c-git" x="640" y="84" width="230" height="70" rx="8"/>
-  <text class="h t-git" x="656" y="107">GHCR</text>
-  <text class="s" x="656" y="126">registre d'images (privé)</text>
-  <text class="s" x="656" y="143">latest + sha-…, 10 versions</text>
-  <path class="wire" d="M540,119 H634" marker-end="url(#a)"/>
-  <text class="lab2" x="587" y="110" text-anchor="middle">image Docker</text>
-
-  <!-- Liens de fond : e-mail de connexion, puis déploiement par-dessus -->
-  <path class="wire" d="M940,210 V172 H140 V244" marker-end="url(#a)"/>
-  <text class="lab" x="160" y="164">e-mail de connexion : lien + code à 6 chiffres</text>
-  <path class="gap" d="M420,166 V178"/>
-  <path class="wire dash" d="M420,154 V204" marker-end="url(#a)"/>
-  <text class="lab2" x="430" y="196">webhook de déploiement</text>
-  <path class="gap" d="M660,166 V178"/>
-  <path class="wire" d="M660,154 V204" marker-end="url(#a)"/>
-  <text class="lab2" x="670" y="196">Dokploy télécharge l'image</text>
+  <rect class="box c-git" x="760" y="90" width="240" height="92" rx="8"/>
+  <text class="h t-git" x="776" y="113">GHCR</text>
+  <text class="s" x="776" y="132">registre d'images (privé)</text>
+  <text class="s" x="776" y="150">Next.js standalone</text>
+  <text class="s" x="776" y="166">latest + sha-…, 10 versions</text>
+  <path class="wire" d="M630,130 H754" marker-end="url(#a)"/>
+  <text class="lab2" x="692" y="121" text-anchor="middle">image Docker</text>
 
   <!-- Joueurs -->
-  <rect class="box c-user" x="30" y="250" width="220" height="230" rx="10"/>
-  <text class="h t-user" x="48" y="278">Joueurs</text>
-  <text class="s" x="48" y="300">navigateur ou téléphone</text>
-  <text class="s" x="48" y="316">(icône sur l'écran d'accueil)</text>
-  <text class="lab" x="48" y="350">• réservent des terrains</text>
-  <text class="lab" x="48" y="372">• s'inscrivent aux sessions</text>
-  <text class="lab" x="48" y="394">• ajoutent les QR codes</text>
-  <text class="lab" x="48" y="416">• suivent les comptes</text>
-  <text class="lab" x="58" y="438">en direct</text>
+  <rect class="box c-user" x="30" y="290" width="220" height="240" rx="10"/>
+  <text class="h t-user" x="48" y="318">Joueurs</text>
+  <text class="s" x="48" y="340">navigateur ou téléphone</text>
+  <text class="s" x="48" y="356">(icône sur l'écran d'accueil)</text>
+  <text class="lab" x="48" y="390">• réservent des terrains</text>
+  <text class="lab" x="48" y="412">• s'inscrivent aux sessions</text>
+  <text class="lab" x="48" y="434">• ajoutent les QR codes</text>
+  <text class="lab" x="48" y="456">• suivent les comptes</text>
+  <text class="lab" x="58" y="478">en direct</text>
 
-  <!-- Joueurs ↔ VPS -->
-  <path class="wire" d="M256,372 H314" marker-start="url(#a)" marker-end="url(#a)"/>
-  <text class="lab" x="285" y="362" text-anchor="middle">HTTPS</text>
+  <!-- Joueurs ↔ Traefik -->
+  <path class="wire" d="M256,445 H310" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="lab" x="276" y="435" text-anchor="middle">HTTPS</text>
 
   <!-- VPS -->
-  <rect class="box c-vercel" x="320" y="210" width="360" height="330" rx="10"/>
-  <text class="h t-vercel" x="338" y="238">VPS (Dokploy) · Next.js 16</text>
-  <text class="m" x="338" y="258">conteneur Docker, HTTPS par Traefik</text>
-  <rect class="inner" x="336" y="276" width="328" height="44" rx="6"/>
-  <text class="n" x="348" y="295">proxy.ts</text>
-  <text class="s" x="348" y="311">rafraîchit la session, renvoie vers /login</text>
-  <rect class="inner" x="336" y="328" width="328" height="44" rx="6"/>
-  <text class="n" x="348" y="347">Pages (rendues sur le serveur)</text>
-  <text class="s" x="348" y="363">accueil, sessions, comptes, profil</text>
-  <rect class="inner" x="336" y="380" width="328" height="44" rx="6"/>
-  <text class="n" x="348" y="399">Server Actions</text>
-  <text class="s" x="348" y="415">réserver, s'inscrire, payer, rembourser</text>
-  <rect class="inner" x="336" y="440" width="160" height="84" rx="6"/>
-  <text class="n" x="348" y="460">E-mail</text>
-  <text class="s" x="348" y="477">liste d'attente :</text>
-  <text class="s" x="348" y="492">place libérée</text>
-  <text class="m" x="348" y="512">nodemailer</text>
-  <rect class="inner" x="504" y="440" width="160" height="84" rx="6"/>
-  <text class="n" x="516" y="460">Message WhatsApp</text>
-  <text class="s" x="516" y="477">terrain réservé,</text>
-  <text class="s" x="516" y="492">annulé ou supprimé</text>
-  <text class="m" x="516" y="512">after()</text>
+  <rect class="vps c-vps" x="300" y="250" width="940" height="420" rx="12"/>
+  <text class="h t-vps" x="318" y="276">VPS · Dokploy (Docker)</text>
 
-  <!-- VPS ↔ Supabase -->
-  <path class="wire" d="M686,372 H854" marker-start="url(#a)" marker-end="url(#a)"/>
-  <text class="lab" x="770" y="338" text-anchor="middle">API Supabase</text>
-  <text class="lab2" x="770" y="356" text-anchor="middle">clé publique + jeton du joueur</text>
-  <text class="lab2" x="770" y="392" text-anchor="middle">règles d'accès (RLS)</text>
-  <text class="lab2" x="770" y="408" text-anchor="middle">clé secrète : adresses e-mail</text>
-  <text class="lab2" x="770" y="424" text-anchor="middle">des joueurs à prévenir</text>
+  <!-- Liens GitHub / GHCR → VPS -->
+  <path class="wire dash" d="M380,182 V316" marker-end="url(#a)"/>
+  <text class="lab2" x="390" y="222">webhook de</text>
+  <text class="lab2" x="390" y="236">déploiement</text>
+  <path class="wire" d="M560,182 V284" marker-end="url(#a)"/>
+  <text class="lab2" x="570" y="208">tâches planifiées : rappel 72 h</text>
+  <text class="lab2" x="570" y="222">(toutes les 6 h), récap du lundi</text>
+  <text class="m" x="570" y="238">HTTPS + CRON_SECRET</text>
+  <path class="wire" d="M820,182 V284" marker-end="url(#a)"/>
+  <text class="lab2" x="830" y="222">Dokploy télécharge</text>
+  <text class="lab2" x="830" y="236">l'image</text>
 
-  <!-- Supabase -->
-  <rect class="box c-supa" x="860" y="210" width="380" height="330" rx="10"/>
-  <text class="h t-supa" x="878" y="238">Supabase</text>
-  <text class="s" x="878" y="258">projet « Badminton Reservations »</text>
-  <rect class="inner" x="876" y="276" width="348" height="44" rx="6"/>
-  <text class="n" x="888" y="295">Auth</text>
-  <text class="s" x="888" y="311">connexion par lien ou code, joueurs invités seulement</text>
-  <rect class="inner" x="876" y="328" width="348" height="58" rx="6"/>
-  <text class="n" x="888" y="347">Postgres</text>
-  <text class="s" x="888" y="363">sessions, réservations, inscriptions, remboursements</text>
-  <text class="s" x="888" y="378">vue « balances » : qui doit combien à qui</text>
-  <rect class="inner" x="876" y="394" width="348" height="44" rx="6"/>
-  <text class="n" x="888" y="413">Realtime</text>
-  <text class="s" x="888" y="429">prévient les pages ouvertes à chaque changement</text>
-  <rect class="inner" x="876" y="446" width="348" height="62" rx="6"/>
-  <text class="n" x="888" y="465">Storage</text>
-  <text class="s" x="888" y="481">dossier privé « qr-codes »</text>
-  <text class="s" x="888" y="496">QR des terrains, liens valables 1 h</text>
+  <rect class="inner" x="316" y="322" width="150" height="70" rx="6"/>
+  <text class="n" x="328" y="342">Dokploy</text>
+  <text class="s" x="328" y="359">lance les conteneurs,</text>
+  <text class="s" x="328" y="375">variables du site</text>
+
+  <rect class="inner" x="316" y="410" width="150" height="70" rx="6"/>
+  <text class="n" x="328" y="430">Traefik</text>
+  <text class="s" x="328" y="447">HTTPS, nom de domaine</text>
+  <text class="s" x="328" y="463">vers le conteneur</text>
+  <path class="wire" d="M466,445 H484" marker-end="url(#a)"/>
+
+  <!-- Conteneur Next.js -->
+  <rect class="cont c-vps" x="490" y="290" width="370" height="360" rx="8"/>
+  <text class="h2 t-vps" x="502" y="311">Next.js 16 · conteneur du site</text>
+
+  <rect class="inner" x="502" y="322" width="346" height="38" rx="6"/>
+  <text class="n" x="514" y="339">proxy.ts</text>
+  <text class="s" x="514" y="354">renvoie vers /login un visiteur sans session</text>
+  <rect class="inner" x="502" y="365" width="346" height="38" rx="6"/>
+  <text class="n" x="514" y="382">Pages (rendues sur le serveur)</text>
+  <text class="s" x="514" y="397">accueil, sessions, comptes, profil, connexion</text>
+  <rect class="inner" x="502" y="408" width="346" height="38" rx="6"/>
+  <text class="n" x="514" y="425">Server Actions</text>
+  <text class="s" x="514" y="440">réserver, s'inscrire, payer, rembourser</text>
+  <rect class="inner" x="502" y="451" width="346" height="38" rx="6"/>
+  <text class="n" x="514" y="468">/api/changements</text>
+  <text class="s" x="514" y="483">temps réel : recharge les pages ouvertes (SSE)</text>
+  <rect class="inner" x="502" y="494" width="346" height="38" rx="6"/>
+  <text class="n" x="514" y="511">/api/qr</text>
+  <text class="s" x="514" y="526">images des QR codes, joueurs connectés seulement</text>
+  <rect class="inner" x="502" y="537" width="346" height="38" rx="6"/>
+  <text class="n" x="514" y="554">/api/cron/…</text>
+  <text class="s" x="514" y="569">rappel des terrains vides, récap des comptes</text>
+
+  <rect class="inner" x="502" y="582" width="168" height="58" rx="6"/>
+  <text class="n" x="514" y="600">E-mail</text>
+  <text class="s" x="514" y="616">connexion, place libérée</text>
+  <text class="m" x="514" y="632">nodemailer</text>
+  <rect class="inner" x="680" y="582" width="168" height="58" rx="6"/>
+  <text class="n" x="692" y="600">Message WhatsApp</text>
+  <text class="s" x="692" y="616">terrains, inscriptions…</text>
+  <text class="m" x="692" y="632">after()</text>
+
+  <!-- Next.js ↔ Postgres -->
+  <path class="wire" d="M866,400 H954" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="lab" x="910" y="390" text-anchor="middle">SQL</text>
+  <text class="lab2" x="910" y="418" text-anchor="middle">resas_app,</text>
+  <text class="lab2" x="910" y="432" text-anchor="middle">au nom du joueur</text>
+  <text class="m" x="910" y="448" text-anchor="middle">DATABASE_URL</text>
+  <path class="wire" d="M960,607 H910 V470 H866" marker-end="url(#a)"/>
+  <text class="lab2" x="935" y="598" text-anchor="middle">LISTEN</text>
+
+  <!-- Postgres -->
+  <rect class="cont c-db" x="960" y="290" width="264" height="360" rx="8"/>
+  <text class="h2 t-db" x="972" y="311">Postgres 17</text>
+  <text class="s" x="1062" y="311">sans port ouvert sur Internet</text>
+
+  <rect class="inner" x="972" y="322" width="240" height="52" rx="6"/>
+  <text class="n" x="984" y="339">Données</text>
+  <text class="s" x="984" y="354">sessions, réservations,</text>
+  <text class="s" x="984" y="368">inscriptions, remboursements</text>
+  <rect class="inner" x="972" y="380" width="240" height="38" rx="6"/>
+  <text class="n" x="984" y="397">Vue « balances »</text>
+  <text class="s" x="984" y="412">qui doit combien à qui</text>
+  <rect class="inner" x="972" y="424" width="240" height="38" rx="6"/>
+  <text class="n" x="984" y="441">Règles d'accès (RLS)</text>
+  <text class="s" x="984" y="456">appliquées au joueur connecté</text>
+  <rect class="inner" x="972" y="468" width="240" height="38" rx="6"/>
+  <text class="n" x="984" y="485">qr_images</text>
+  <text class="s" x="984" y="500">photos des QR codes des terrains</text>
+  <rect class="inner" x="972" y="512" width="240" height="52" rx="6"/>
+  <text class="n" x="984" y="529">Connexion</text>
+  <text class="m" x="984" y="544">login_tokens, auth_sessions</text>
+  <text class="s" x="984" y="558">lisibles par le serveur seul</text>
+  <rect class="inner" x="972" y="570" width="240" height="66" rx="6"/>
+  <text class="n" x="984" y="587">pg_notify</text>
+  <text class="s" x="984" y="602">signale chaque modification</text>
+  <text class="s" x="984" y="616">des tables affichées</text>
 
   <!-- Bas : services externes -->
-  <path class="wire" d="M416,540 V614" marker-end="url(#a)"/>
-  <rect class="box c-mail" x="316" y="620" width="200" height="80" rx="8"/>
-  <text class="h t-mail" x="332" y="646">Gmail (SMTP)</text>
-  <text class="s" x="332" y="666">mot de passe d'application</text>
-  <text class="m" x="332" y="686">SMTP_HOST, SMTP_USER…</text>
-  <path class="wire" d="M316,660 H180 V486" marker-end="url(#a)"/>
-  <text class="lab2" x="248" y="652" text-anchor="middle">place libérée</text>
+  <path class="wire" d="M586,640 V720" marker-end="url(#a)"/>
+  <rect class="box c-mail" x="470" y="726" width="230" height="80" rx="8"/>
+  <text class="h t-mail" x="486" y="752">Gmail (SMTP)</text>
+  <text class="s" x="486" y="772">mot de passe d'application</text>
+  <text class="m" x="486" y="792">SMTP_HOST, SMTP_USER…</text>
+  <path class="wire" d="M470,766 H140 V536" marker-end="url(#a)"/>
+  <text class="lab" x="305" y="758" text-anchor="middle">connexion : lien + code à 8 chiffres</text>
+  <text class="lab2" x="305" y="782" text-anchor="middle">liste d'attente : une place s'est libérée</text>
 
-  <path class="wire" d="M584,540 V614" marker-end="url(#a)"/>
-  <rect class="box c-wa" x="540" y="620" width="244" height="80" rx="8"/>
-  <text class="h t-wa" x="556" y="646">Green API</text>
-  <text class="s" x="556" y="666">garde la connexion WhatsApp</text>
-  <text class="m" x="556" y="686">GREEN_API_*, WHATSAPP_GROUP_ID</text>
-  <path class="wire" d="M784,660 H854" marker-end="url(#a)"/>
-  <text class="lab2" x="819" y="652" text-anchor="middle">envoi</text>
-  <rect class="box c-wa" x="860" y="620" width="190" height="80" rx="8"/>
-  <text class="h t-wa" x="876" y="646">Groupe WhatsApp</text>
-  <text class="s" x="876" y="666">du club : terrains et</text>
-  <text class="s" x="876" y="682">places restantes</text>
-
-  <!-- Navigateur ↔ Supabase en direct -->
-  <path class="wire" d="M90,486 V770 H1150 V546" marker-start="url(#a)" marker-end="url(#a)"/>
-  <text class="lab" x="300" y="762">en direct depuis le navigateur, avec le jeton du joueur : abonnement temps réel (WebSocket) et envoi des photos de QR codes</text>
+  <path class="wire" d="M764,640 V720" marker-end="url(#a)"/>
+  <rect class="box c-wa" x="740" y="726" width="244" height="80" rx="8"/>
+  <text class="h t-wa" x="756" y="752">Green API</text>
+  <text class="s" x="756" y="772">garde la connexion WhatsApp</text>
+  <text class="m" x="756" y="792">GREEN_API_*, WHATSAPP_GROUP_ID</text>
+  <path class="wire" d="M984,766 H1024" marker-end="url(#a)"/>
+  <text class="lab2" x="1004" y="758" text-anchor="middle">envoi</text>
+  <rect class="box c-wa" x="1030" y="726" width="210" height="80" rx="8"/>
+  <text class="h t-wa" x="1046" y="752">Groupe WhatsApp</text>
+  <text class="s" x="1046" y="772">terrains, inscriptions, rappel</text>
+  <text class="s" x="1046" y="788">à 72 h, récap du lundi soir</text>
 </svg>
