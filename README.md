@@ -168,7 +168,6 @@ la base toutes les 6 heures.
 
 1. Dans les variables du site sur Dokploy, ajoutez `CRON_SECRET` (une longue valeur au hasard) et `APP_URL` (adresse publique du site, utilisée pour les liens des messages).
 2. Sur GitHub, dans Settings > Secrets and variables > Actions, créez le secret `CRON_SECRET` avec la même valeur, et dans l'onglet **Variables** la variable `APP_URL` (adresse du site appelée par les workflows).
-3. Exécutez `supabase/migrations/0006_rappel_terrains_vides.sql` sur le projet en ligne.
 
 ### Récap hebdomadaire des comptes
 
@@ -180,19 +179,18 @@ Le workflow GitHub Actions `.github/workflows/recap-comptes.yml` appelle `/api/c
 (GitHub gère le passage à l'heure d'été). Il faut :
 
 - dans les variables du site sur Dokploy : `CRON_SECRET` (une longue chaîne au hasard) et `APP_URL` ;
-- sur GitHub (Settings > Secrets and variables > Actions) : le secret `CRON_SECRET`, la même valeur, et la variable `APP_URL` ;
-- le script `supabase/migrations/0004_recap_comptes.sql` exécuté sur le projet en ligne.
+- sur GitHub (Settings > Secrets and variables > Actions) : le secret `CRON_SECRET`, la même valeur, et la variable `APP_URL`.
 
 Pour envoyer le récap tout de suite : onglet **Actions** > « Récap des comptes » > **Run workflow**.
 
 ### 3. Mettre en ligne sur le VPS (Dokploy)
 
-Le site est construit par le `Dockerfile` (serveur Next.js autonome, `output: "standalone"`). L'image n'est pas construite sur le VPS : à chaque push sur `main`, le workflow `.github/workflows/deploy.yml` la construit sur GitHub, la publie sur GHCR (`ghcr.io/feranti/badminton_reservation`, étiquettes `latest` et `sha-<commit>`), demande à Dokploy de la déployer et ne garde que les 10 dernières versions.
+Le site est construit par le `Dockerfile` (serveur Next.js autonome, `output: "standalone"`). L'image n'est pas construite sur le VPS : à chaque push sur `main`, le workflow `.github/workflows/deploy.yml` la construit sur GitHub, la publie sur GHCR (`ghcr.io/<propriétaire>/<dépôt>` en minuscules, étiquettes `latest` et `sha-<commit>`), demande à Dokploy de la déployer et ne garde que les 10 dernières versions.
 
 1. Sur GitHub (Settings > Secrets and variables > Actions), ajoutez les **variables** `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` : elles sont inscrites dans le JavaScript au moment du build.
 2. Le paquet GHCR reste privé : créez un jeton GitHub classique (Settings > Developer settings > Personal access tokens > Tokens (classic)) avec la seule permission `read:packages`.
-3. Dans Dokploy, créez une application avec la source **Docker** : image `ghcr.io/feranti/badminton_reservation:latest`, registre `ghcr.io`, utilisateur `feranti`, mot de passe = ce jeton. Laissez **Auto Deploy** activé (le webhook en a besoin).
-4. Dans **Environment**, ajoutez `DATABASE_URL` (voir « Connexion à la base »), `APP_URL` (adresse publique du site, par exemple `https://bad-resas.feranti.dev` : les liens de l'e-mail de connexion et des messages WhatsApp sont construits avec elle, jamais avec les en-têtes de la requête) et les variables des e-mails de liste d'attente, de WhatsApp et des tâches planifiées si vous les utilisez (voir ci-dessus). Les `NEXT_PUBLIC_*` n'y servent à rien : elles sont déjà dans l'image.
+3. Dans Dokploy, créez une application avec la source **Docker** : image `ghcr.io/<propriétaire>/<dépôt>:latest`, registre `ghcr.io`, utilisateur = votre identifiant GitHub, mot de passe = ce jeton. Laissez **Auto Deploy** activé (le webhook en a besoin).
+4. Dans **Environment**, ajoutez `DATABASE_URL` (voir « Connexion à la base »), `APP_URL` (adresse publique du site, par exemple `https://resas.exemple.fr` : les liens de l'e-mail de connexion et des messages WhatsApp sont construits avec elle, jamais avec les en-têtes de la requête) et les variables des e-mails de liste d'attente, de WhatsApp et des tâches planifiées si vous les utilisez (voir ci-dessus). Les `NEXT_PUBLIC_*` n'y servent à rien : elles sont déjà dans l'image.
 5. Dans **Domains**, ajoutez le domaine du site, port `3000`, avec HTTPS (Let's Encrypt).
 6. Copiez la **Webhook URL** de l'onglet **Deployments** dans le secret GitHub `DOKPLOY_WEBHOOK_URL`, déployez, puis reportez l'adresse dans la configuration Supabase (étape 1.4) et dans la variable GitHub `APP_URL`.
 
@@ -202,44 +200,41 @@ Pour essayer l'image en local : `docker build -t bad-resas --build-arg NEXT_PUBL
 
 ## Base sur le VPS
 
-La base peut quitter Supabase pour un Postgres 17 dans Dokploy, sur le même VPS que le site. Le script `scripts/vps/copier-base.sh` recopie tout (joueurs, sessions, comptes, historique, QR codes, sessions de connexion) et crée le compte du site, `resas_app`, qui lit et écrit les données sans pouvoir modifier le schéma ni devenir superutilisateur. `npm run check` le rejoue à chaque livraison sur un Postgres neuf.
+La base peut quitter Supabase pour un Postgres 17 hébergé à côté du site (par exemple une base PostgreSQL créée dans Dokploy). Le script `scripts/vps/copier-base.sh` recopie tout (joueurs, sessions, comptes, historique, QR codes, sessions de connexion) et crée le compte du site, `resas_app`, qui lit et écrit les données sans pouvoir modifier le schéma ni devenir superutilisateur. `npm run check` le rejoue à chaque livraison sur un Postgres neuf.
 
-### Bascule (une fois)
+### Copier la base (une fois)
 
-Les modifications faites sur l'ancien site entre la copie et la fin de la bascule seraient perdues : faites-la à un moment calme, en 15 minutes.
+Les modifications faites sur le site entre la copie et le changement de `DATABASE_URL` seraient perdues : faites-la à un moment calme.
 
-1. **Dokploy** : Create Service > Database > PostgreSQL, version 17, nom `badminton-db`, un mot de passe long. Ne remplissez pas « External Port » : la base reste invisible d'Internet. Notez l'**Internal Host** (onglet General) et le mot de passe.
-2. Ouvrez, avant la copie, chaque QR code des sessions à venir sur le site : les images envoyées avant le 22 novembre sont alors recopiées de Supabase dans la base.
-3. **Sur le VPS** (SSH) :
+1. Créez une base PostgreSQL 17 vide, sans port ouvert sur Internet (dans Dokploy : Create Service > Database > PostgreSQL, en laissant « External Port » vide). Notez son hôte interne et le mot de passe de `postgres`.
+2. Sur le serveur, dans un dossier de travail, récupérez `scripts/vps/copier-base.sh` et créez `copie.env` (trois lignes, sans guillemets) :
+   ```
+   SOURCE_URL=postgresql://...      # la DATABASE_URL actuelle du site
+   TARGET_URL=postgresql://postgres:<mot de passe>@<hôte interne>:5432/postgres
+   APP_PASSWORD=<valeur au hasard>  # par exemple : openssl rand -hex 24
+   ```
+3. Lancez la copie depuis un conteneur Postgres 17 relié au réseau Docker de la base (`dokploy-network` avec Dokploy) :
    ```sh
-   mkdir -p ~/bascule && cd ~/bascule
-   curl -fsSLO https://raw.githubusercontent.com/feranti/Badminton_Reservation/main/scripts/vps/copier-base.sh
-   nano copie.env      # trois lignes, sans guillemets (voir ci-dessous)
-   docker run --rm -i --network dokploy-network --env-file copie.env postgres:17 bash -s < copier-base.sh
+   docker run --rm -i --network <réseau> --env-file copie.env postgres:17 bash -s < copier-base.sh
    ```
-   Contenu de `copie.env` :
-   ```
-   SOURCE_URL=postgresql://postgres.xxx:MOT_DE_PASSE_SUPABASE@aws-….pooler.supabase.com:5432/postgres
-   TARGET_URL=postgresql://postgres:MOT_DE_PASSE_DOKPLOY@INTERNAL_HOST:5432/postgres
-   APP_PASSWORD=une-longue-valeur-au-hasard-de-32-caracteres-ou-plus
-   ```
-   (`SOURCE_URL` est la `DATABASE_URL` actuelle du site ; `openssl rand -hex 24` donne un bon `APP_PASSWORD`.) Le script se termine par le nombre de lignes de chaque table, identique des deux côtés. Il refuse de remplir une base qui n'est pas vide.
-4. **Dokploy**, variables du site : `DATABASE_URL=postgresql://resas_app:APP_PASSWORD@INTERNAL_HOST:5432/postgres`, supprimez `DATABASE_CA_CERT` s'il existe, puis **Deploy**.
-5. Effacez le fichier : `shred -u ~/bascule/copie.env`.
-6. **GitHub** (Settings > Secrets and variables > Actions > Variables) : `APP_URL` = l'adresse du site sur le VPS, pour que les tâches planifiées l'appellent. Puis, dans le projet Vercel, ajoutez la variable `NOUVEAU_SITE` = l'adresse du site sur le VPS (par exemple `https://bad-resas.feranti.dev`) et redéployez : l'ancien site affiche alors sur chaque page un message de déménagement et renvoie au même chemin sur le nouveau site, sans plus toucher à Supabase (`src/lib/demenagement.ts`). Mettez le projet Vercel en pause quand l'ancienne adresse peut fermer.
+   Le script refuse de remplir une base qui n'est pas vide, et se termine par le nombre de lignes de chaque table, identique des deux côtés.
+4. Dans les variables du site : `DATABASE_URL=postgresql://resas_app:<APP_PASSWORD>@<hôte interne>:5432/postgres`, retirez `DATABASE_CA_CERT` s'il existe, puis redéployez.
+5. Effacez le fichier : `shred -u copie.env`.
 
-Supabase n'est que lu par le script : en cas de problème, remettre l'ancienne `DATABASE_URL` dans Dokploy suffit à revenir en arrière. Gardez le projet Supabase quelques semaines au cas où, puis supprimez-le : c'est une copie qui vieillit, avec les adresses des joueurs. Après la copie, changez aussi le mot de passe de sa base et supprimez sa clé secrète (`SUPABASE_SECRET_KEY`), puis retirez cette variable de Dokploy et, une fois `NOUVEAU_SITE` posé, les secrets du projet Vercel (`DATABASE_URL`, `SMTP_PASS`, `CRON_SECRET`, `GREEN_API_TOKEN`, `SUPABASE_SECRET_KEY`). Dans Dokploy, la base ne doit pas avoir d'« External Port » : seul le site et le relais local ci-dessous la joignent.
+L'ancienne base n'est que lue par le script : remettre l'ancienne `DATABASE_URL` suffit à revenir en arrière. Une fois la nouvelle base adoptée, supprimez l'ancienne (ou au moins changez son mot de passe et ses clés) : c'est une copie qui vieillit, avec les adresses des joueurs.
+
+Si le site change aussi d'adresse, l'ancien déploiement peut annoncer le déménagement : avec la variable `NOUVEAU_SITE` (l'adresse du nouveau site), chaque page affiche un message et renvoie au même chemin sur le nouveau site, sans plus toucher à la base (`src/lib/demenagement.ts`).
 
 ### Ouvrir la base avec DBeaver
 
 La base n'est pas exposée sur Internet : DBeaver passe par SSH.
 
-1. Sur le VPS, ouvrez un relais local vers la base (il ne répond que sur la machine elle-même) :
+1. Sur le serveur, ouvrez un relais local vers la base (il ne répond que sur la machine elle-même) :
    ```sh
-   docker run -d --name badminton-db-relais --restart unless-stopped --network dokploy-network \
-     -p 127.0.0.1:5433:5432 alpine/socat tcp-listen:5432,fork,reuseaddr tcp-connect:INTERNAL_HOST:5432
+   docker run -d --name resas-db-relais --restart unless-stopped --network <réseau> \
+     -p 127.0.0.1:5433:5432 alpine/socat tcp-listen:5432,fork,reuseaddr tcp-connect:<hôte interne>:5432
    ```
-2. Dans DBeaver : New Database Connection > PostgreSQL. Onglet **SSH** : cochez « Use SSH Tunnel », hôte du VPS, votre utilisateur et votre clé SSH. Onglet **Main** : Host `localhost`, Port `5433`, Database `postgres`, utilisateur `postgres` et le mot de passe de Dokploy.
+2. Dans DBeaver : New Database Connection > PostgreSQL. Onglet **SSH** : cochez « Use SSH Tunnel », hôte du serveur, votre utilisateur et votre clé SSH. Onglet **Main** : Host `localhost`, Port `5433`, Database `postgres`, utilisateur `postgres` et son mot de passe.
 
 Ajouter un joueur : `insert into auth.users (email) values ('nom@exemple.fr');` (son profil est créé automatiquement, avec le début de l'adresse comme nom). Retirer un joueur : `update auth.users set banned_until = 'infinity' where email = 'nom@exemple.fr';` : il ne peut plus demander d'e-mail de connexion, et ses sessions ouvertes ne valent plus rien (ses réservations et ses comptes restent). Une nouvelle migration `supabase/migrations/NNNN_….sql` s'exécute de la même façon, en `postgres`.
 
@@ -259,7 +254,7 @@ src/proxy.ts               Renvoie vers /login sans session
 src/lib/app-url.ts         Adresse publique du site (APP_URL) pour les liens des e-mails et de WhatsApp
 src/lib/rate-limit.ts      Limites par adresse IP de la page de connexion
 src/lib/auth.ts            Connexion par e-mail : lien, code et sessions
-scripts/vps/copier-base.sh Copie de la base Supabase vers le Postgres du VPS (bascule)
+scripts/vps/copier-base.sh Copie de la base Supabase vers un Postgres auto-hébergé
 src/lib/data.ts            Lecture des sessions, réservations et joueurs
 src/lib/notify.ts          E-mail aux joueurs qui sortent de la liste d'attente
 src/lib/whatsapp.ts        Envoi d'un message au groupe WhatsApp par Green API
