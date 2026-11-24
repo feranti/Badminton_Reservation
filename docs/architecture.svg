@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1270 840" width="1270" height="840" role="img" aria-labelledby="t d" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif">
   <title id="t">Badminton Résas : architecture</title>
-  <desc id="d">Les joueurs utilisent le site Next.js hébergé sur un VPS : Traefik reçoit les requêtes HTTPS, Dokploy lance les conteneurs, le site interroge en SQL la base Postgres 17 du même VPS, au nom du joueur connecté, et reçoit ses signaux de modification pour le temps réel. Le site envoie les e-mails par Gmail (SMTP) et les messages WhatsApp par Green API. À chaque push sur main, GitHub Actions construit l'image Docker, la publie sur GHCR et appelle le webhook de Dokploy ; les tâches planifiées de GitHub appellent aussi le site. L'ancienne adresse Vercel ne fait plus que renvoyer vers le nouveau site.</desc>
+  <desc id="d">Les joueurs utilisent le site Next.js hébergé sur un VPS : Traefik reçoit les requêtes HTTPS, Dokploy lance les conteneurs, le site interroge en SQL la base Postgres 17 du même VPS, au nom du joueur connecté, et reçoit ses signaux de modification pour le temps réel. Le site envoie les e-mails par Gmail (SMTP) et les messages WhatsApp par Green API. À chaque push sur main, GitHub Actions construit l'image Docker, la publie sur GHCR et appelle le webhook de Dokploy, qui télécharge alors l'image depuis GHCR et remplace le conteneur du site ; les tâches planifiées de GitHub appellent aussi le site. L'ancienne adresse Vercel ne fait plus que renvoyer vers le nouveau site.</desc>
   <defs>
     <style>
       .bg{fill:var(--d-bg,#f6f7f5)}
@@ -19,6 +19,9 @@
       .lab2{font-size:11px;fill:var(--d-muted,#5b665f)}
       .wire{fill:none;stroke:var(--d-wire,#6b766f);stroke-width:1.6}
       .dash{stroke-dasharray:6 5}
+      .gap{fill:none;stroke:var(--d-bg,#f6f7f5);stroke-width:7}
+      .stp{fill:var(--d-git,#6a5a8c)}
+      .stpt{font-size:10.5px;font-weight:700;fill:var(--d-card,#ffffff);text-anchor:middle}
       .ah{fill:var(--d-wire,#6b766f)}
       .c-user{stroke:var(--d-user,#4757b8)} .t-user{fill:var(--d-user,#4757b8)}
       .c-vps{stroke:var(--d-ink,#18201b)} .t-vps{fill:var(--d-ink,#18201b)}
@@ -58,7 +61,8 @@
   <text class="s" x="776" y="150">Next.js standalone</text>
   <text class="s" x="776" y="166">latest + sha-…, 10 versions</text>
   <path class="wire" d="M630,130 H754" marker-end="url(#a)"/>
-  <text class="lab2" x="692" y="121" text-anchor="middle">image Docker</text>
+  <circle class="stp" cx="648" cy="117" r="7"/><text class="stpt" x="648" y="121">1</text>
+  <text class="lab2" x="660" y="121">publie l'image</text>
 
   <!-- Joueurs -->
   <rect class="box c-user" x="30" y="290" width="220" height="240" rx="10"/>
@@ -79,22 +83,26 @@
   <rect class="vps c-vps" x="300" y="250" width="940" height="420" rx="12"/>
   <text class="h t-vps" x="318" y="276">VPS · Dokploy (Docker)</text>
 
-  <!-- Liens GitHub / GHCR → VPS -->
+  <!-- Déploiement : 1 image publiée, 2 webhook, 3 Dokploy télécharge l'image, 4 remplace le conteneur -->
   <path class="wire dash" d="M380,182 V316" marker-end="url(#a)"/>
-  <text class="lab2" x="390" y="222">webhook de</text>
-  <text class="lab2" x="390" y="236">déploiement</text>
+  <circle class="stp" cx="364" cy="214" r="7"/><text class="stpt" x="364" y="218">2</text>
+  <text class="lab2" x="372" y="236" text-anchor="end">webhook :</text>
+  <text class="lab2" x="372" y="250" text-anchor="end">« déploie latest »</text>
+  <path class="wire" d="M880,182 V200 H450 V316" marker-end="url(#a)"/>
+  <circle class="stp" cx="700" cy="191" r="7"/><text class="stpt" x="700" y="195">3</text>
+  <text class="lab2" x="712" y="195">Dokploy télécharge l'image</text>
+  <path class="gap" d="M560,194 V206"/>
   <path class="wire" d="M560,182 V284" marker-end="url(#a)"/>
-  <text class="lab2" x="570" y="208">tâches planifiées : rappel 72 h</text>
-  <text class="lab2" x="570" y="222">(toutes les 6 h), récap du lundi</text>
-  <text class="m" x="570" y="238">HTTPS + CRON_SECRET</text>
-  <path class="wire" d="M820,182 V284" marker-end="url(#a)"/>
-  <text class="lab2" x="830" y="222">Dokploy télécharge</text>
-  <text class="lab2" x="830" y="236">l'image</text>
+  <text class="lab2" x="570" y="218">tâches planifiées : rappel 72 h</text>
+  <text class="lab2" x="570" y="232">(toutes les 6 h), récap du lundi</text>
+  <text class="m" x="570" y="246">HTTPS + CRON_SECRET</text>
 
   <rect class="inner" x="316" y="322" width="150" height="70" rx="6"/>
   <text class="n" x="328" y="342">Dokploy</text>
-  <text class="s" x="328" y="359">lance les conteneurs,</text>
-  <text class="s" x="328" y="375">variables du site</text>
+  <circle class="stp" cx="333" cy="355" r="7"/><text class="stpt" x="333" y="359">4</text>
+  <text class="s" x="345" y="359">remplace le site</text>
+  <text class="s" x="328" y="375">par la nouvelle image</text>
+  <path class="wire" d="M466,357 H484" marker-end="url(#a)"/>
 
   <rect class="inner" x="316" y="410" width="150" height="70" rx="6"/>
   <text class="n" x="328" y="430">Traefik</text>
