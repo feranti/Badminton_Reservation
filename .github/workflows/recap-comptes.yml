@@ -4,7 +4,7 @@
 # Un lancement en retard reste rattaché à son horaire prévu, donc le récap ne part qu'une fois.
 # « Run workflow » (onglet Actions) l'envoie tout de suite.
 # Secret GitHub nécessaire : CRON_SECRET, la même valeur que sur le site. Variable du dépôt : APP_URL,
-# l'adresse du site (sans elle, l'ancienne adresse Vercel).
+# l'adresse du site (sans elle, le workflow échoue).
 name: Récap des comptes
 
 on:
@@ -21,8 +21,9 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           SCHEDULE: ${{ github.event.schedule }}
-          APP_URL: ${{ vars.APP_URL || 'https://bad-resas.vercel.app' }}
+          APP_URL: ${{ vars.APP_URL }}
         run: |
+          if [ -z "$APP_URL" ]; then echo "::error::Variable du dépôt APP_URL absente."; exit 1; fi
           if [ -n "$SCHEDULE" ]; then
             # +0200 en heure d'été (lancement de 21 h UTC), +0100 en hiver (lancement de 22 h UTC).
             offset=$(TZ=Europe/Paris date +%z)

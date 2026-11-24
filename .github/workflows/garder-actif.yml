@@ -1,8 +1,6 @@
 # Empêche GitHub de désactiver les tâches planifiées après 60 jours sans commit sur le dépôt.
 # Chaque semaine, ce workflow réactive par l'API les workflows planifiés (lui compris) : la
 # réactivation remet à zéro le compteur d'inactivité, sans commit ni secret à créer.
-# Ces tâches planifiées gardent aussi Supabase éveillé (le rappel des terrains vides interroge la
-# base toutes les 6 heures), le projet gratuit étant mis en pause après une semaine sans activité.
 name: Garder les tâches planifiées actives
 
 on:
