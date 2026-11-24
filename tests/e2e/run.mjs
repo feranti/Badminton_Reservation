@@ -1,5 +1,6 @@
 // Test de bout en bout : deux joueurs (alice et bob) utilisent l'appli en même temps.
-// Prérequis : copie locale de Supabase lancée et remise à zéro, joueurs créés, appli lancée.
+// Prérequis : base neuve créée (scripts/creer-base.sh), joueurs créés, Mailpit et appli lancés.
+// ADMIN_DB_URL : la base en postgres, pour préparer les données (le site n'écrit pas dans auth.users).
 // Le plus simple : `npm run check` (voir scripts/check.sh), qui fait tout.
 import { createServer } from "node:http";
 import postgres from "postgres";
@@ -144,39 +145,15 @@ try {
     ok("un en-tête X-Forwarded-Host envoyé par le visiteur ne change ni les liens de l'e-mail ni les redirections");
   }
 
-  // Une ancienne session Supabase n'ouvre plus le site (on pouvait en obtenir une avec le mot de
-  // passe Supabase d'un joueur, sans e-mail), et un joueur banni est déconnecté tout de suite.
+  // Un joueur banni (auth.users.banned_until) est déconnecté tout de suite.
   {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const secret = process.env.SUPABASE_SECRET_KEY;
-    const auth = async (path, method, body, key = secret) => {
-      const res = await fetch(`${url}/auth/v1/${path}`, {
-        method,
-        headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`${path} : ${res.status} ${await res.text()}`);
-      return res.json();
-    };
-    const link = await auth("admin/generate_link", "POST", { type: "magiclink", email: "dave@test.fr" });
-    const supabaseSession = await auth("verify", "POST", { type: "email", token_hash: link.hashed_token }, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
-    if (!supabaseSession.access_token) throw new Error("Session Supabase de test impossible");
-    const context = await browser.newContext();
-    const value = "base64-" + Buffer.from(JSON.stringify(supabaseSession)).toString("base64url");
-    await context.addCookies([{ name: "sb-127-auth-token", value, url: APP }]);
-    const old = await context.newPage();
-    await old.goto(APP + "/comptes");
-    await old.waitForURL(/\/login$/);
-    if ((await context.cookies()).some((c) => c.name === "resas_session")) throw new Error("Une session Supabase ne doit plus ouvrir de session du site");
-    await context.close();
-    ok("une ancienne session Supabase n'ouvre plus le site : seul l'e-mail de connexion le fait");
-
+    const sql = postgres(process.env.ADMIN_DB_URL, { max: 1 });
     const dave = await login(browser, "dave@test.fr");
-    await auth(`admin/users/${link.id}`, "PUT", { ban_duration: "24h" });
+    await sql`update auth.users set banned_until = now() + interval '24 hours' where email = 'dave@test.fr'`;
     await dave.goto(APP + "/comptes");
     await dave.waitForURL(/\/login$/);
-    await auth(`admin/users/${link.id}`, "PUT", { ban_duration: "none" });
-    await dave.context().close();
+    await sql`update auth.users set banned_until = null where email = 'dave@test.fr'`;
+    await Promise.all([dave.context().close(), sql.end()]);
     ok("un joueur banni est déconnecté tout de suite, même avec une session ouverte");
   }
 
@@ -736,28 +713,19 @@ try {
   ok("le récap hebdomadaire des comptes part dans le groupe WhatsApp (refusé sans le secret de la tâche planifiée)");
 
   // Rappel des terrains vides à 72h (route appelée toutes les heures par GitHub Actions).
-  // Les sessions sont créées directement en base, avec la clé secrète, à quelques heures près.
-  const rest = async (path, body) => {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${path}`, {
-      method: body ? "POST" : "GET",
-      headers: {
-        apikey: process.env.SUPABASE_SECRET_KEY,
-        Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      body: body && JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`${path} : ${res.status} ${await res.text()}`);
-    return res.json();
-  };
+  // Les sessions sont créées directement en base, à quelques heures près.
+  const seedDb = postgres(process.env.ADMIN_DB_URL, { max: 1 });
   // Deux joueurs quelconques (alice a changé de nom plus haut).
-  const [p1, p2] = (await rest("profiles?select=id&order=created_at")).map((p) => p.id);
+  const [p1, p2] = (await seedDb`select id from public.profiles order by created_at`).map((p) => p.id);
   const at = (h) => new Date(Math.round((Date.now() + h * 3600e3) / 3600e3) * 3600e3).toISOString();
   async function seedSession(venue, inHours, courts, players) {
-    const [s] = await rest("sessions", { venue, starts_at: at(inHours), ends_at: at(inHours + 2), created_by: p1 });
-    await rest("court_bookings", courts.map((court) => ({ session_id: s.id, court, price_cents: 1800, booked_by: p1, created_by: p1, starts_at: s.starts_at, ends_at: s.ends_at })));
-    if (players.length) await rest("session_participants", players.map(([player_id, guests]) => ({ session_id: s.id, player_id, guests })));
+    const [s] = await seedDb`insert into public.sessions (venue, starts_at, ends_at, created_by)
+      values (${venue}, ${at(inHours)}, ${at(inHours + 2)}, ${p1}) returning id, starts_at, ends_at`;
+    for (const court of courts)
+      await seedDb`insert into public.court_bookings (session_id, court, price_cents, booked_by, created_by, starts_at, ends_at)
+        values (${s.id}, ${court}, 1800, ${p1}, ${p1}, ${s.starts_at}, ${s.ends_at})`;
+    for (const [player_id, guests] of players)
+      await seedDb`insert into public.session_participants (session_id, player_id, guests) values (${s.id}, ${player_id}, ${guests})`;
     return s.id;
   }
   const missing4 = await seedSession(VENUE + " rappel", 60, [6, 9], [[p1, 0], [p2, 2]]);
@@ -767,6 +735,7 @@ try {
     await seedSession(VENUE + " trop tôt", 80, [6, 9], []),
     await seedSession(VENUE + " trop tard", 30, [6, 9], []),
   ];
+  await seedDb.end();
   const cron = (secret) => fetch(APP + "/api/cron/rappel-terrains-vides", { headers: secret ? { Authorization: `Bearer ${secret}` } : {} });
   if ((await cron()).status !== 401 || (await cron("mauvais")).status !== 401) throw new Error("La route du rappel doit refuser un appel sans le bon secret");
   const before = whatsapp.length;

@@ -1,6 +1,6 @@
 # Vérification complète (npm run check) sur chaque pull request vers main, et à la main depuis
 # l'onglet Actions. La règle de protection de main exige que ce check soit vert pour fusionner.
-# Aucun secret : le script lance une copie locale de Supabase et utilise des valeurs de test.
+# Aucun secret : le script lance une base Postgres et un Mailpit de test (Docker), avec des valeurs de test.
 name: Check
 
 on:

@@ -2,12 +2,9 @@
 # GHCR (ghcr.io/<propriétaire>/<dépôt>) puis demande à Dokploy de la déployer. Le VPS ne fait plus
 # que télécharger l'image : il ne compile plus rien.
 #
-# Modèle réutilisable pour un autre site sur le même VPS : copier ce fichier et le Dockerfile, puis
-# adapter la liste des arguments de build (étape « Construire et publier »).
+# Modèle réutilisable pour un autre site sur le même VPS : copier ce fichier et le Dockerfile.
 #
 # Réglages du dépôt (Settings > Secrets and variables > Actions) :
-# - variables NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY : inscrites dans le
-#   JavaScript au moment du build (valeurs publiques, d'où des variables et non des secrets) ;
 # - secret DOKPLOY_WEBHOOK_URL : « Webhook URL » de l'onglet Deployments de l'application Dokploy.
 #   Tant qu'il est absent, l'image est publiée mais rien n'est déployé.
 name: Déploiement
@@ -31,18 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Vérifier les variables de build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-        run: |
-          for name in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; do
-            if [ -z "${!name}" ]; then
-              echo "::error::Variable de dépôt $name manquante : l'image serait construite sans elle."
-              exit 1
-            fi
-          done
-
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
@@ -70,9 +55,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
-            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           # Une seule image par version, sans attestation : le nettoyage ci-dessous reste simple.
           provenance: false
           sbom: false

@@ -1,5 +1,5 @@
 -- Données de test pour Badminton Résas : 20 réservations, 8 joueurs fictifs, quelques remboursements.
--- À exécuter dans Supabase > SQL Editor. Tout est repérable :
+-- À exécuter en postgres (DBeaver, voir README). Tout est repérable :
 --   - joueurs fictifs : e-mail test-…@example.com, nom suivi de « (test) » ;
 --   - sessions : remarques qui commencent par [TEST] ;
 --   - remboursements : note qui commence par [TEST].
@@ -7,16 +7,12 @@
 -- Le vrai compte utilisé dans les scénarios (« vous », variable « me ») est le plus ancien compte
 -- du projet. Pour en choisir un autre, remplacez la requête qui remplit « me » plus bas.
 
--- Joueur fictif (compte sans mot de passe, qui ne peut pas se connecter)
+-- Joueur fictif (adresse en example.com : aucun e-mail de connexion ne lui parvient)
 create function pg_temp.test_player(p_name text, p_slug text) returns uuid language plpgsql as $$
 declare v_id uuid := gen_random_uuid();
 begin
-  insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
-                          raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
-  values (v_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-          'test-' || p_slug || '@example.com', '', now(),
-          '{"provider":"email","providers":["email"]}', jsonb_build_object('display_name', p_name || ' (test)'),
-          now(), now());
+  insert into auth.users (id, email, raw_user_meta_data)
+  values (v_id, 'test-' || p_slug || '@example.com', jsonb_build_object('display_name', p_name || ' (test)'));
   return v_id;
 end $$;
 
