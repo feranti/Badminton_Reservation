@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1270 840" width="1270" height="840" role="img" aria-labelledby="t d" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif">
   <title id="t">Badminton Résas : architecture</title>
-  <desc id="d">Les joueurs utilisent le site Next.js hébergé sur un VPS : Traefik reçoit les requêtes HTTPS, Dokploy lance les conteneurs, le site interroge en SQL la base Postgres 17 du même VPS, au nom du joueur connecté, et reçoit ses signaux de modification pour le temps réel. Le site envoie les e-mails par Gmail (SMTP) et les messages WhatsApp par Green API. À chaque push sur main, GitHub Actions construit l'image Docker, la publie sur GHCR et appelle le webhook de Dokploy, qui télécharge alors l'image depuis GHCR et remplace le conteneur du site ; les tâches planifiées de GitHub appellent aussi le site. L'ancienne adresse Vercel ne fait plus que renvoyer vers le nouveau site.</desc>
+  <desc id="d">Les joueurs utilisent le site Next.js hébergé sur un VPS : Traefik reçoit les requêtes HTTPS, Dokploy lance les conteneurs, le site interroge en SQL la base Postgres 18 du même VPS, au nom du joueur connecté, et reçoit ses signaux de modification pour le temps réel. Le site envoie les e-mails par Gmail (SMTP) et les messages WhatsApp par Green API. À chaque push sur main, GitHub Actions construit l'image Docker, la publie sur GHCR et appelle le webhook de Dokploy, qui télécharge alors l'image depuis GHCR et remplace le conteneur du site ; les tâches planifiées de GitHub appellent aussi le site. L'ancienne adresse Vercel ne fait plus que renvoyer vers le nouveau site.</desc>
   <defs>
     <style>
       .bg{fill:var(--d-bg,#f6f7f5)}
@@ -153,7 +153,7 @@
 
   <!-- Postgres -->
   <rect class="cont c-db" x="960" y="290" width="264" height="360" rx="8"/>
-  <text class="h2 t-db" x="972" y="311">Postgres 17</text>
+  <text class="h2 t-db" x="972" y="311">Postgres 18</text>
   <text class="s" x="1062" y="311">sans port ouvert sur Internet</text>
 
   <rect class="inner" x="972" y="322" width="240" height="52" rx="6"/>

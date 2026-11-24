@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Vérification complète avant de livrer une modification :
 #   1. lint, types et build de production
-#   2. base neuve dans un Postgres 17 seul (scripts/creer-base.sh), avec les mêmes droits que celle
+#   2. base neuve dans un Postgres 18 seul (scripts/creer-base.sh), avec les mêmes droits que celle
 #      du VPS, et un Mailpit pour recevoir les e-mails
 #   3. test de bout en bout à deux joueurs sur le build de production
 #   4. visite de toutes les pages avec `next dev`, en échec si le serveur affiche une erreur
@@ -49,9 +49,9 @@ npm run lint
 npx next typegen >/dev/null
 npx tsc --noEmit
 
-step "Base neuve (Postgres 17) et Mailpit"
+step "Base neuve (Postgres 18) et Mailpit"
 docker rm -f resas_check_db resas_check_mail >/dev/null 2>&1 || true
-docker run -d --name resas_check_db -p 127.0.0.1:$DB_PORT:5432 -e POSTGRES_PASSWORD=postgres postgres:17 >/dev/null
+docker run -d --name resas_check_db -p 127.0.0.1:$DB_PORT:5432 -e POSTGRES_PASSWORD=postgres postgres:18 >/dev/null
 docker run -d --name resas_check_mail -p 127.0.0.1:$MAIL_PORT:8025 -p 127.0.0.1:$SMTP_TEST_PORT:1025 axllent/mailpit:v1.31.3 >/dev/null
 DB_URL="postgresql://postgres:postgres@127.0.0.1:$DB_PORT/postgres"
 for _ in $(seq 1 30); do psql "$DB_URL" -Atqc "select 1" >/dev/null 2>&1 && break; sleep 1; done

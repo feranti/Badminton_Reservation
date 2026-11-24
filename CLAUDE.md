@@ -6,16 +6,19 @@ Lire aussi `AGENTS.md` (Next.js 16 : consulter `node_modules/next/dist/docs/` av
 
 Lancer `npm run check` après toute modification de code ou de base, avant de committer et de pousser.
 Le script (`scripts/check.sh`) fait lint, types, build de production, crée une base neuve dans un
-Postgres 17 seul avec un Mailpit (Docker, `scripts/creer-base.sh`), joue le test de bout en bout à deux joueurs (`tests/e2e/run.mjs`) et ouvre
+Postgres 18 seul avec un Mailpit (Docker, `scripts/creer-base.sh`), joue le test de bout en bout à deux joueurs (`tests/e2e/run.mjs`) et ouvre
 chaque page avec `next dev` en échouant si le serveur affiche une erreur.
 Ne livrer que si tout est vert. Ajouter au test de bout en bout chaque nouvelle fonctionnalité.
+
+Exception : une modification qui ne touche que la documentation (dossier `docs/`, images comprises,
+ou fichiers `.md`) se passe de `npm run check`. Le check GitHub le reconnaît et passe sans rien lancer.
 
 Dans le conteneur cloud, lancer `dockerd` s'il ne tourne pas, et passer
 `CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`.
 
 ## Base de données
 
-- La base tourne sur le VPS (Postgres 17), plus sur Supabase. Une base neuve se crée avec
+- La base tourne sur le VPS (Postgres 18), plus sur Supabase. Une base neuve se crée avec
   `scripts/creer-base.sh` : `supabase/socle.sql` (ce que les migrations attendent de Supabase),
   puis `supabase/migrations/0001_init.sql` (anciennes migrations 0001 à 0009 regroupées) et les
   suivantes. Toute modification de schéma passe par un nouveau fichier
