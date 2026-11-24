@@ -2,6 +2,7 @@
 // Prérequis : copie locale de Supabase lancée et remise à zéro, joueurs créés, appli lancée.
 // Le plus simple : `npm run check` (voir scripts/check.sh), qui fait tout.
 import { createServer } from "node:http";
+import postgres from "postgres";
 import { chromium } from "playwright";
 
 const APP = process.env.APP_URL ?? "http://127.0.0.1:3000";
@@ -42,6 +43,7 @@ async function loginMail(email) {
     if (list.messages?.length) {
       const msg = await (await fetch(`${MAIL}/api/v1/message/${list.messages[0].ID}`)).json();
       const link = msg.HTML.match(/href="([^"]+)"/)[1].replaceAll("&amp;", "&");
+      if (!link.startsWith(`${APP}/auth/confirm?jeton=`)) throw new Error(`Lien de connexion hors du site : ${link}`);
       const code = msg.Text.match(/^Votre code de connexion : (\d{8})$/m)?.[1];
       // Pour que Gmail propose « Copier le code » : le code dans l'objet et en tête du corps,
       // et aucun autre nombre dans l'e-mail (hors lien).
@@ -133,35 +135,49 @@ try {
     await stolen.waitForURL(/\/login$/);
     await Promise.all([carol.context().close(), other.context().close(), thief.close()]);
     ok("le lien de l'e-mail ne sert qu'une fois, un 2e e-mail attend une minute, et une session fermée ne rouvre plus rien");
+    // L'adresse des liens et des redirections vient d'APP_URL, jamais des en-têtes de la requête.
+    const spoofed = await fetch(`${APP}/auth/confirm?jeton=x`, {
+      redirect: "manual",
+      headers: { "X-Forwarded-Host": "piege.example", Origin: "https://piege.example" },
+    });
+    if (!spoofed.headers.get("location")?.startsWith(`${APP}/login`)) throw new Error(`Redirection détournée : ${spoofed.headers.get("location")}`);
+    ok("un en-tête X-Forwarded-Host envoyé par le visiteur ne change ni les liens de l'e-mail ni les redirections");
   }
 
-  // Transition : un joueur encore connecté avec l'ancienne session Supabase le reste, sans e-mail
+  // Une ancienne session Supabase n'ouvre plus le site (on pouvait en obtenir une avec le mot de
+  // passe Supabase d'un joueur, sans e-mail), et un joueur banni est déconnecté tout de suite.
   {
-    const { createServerClient } = await import("@supabase/ssr");
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const secret = process.env.SUPABASE_SECRET_KEY;
-    const res = await fetch(`${url}/auth/v1/admin/generate_link`, {
-      method: "POST",
-      headers: { apikey: secret, Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "magiclink", email: "dave@test.fr" }),
-    });
-    const { hashed_token } = await res.json();
-    let jar = [];
-    const supabase = createServerClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
-      cookies: { getAll: () => jar, setAll: (list) => (jar = list.filter((c) => c.value)) },
-    });
-    const { error } = await supabase.auth.verifyOtp({ type: "email", token_hash: hashed_token });
-    if (error || jar.length === 0) throw new Error(`Session Supabase de test impossible : ${error?.message}`);
+    const auth = async (path, method, body, key = secret) => {
+      const res = await fetch(`${url}/auth/v1/${path}`, {
+        method,
+        headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`${path} : ${res.status} ${await res.text()}`);
+      return res.json();
+    };
+    const link = await auth("admin/generate_link", "POST", { type: "magiclink", email: "dave@test.fr" });
+    const supabaseSession = await auth("verify", "POST", { type: "email", token_hash: link.hashed_token }, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+    if (!supabaseSession.access_token) throw new Error("Session Supabase de test impossible");
     const context = await browser.newContext();
-    await context.addCookies(jar.map((c) => ({ name: c.name, value: c.value, url: APP })));
-    const dave = await context.newPage();
-    await dave.goto(APP + "/comptes");
-    await dave.waitForSelector('nav[aria-label="Navigation principale"]');
-    const names = (await context.cookies()).map((c) => c.name);
-    if (!names.includes("resas_session") || names.some((n) => n.startsWith("sb-")))
-      throw new Error(`Cookies après la transition : ${names.join(", ")}`);
+    const value = "base64-" + Buffer.from(JSON.stringify(supabaseSession)).toString("base64url");
+    await context.addCookies([{ name: "sb-127-auth-token", value, url: APP }]);
+    const old = await context.newPage();
+    await old.goto(APP + "/comptes");
+    await old.waitForURL(/\/login$/);
+    if ((await context.cookies()).some((c) => c.name === "resas_session")) throw new Error("Une session Supabase ne doit plus ouvrir de session du site");
     await context.close();
-    ok("un joueur connecté avec l'ancienne session Supabase reçoit une session du site sans se reconnecter");
+    ok("une ancienne session Supabase n'ouvre plus le site : seul l'e-mail de connexion le fait");
+
+    const dave = await login(browser, "dave@test.fr");
+    await auth(`admin/users/${link.id}`, "PUT", { ban_duration: "24h" });
+    await dave.goto(APP + "/comptes");
+    await dave.waitForURL(/\/login$/);
+    await auth(`admin/users/${link.id}`, "PUT", { ban_duration: "none" });
+    await dave.context().close();
+    ok("un joueur banni est déconnecté tout de suite, même avec une session ouverte");
   }
 
   // Session du soir avec deux terrains
@@ -390,6 +406,13 @@ try {
   const qrAnonyme = await stranger.context().request.get(APP + qrSrc, { maxRedirects: 0 });
   if (qrAnonyme.status() === 200) throw new Error("Un visiteur non connecté ne doit pas voir les QR codes");
   ok("l'image du QR code est servie aux joueurs connectés (type vérifié), pas aux visiteurs");
+  // En-têtes de sécurité : le site ne s'affiche dans un cadre que chez lui (QR codes en PDF).
+  const home = await alice.context().request.get(APP + "/");
+  const csp = home.headers()["content-security-policy"] ?? "";
+  if (!csp.includes("frame-ancestors 'self'") || home.headers()["x-frame-options"] !== "SAMEORIGIN" || !home.headers()["strict-transport-security"])
+    throw new Error(`En-têtes de sécurité absents : ${JSON.stringify(home.headers())}`);
+  if (qrRes.headers()["x-frame-options"] !== "SAMEORIGIN") throw new Error("Le QR code doit pouvoir s'afficher dans un cadre du site seulement");
+  ok("le site ne peut pas être affiché dans un cadre par un autre site (en-têtes de sécurité)");
   // Supprimer le QR code d'une heure ne touche pas à l'autre
   await terrain6.getByRole("button", { name: "Supprimer le QR code · 21:00 – 22:00" }).click();
   await terrain6.getByRole("button", { name: "Ajouter le QR code · 21:00 – 22:00" }).waitFor();
@@ -757,6 +780,41 @@ try {
   await sleep(500);
   if (run2.sent.length || whatsapp.length !== before + run1.sent.length) throw new Error(`Le rappel ne doit partir qu'une fois : ${JSON.stringify(run2)}`);
   ok("72h avant, le groupe WhatsApp est prévenu une seule fois s'il manque 4 joueurs (limite d'annulation à 48h), pas s'il en manque moins de 4 ni hors délai");
+
+  // Limites de la page de connexion : 30 e-mails par heure en tout, 10 demandes par heure et par adresse IP.
+  {
+    const sql = postgres(process.env.DATABASE_URL, { max: 1 });
+    const page = await (await browser.newContext()).newPage();
+    await page.goto(APP + "/login");
+    const ask = async (email) => {
+      await page.fill("#email", email);
+      const answered = page.waitForResponse((r) => r.request().method() === "POST");
+      await page.click("text=Recevoir un lien de connexion");
+      await answered;
+      await page.locator("button:text-is('Recevoir un lien de connexion'):enabled").waitFor();
+      return page.getByRole("status").innerText();
+    };
+    // 30 e-mails déjà partis dans l'heure (faux, insérés en base) : plus aucun e-mail, même pour un joueur.
+    const fake = await sql`
+      insert into public.login_tokens (user_id, link_hash, code_hash, expires_at)
+      select id, md5(random()::text) || n, '', now() + interval '1 hour'
+      from auth.users, generate_series(1, 30) as n where email = 'frank@test.fr'
+      returning id`;
+    try {
+      if (!(await ask("eve@test.fr")).includes("Trop d'e-mails de connexion envoyés en ce moment"))
+        throw new Error("Au-delà de 30 e-mails de connexion par heure, plus aucun ne doit partir");
+    } finally {
+      await sql`update public.login_tokens set created_at = now() - interval '2 hours', used_at = now()
+                where id = any(${fake.map((r) => r.id)})`;
+    }
+    let refusedAt = 0;
+    for (let i = 1; i <= 12 && !refusedAt; i++) {
+      if ((await ask(`inconnu${i}@test.fr`)).includes("Trop de demandes depuis cette connexion")) refusedAt = i;
+    }
+    if (!refusedAt || refusedAt === 1) throw new Error("La 11e demande d'e-mail de l'heure depuis une même adresse IP doit être refusée");
+    await Promise.all([page.context().close(), sql.end()]);
+    ok("au plus 30 e-mails de connexion par heure en tout, et 10 demandes par heure depuis une même adresse IP");
+  }
 
   if (errors.length) throw new Error("Erreurs dans le navigateur :\n" + errors.join("\n"));
   console.log("\nTous les tests sont passés.");

@@ -39,4 +39,7 @@ Dans le conteneur cloud, lancer `dockerd` s'il ne tourne pas, et passer
   `supabase.from` ou `.rpc` : chaque requête porte l'identifiant du joueur, donc les règles RLS
   s'appliquent. `adminDb` (sans RLS) est réservé aux tâches planifiées, aux e-mails et à la connexion.
 - La connexion est gérée par le site (`src/lib/auth.ts`), plus par Supabase Auth : l'e-mail de connexion part par le SMTP du site (au plus un par minute et par adresse), et les tables `login_tokens` et `auth_sessions` ne sont lisibles que par le serveur.
+- Un lien envoyé hors du site (e-mail, WhatsApp) ou une redirection absolue part de `appOrigin()`
+  (`src/lib/app-url.ts`, c'est-à-dire `APP_URL`), jamais des en-têtes `Origin`, `Host` ou
+  `X-Forwarded-Host` : celui qui envoie la requête les choisit.
 - Les formulaires utilisent `useFormAction` pour ne pas perdre la saisie en cas d'erreur.

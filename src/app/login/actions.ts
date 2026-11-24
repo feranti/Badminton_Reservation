@@ -3,7 +3,14 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { consumeLoginCode, createLoginRequest, createSession, deleteSession, SESSION_COOKIE, sessionCookie } from "@/lib/auth";
+import { appOrigin } from "@/lib/app-url";
 import { sendMail } from "@/lib/mail";
+import { allowAttempt, clientIp } from "@/lib/rate-limit";
+
+const HOUR = 3600_000;
+// Par adresse IP et par heure : e-mails demandés (adresses inconnues comprises) et codes essayés.
+const MAX_MAILS_PER_IP = 10;
+const MAX_CODES_PER_IP = 30;
 
 export type LoginState = { status: "idle" | "sent" | "error"; email?: string; message?: string };
 
@@ -13,15 +20,20 @@ export async function sendMagicLink(_prev: LoginState, formData: FormData): Prom
   if (!email) return { status: "error", message: "Indiquez votre adresse e-mail." };
   if (email.length > 320) return { status: "error", message: "Adresse e-mail trop longue." };
 
-  // Adresse du lien de l'e-mail : celle du navigateur (Next.js a vérifié qu'elle est bien celle du
-  // site avant d'exécuter l'action), sinon l'adresse publique du site (APP_URL).
-  const origin = (await headers()).get("origin") ?? process.env.APP_URL?.replace(/\/$/, "") ?? "";
+  // Adresse du lien de l'e-mail : l'adresse publique du site (APP_URL), jamais celle que donne la
+  // requête (src/lib/app-url.ts).
+  const origin = await appOrigin();
+  if (!origin) return { status: "error", message: "Adresse du site inconnue : l'e-mail n'a pas pu partir." };
+  if (!allowAttempt(`e-mail:${await clientIp()}`, MAX_MAILS_PER_IP, HOUR)) {
+    return { status: "error", message: "Trop de demandes depuis cette connexion : réessayez dans une heure." };
+  }
   const request = await createLoginRequest(email, origin);
   if (!request.ok) {
     const message = {
       unknown: "Impossible d'envoyer l'e-mail. Vérifiez que vous avez bien été invité dans le groupe.",
       "too-soon": "Un e-mail vient d'être envoyé à cette adresse : patientez une minute avant d'en redemander un.",
       "too-many": "Trop d'e-mails demandés pour cette adresse : réessayez dans une heure.",
+      busy: "Trop d'e-mails de connexion envoyés en ce moment : réessayez dans une heure.",
     }[request.reason];
     return { status: "error", message };
   }
@@ -63,6 +75,9 @@ export async function verifyCode(prev: LoginState, formData: FormData): Promise<
     return { ...prev, status: "sent", email, message: "Saisissez les 8 chiffres du code reçu par e-mail." };
   }
 
+  if (!allowAttempt(`code:${await clientIp()}`, MAX_CODES_PER_IP, HOUR)) {
+    return { ...prev, status: "sent", email, message: "Trop d'essais depuis cette connexion : réessayez dans une heure." };
+  }
   const userId = await consumeLoginCode(email, code);
   if (!userId) {
     return { ...prev, status: "sent", email, message: "Code incorrect ou expiré. Vérifiez-le ou demandez un nouvel e-mail." };

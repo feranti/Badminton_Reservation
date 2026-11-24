@@ -83,7 +83,9 @@ step "Build de production"
 npm run build >"$LOG_DIR/build.log" 2>&1 || { cat "$LOG_DIR/build.log"; exit 1; }
 
 step "Test de bout en bout (build de production)"
-setsid npx next start -p $PROD_PORT -H 127.0.0.1 >"$LOG_DIR/prod.log" 2>&1 &
+# APP_URL : adresse publique des liens (e-mails, WhatsApp). Les autres serveurs de test s'en passent
+# et prennent l'en-tête Host de la requête, comme en local.
+APP_URL="http://127.0.0.1:$PROD_PORT" setsid npx next start -p $PROD_PORT -H 127.0.0.1 >"$LOG_DIR/prod.log" 2>&1 &
 PIDS+=($!)
 wait_for "http://127.0.0.1:$PROD_PORT/login"
 APP_URL="http://127.0.0.1:$PROD_PORT" node tests/e2e/run.mjs
