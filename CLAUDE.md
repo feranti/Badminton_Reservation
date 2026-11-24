@@ -10,6 +10,9 @@ Postgres 17 seul avec un Mailpit (Docker, `scripts/creer-base.sh`), joue le test
 chaque page avec `next dev` en échouant si le serveur affiche une erreur.
 Ne livrer que si tout est vert. Ajouter au test de bout en bout chaque nouvelle fonctionnalité.
 
+Exception : une modification qui ne touche que la documentation (dossier `docs/`, images comprises,
+ou fichiers `.md`) se passe de `npm run check`. Le check GitHub le reconnaît et passe sans rien lancer.
+
 Dans le conteneur cloud, lancer `dockerd` s'il ne tourne pas, et passer
 `CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`.
 

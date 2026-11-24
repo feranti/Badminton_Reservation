@@ -1,4 +1,5 @@
-# Vérification complète (npm run check) sur chaque pull request vers main, et à la main depuis
+# Vérification complète (npm run check) sur chaque pull request vers main, sauf si elle ne touche que
+# la documentation (voir l'étape « Fichiers modifiés »), et à la main depuis
 # l'onglet Actions. La règle de protection de main exige que ce check soit vert pour fusionner.
 # Aucun secret : le script lance une base Postgres et un Mailpit de test (Docker), avec des valeurs de test.
 name: Check
@@ -20,12 +21,37 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # Le commit testé d'une pull request est sa fusion avec main : son premier parent est main,
+      # donc comparer les deux donne exactement les fichiers modifiés par la PR.
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+        with:
+          fetch-depth: 2
+
+      # Une PR qui ne touche que la documentation (dossier docs/ ou fichiers .md) ne change ni le
+      # code ni la configuration : le check passe sans rien lancer. Il reste exigé par main, donc
+      # il doit réussir plutôt qu'être ignoré.
+      - id: fichiers
+        name: Fichiers modifiés
+        run: |
+          code=true
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git diff --name-only HEAD^1 HEAD
+            if ! git diff --name-only HEAD^1 HEAD | grep -qvE '^docs/|\.md$'; then
+              code=false
+              echo "::notice::Seulement de la documentation (docs/ ou .md) : check complet inutile."
+            fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
+      - if: steps.fichiers.outputs.code == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - if: steps.fichiers.outputs.code == 'true'
+        run: npm ci
       # Navigateur du test de bout en bout, avec ses bibliothèques système.
-      - run: npx playwright install --with-deps chromium
-      - run: npm run check
+      - if: steps.fichiers.outputs.code == 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.fichiers.outputs.code == 'true'
+        run: npm run check
