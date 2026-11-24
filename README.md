@@ -10,7 +10,7 @@ Application web pour un groupe d'amis qui joue au badminton :
 
 Le site s'utilise surtout sur téléphone (icône sur l'écran d'accueil), en thème clair ou sombre.
 
-Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site, PostgreSQL 17 pour la base, un VPS avec [Dokploy](https://dokploy.com) (Docker) pour l'hébergement. Les e-mails de liste d'attente partent par SMTP (Gmail) et les messages au groupe WhatsApp par [Green API](https://green-api.com).
+Technologies : [Next.js](https://nextjs.org) (TypeScript, Tailwind) pour le site, PostgreSQL 18 pour la base, un VPS avec [Dokploy](https://dokploy.com) (Docker) pour l'hébergement. Les e-mails de liste d'attente partent par SMTP (Gmail) et les messages au groupe WhatsApp par [Green API](https://green-api.com).
 
 ## Captures d'écran
 
@@ -39,7 +39,7 @@ Prises sur téléphone avec le jeu de données fictif (`supabase/donnees-test/`)
 ![Architecture : les joueurs, le site et sa base sur le VPS, Gmail, Green API, GitHub et GHCR](docs/architecture.svg)
 
 - Le **VPS** héberge le site Next.js dans un conteneur Docker, géré par Dokploy, derrière Traefik (HTTPS). Les pages sont rendues sur le serveur et les formulaires passent par des Server Actions, qui envoient aussi les e-mails et les messages WhatsApp.
-- **Postgres 17**, sur le même VPS (base PostgreSQL de Dokploy, sans port ouvert sur Internet), garde les données, avec les règles d'accès par joueur (RLS). La connexion par lien ou code e-mail est gérée par le site lui-même (`src/lib/auth.ts`) : l'e-mail part par SMTP, et la session est un cookie dont la base garde l'empreinte (tables `login_tokens` et `auth_sessions`). Le serveur interroge la base directement en SQL (`DATABASE_URL`), au nom du joueur connecté, pour que les règles d'accès s'appliquent. Les images des QR codes sont gardées dans la base (table `qr_images`), et le temps réel passe aussi par elle : chaque modification envoie un signal (`pg_notify`) que le serveur relaie aux pages ouvertes (`/api/changements`).
+- **Postgres 18**, sur le même VPS (base PostgreSQL de Dokploy, sans port ouvert sur Internet), garde les données, avec les règles d'accès par joueur (RLS). La connexion par lien ou code e-mail est gérée par le site lui-même (`src/lib/auth.ts`) : l'e-mail part par SMTP, et la session est un cookie dont la base garde l'empreinte (tables `login_tokens` et `auth_sessions`). Le serveur interroge la base directement en SQL (`DATABASE_URL`), au nom du joueur connecté, pour que les règles d'accès s'appliquent. Les images des QR codes sont gardées dans la base (table `qr_images`), et le temps réel passe aussi par elle : chaque modification envoie un signal (`pg_notify`) que le serveur relaie aux pages ouvertes (`/api/changements`).
 - Le **navigateur** ne parle qu'au site, jamais directement à la base.
 - **Gmail (SMTP)** envoie les e-mails de connexion et « une place s'est libérée ». **Green API** envoie au groupe WhatsApp les terrains réservés ou annulés.
 - **GitHub** garde le code, construit l'image Docker à chaque push sur `main`, la publie sur GHCR et demande à Dokploy de la déployer.
@@ -62,12 +62,12 @@ Les montants sont stockés en centimes, les heures sont saisies et affichées à
 
 ### 1. Créer la base
 
-1. Créez une base PostgreSQL 17 vide, sans port ouvert sur Internet (dans Dokploy : Create Service > Database > PostgreSQL, en laissant « External Port » vide). Notez son hôte interne et le mot de passe de `postgres`.
-2. Sur le serveur, dans une copie du dépôt, lancez `scripts/creer-base.sh` depuis un conteneur Postgres 17 relié au réseau Docker de la base (`dokploy-network` avec Dokploy) :
+1. Créez une base PostgreSQL 18 vide, sans port ouvert sur Internet (dans Dokploy : Create Service > Database > PostgreSQL, en laissant « External Port » vide). Notez son hôte interne et le mot de passe de `postgres`.
+2. Sur le serveur, dans une copie du dépôt, lancez `scripts/creer-base.sh` depuis un conteneur Postgres 18 relié au réseau Docker de la base (`dokploy-network` avec Dokploy) :
    ```sh
    docker run --rm --network <réseau> -v "$PWD":/depot -w /depot \
      -e TARGET_URL='postgresql://postgres:<mot de passe>@<hôte interne>:5432/postgres' \
-     -e APP_PASSWORD="$(openssl rand -hex 24)" postgres:17 bash scripts/creer-base.sh
+     -e APP_PASSWORD="$(openssl rand -hex 24)" postgres:18 bash scripts/creer-base.sh
    ```
    Le script recrée d'abord ce que les migrations attendent de Supabase, pour qui elles ont été écrites (`supabase/socle.sql` : rôles `anon` et `authenticated`, table des joueurs `auth.users`, fonction `auth.uid()`), exécute toutes les migrations dans l'ordre, puis crée le compte du site, `resas_app`, qui lit et écrit les données sans pouvoir modifier le schéma ni devenir superutilisateur. Gardez la valeur d'`APP_PASSWORD` pour la `DATABASE_URL` du site.
 3. Ajoutez les joueurs en `postgres` (voir « Ouvrir la base avec DBeaver ») : `insert into auth.users (email) values ('nom@exemple.fr');`. Chacun se connecte ensuite depuis la page de connexion du site.
@@ -93,7 +93,7 @@ Ouvrez http://localhost:3000, saisissez votre e-mail et cliquez sur le lien reç
 Pour développer sans toucher à la vraie base, lancez une base et un serveur d'e-mails de test avec Docker :
 
 ```bash
-docker run -d --name resas-dev-db -p 127.0.0.1:54330:5432 -e POSTGRES_PASSWORD=postgres postgres:17
+docker run -d --name resas-dev-db -p 127.0.0.1:54330:5432 -e POSTGRES_PASSWORD=postgres postgres:18
 docker run -d --name resas-dev-mail -p 127.0.0.1:54324:8025 -p 127.0.0.1:54325:1025 axllent/mailpit
 TARGET_URL=postgresql://postgres:postgres@127.0.0.1:54330/postgres APP_PASSWORD=mot-de-passe-de-dev-assez-long bash scripts/creer-base.sh
 psql postgresql://postgres:postgres@127.0.0.1:54330/postgres -c "insert into auth.users (email) values ('moi@test.fr')"
@@ -119,7 +119,7 @@ Vers une base distante (adresse avec un point, hors réseau Docker), la connexio
 
 ### Vérifier avant de livrer
 
-`npm run check` (Docker et Node.js requis) enchaîne le lint, les types, le build de production, crée une base neuve dans un Postgres 17 seul (`scripts/creer-base.sh`, site branché avec le compte `resas_app` comme sur le VPS) et un Mailpit, joue un test de bout en bout à deux joueurs (`tests/e2e/run.mjs`) et ouvre chaque page avec `next dev` en échouant au moindre message d'erreur.
+`npm run check` (Docker et Node.js requis) enchaîne le lint, les types, le build de production, crée une base neuve dans un Postgres 18 seul (`scripts/creer-base.sh`, site branché avec le compte `resas_app` comme sur le VPS) et un Mailpit, joue un test de bout en bout à deux joueurs (`tests/e2e/run.mjs`) et ouvre chaque page avec `next dev` en échouant au moindre message d'erreur.
 
 ### E-mails (connexion et liste d'attente)
 
@@ -200,7 +200,7 @@ Pour essayer l'image en local : `docker build -t bad-resas .` puis `docker run -
 
 ## Base sur le VPS
 
-La base a d'abord été hébergée par Supabase, puis recopiée en novembre 2026 dans un Postgres 17 à côté du site (le script de copie, `scripts/vps/copier-base.sh`, reste dans l'historique git). Les images de QR codes envoyées avant la migration 0011 étaient dans le stockage de Supabase et n'ont pas été recopiées : elles concernent des sessions passées.
+La base a d'abord été hébergée par Supabase, puis recopiée en novembre 2026 dans un Postgres 18 à côté du site (le script de copie, `scripts/vps/copier-base.sh`, reste dans l'historique git). Les images de QR codes envoyées avant la migration 0011 étaient dans le stockage de Supabase et n'ont pas été recopiées : elles concernent des sessions passées.
 
 Si le site change aussi d'adresse, l'ancien déploiement peut annoncer le déménagement : avec la variable `NOUVEAU_SITE` (l'adresse du nouveau site), chaque page affiche un message et renvoie au même chemin sur le nouveau site, sans plus toucher à la base (`src/lib/demenagement.ts`).
 

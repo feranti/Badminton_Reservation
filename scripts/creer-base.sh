@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Crée la base du site dans un Postgres 17 vide : socle (supabase/socle.sql), toutes les migrations
+# Crée la base du site dans un Postgres 18 vide : socle (supabase/socle.sql), toutes les migrations
 # dans l'ordre, puis le compte du site resas_app, avec les mêmes droits que sur le VPS.
 # Utilisé par npm run check et pour une base de développement (voir README).
 # Variables :

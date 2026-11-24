@@ -1,6 +1,6 @@
 -- Socle d'une base neuve, à exécuter avant supabase/migrations/ (scripts/creer-base.sh le fait).
 -- Les migrations ont été écrites pour Supabase : elles supposent ce que Supabase fournissait. Ce
--- script le recrée sur un Postgres 17 seul, comme pour la base du VPS lors de la bascule depuis
+-- script le recrée sur un Postgres 18 seul, comme pour la base du VPS lors de la bascule depuis
 -- Supabase :
 --   - les rôles des règles d'accès anon, authenticated et service_role ;
 --   - le schéma auth, avec la table des joueurs (auth.users) et la fonction auth.uid() ;
