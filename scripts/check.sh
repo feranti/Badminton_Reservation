@@ -104,6 +104,11 @@ psql "$DB_URL" -q -v ON_ERROR_STOP=1 -f tests/sql/droits.sql
 step "Accès direct à la base : identité des joueurs et règles d'accès"
 node --conditions=react-server --experimental-strip-types --no-warnings tests/db/isolation.mts
 
+step "Serveur autonome du conteneur, sans APP_URL : liens des messages WhatsApp"
+# Comme sur le VPS (Dockerfile) : HOSTNAME=0.0.0.0 derrière un proxy. Le lien du récap doit être
+# l'adresse du site (en-tête Host), pas https://0.0.0.0:3000.
+node tests/e2e/adresse-publique.mjs
+
 step "Ancien site : message de déménagement (NOUVEAU_SITE)"
 MOVED_PORT=3003
 NOUVEAU_SITE=https://nouveau.exemple.fr DATABASE_URL=postgresql://personne@127.0.0.1:1/aucune \

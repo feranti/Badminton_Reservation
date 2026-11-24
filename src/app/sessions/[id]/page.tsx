@@ -13,6 +13,7 @@ import { card, sectionTitle } from "@/components/ui";
 import { bookingHours } from "@/lib/courts";
 import { getPlayers, getSession, getSessionEvents, isPast } from "@/lib/data";
 import { formatDay, formatEuros, formatTime, formatTimes, shareCents } from "@/lib/format";
+import { createdLabel } from "@/lib/history";
 import { requirePlayer } from "@/lib/session";
 
 export default function SessionPage({ params }: PageProps<"/sessions/[id]">) {
@@ -139,6 +140,9 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
             )}
           </div>
           <SessionHistory events={history.events} names={new Map(players.map((p) => [p.id, p.display_name]))} />
+          <p className="-mt-2 text-sm text-faint">
+            {createdLabel(s.created_at)} par {players.find((p) => p.id === s.created_by)?.display_name ?? "quelqu'un"}
+          </p>
         </section>
       )}
 
