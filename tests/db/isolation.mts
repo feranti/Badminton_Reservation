@@ -10,7 +10,7 @@ const check = (ok: boolean, label: string) => {
   if (!ok) failed = true;
 };
 
-// Compte du serveur : postgres sur la copie de Supabase, resas_app sur la base du VPS.
+// Compte du serveur : resas_app, comme sur le VPS.
 const [{ server }] = await adminDb<{ server: string }>`select current_user as server`;
 
 const players = await adminDb<{ id: string }>`select id from public.profiles order by created_at limit 2`;

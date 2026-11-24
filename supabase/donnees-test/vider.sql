@@ -1,5 +1,5 @@
 -- Efface toutes les données de test ajoutées par remplir.sql, sans toucher aux vraies données.
--- À exécuter dans Supabase > SQL Editor.
+-- À exécuter en postgres (DBeaver, voir README).
 
 delete from public.payments
 where note like '[TEST]%'
