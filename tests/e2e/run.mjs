@@ -177,6 +177,18 @@ try {
     await page.waitForURL(/\/sessions\/[0-9a-f-]{36}$/);
     return page.url();
   }
+  // Les comptes ne tiennent compte que des sessions terminées : pour les vérifier, le test décale
+  // des sessions (et leurs terrains) dans le passé (days < 0), puis les ramène si besoin.
+  async function shiftSessions(ids, days) {
+    const sql = postgres(process.env.ADMIN_DB_URL, { max: 1 });
+    const shift = `${days} days`;
+    await sql`update public.sessions set starts_at = starts_at + ${shift}::interval, ends_at = ends_at + ${shift}::interval
+      where id in ${sql(ids)}`;
+    await sql`update public.court_bookings set starts_at = starts_at + ${shift}::interval, ends_at = ends_at + ${shift}::interval
+      where session_id in ${sql(ids)}`;
+    await sql.end();
+  }
+  const idOf = (url) => url.split("/").pop();
 
   // Pastille UCPA de l'en-tête : menu avec le site de réservation et la carte 10 sessions
   await alice.getByRole("button", { name: "UCPA" }).click();
@@ -536,6 +548,17 @@ try {
   // Comptes. Soir : 40 € pour alice et bob, 20 € chacun ; alice a avancé 35 €, bob 5 €.
   // Midi : 8 € pour dave, frank, bob et son invité, 2 € la place, avancés par alice.
   // → bob doit 15 + 2 × 2 = 19 € à alice ; dave et frank lui doivent 2 € chacun.
+  // Tant que ces sessions sont à venir, elles ne comptent pas : tout le monde est à jour.
+  await bob.goto(APP + "/comptes");
+  await bob.waitForSelector("text=Vous êtes à jour");
+  {
+    const sql = postgres(process.env.ADMIN_DB_URL, { max: 1 });
+    const ids = (await sql`select id from public.sessions where venue = ${VENUE} and cancelled_at is null`).map((r) => r.id);
+    await sql.end();
+    if (ids.length !== 2) throw new Error(`Sessions du soir et de midi attendues, trouvé ${ids.length}`);
+    await shiftSessions(ids, -7);
+  }
+  ok("les sessions à venir ne comptent pas dans les comptes, elles comptent une fois terminées");
   await bob.goto(APP + "/");
   await bob.waitForSelector("text=Vous devez 19,00 € à alice");
   await bob.click('nav >> text=Comptes');
@@ -638,8 +661,13 @@ try {
   await alice.waitForSelector("text=Terrains · 16,00 €");
   await alice.waitForSelector("text=18:00 – 19:00 · 10,00 € · payé par bob");
   await stat(bob, "Par joueur", "8,00 €").waitFor({ timeout: 10000 });
+  // La session est à venir : les comptes de bob n'ont pas bougé tant qu'elle n'est pas terminée.
   await bob.goto(APP + "/comptes");
+  await bob.waitForSelector("text=On vous doit 2,00 €");
+  await shiftSessions([idOf(later)], -7);
+  await bob.reload();
   await bob.waitForSelector("text=On vous doit 4,00 €");
+  await shiftSessions([idOf(later)], 7);
   ok("alice corrige le prix d'un terrain déjà réservé (au-delà de 1 000 € refusé) : part et comptes recalculés, bob le voit en temps réel");
   alice.once("dialog", (d) => d.accept());
   await alice.getByRole("button", { name: "Supprimer la session" }).click();
@@ -672,6 +700,7 @@ try {
   await alice.getByLabel("2e joueur", { exact: true }).selectOption({ label: "bob" });
   await alice.getByRole("button", { name: "Réserver 1 terrain · 18,00 €" }).click();
   await alice.waitForURL(/\/sessions\/[0-9a-f-]{36}$/);
+  const prisme = idOf(alice.url());
   await stat(alice, "Par joueur", "9,00 €").waitFor();
   await alice.click('a:text-is("Gérer")');
   await alice.waitForSelector("text=20:00 – 22:00 · 18,00 € · Alice carte + bob carte");
@@ -680,8 +709,10 @@ try {
   await alice.getByRole("button", { name: "Retirer bob (2e joueur)" }).click();
   await alice.waitForSelector("text=20:00 – 22:00 · 19,00 € · Alice carte · seul");
   await alice.waitForSelector("text=Supplément de 5 € l'heure pour le 2e joueur absent");
+  await shiftSessions([prisme], -7);
   await bob.reload();
   await bob.waitForSelector("text=Vous devez 7,50 €");
+  await shiftSessions([prisme], 7);
   // bob revient, sans carte : il avance 10 €, alice 9 € ; chacun doit 9,50 €.
   const label13 = "terrain 13 (20:00 – 22:00)";
   const partner13 = alice.getByLabel(`2e joueur · ${label13}`);
@@ -691,6 +722,7 @@ try {
   await alice.getByLabel(`Carte 10 sessions du 2e joueur · ${label13}`).uncheck();
   await payers13.getByRole("button", { name: "Enregistrer" }).click();
   await alice.waitForSelector("text=20:00 – 22:00 · 19,00 € · Alice carte + bob sans carte");
+  await shiftSessions([prisme], -7);
   await bob.reload();
   await bob.waitForSelector("text=On vous doit 2,50 €");
   ok("le 2e joueur se désiste puis revient sans carte : prix recalculé (19 €) et chacun crédité de sa part exacte (10 € et 9 €)");
