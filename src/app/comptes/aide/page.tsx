@@ -29,7 +29,10 @@ export default function AccountsHelpPage() {
           </li>
           <li>Si quelqu&apos;un se désinscrit, la part des autres est recalculée tout de suite.</li>
           <li>Une session sans aucun joueur inscrit ne compte pas dans les comptes.</li>
-          <li>Les sessions à venir comptent aussi : votre solde tient compte des inscriptions en cours.</li>
+          <li>
+            Seules les sessions terminées comptent : une session à venir n&apos;entre dans les comptes qu&apos;une fois son
+            heure de fin passée, car les inscriptions peuvent encore changer d&apos;ici là.
+          </li>
         </ul>
       </section>
 

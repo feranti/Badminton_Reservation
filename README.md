@@ -5,7 +5,7 @@ Application web pour un groupe d'amis qui joue au badminton :
 - mettre en commun les sessions, les terrains réservés (6 à 14), qui les a payés et leurs QR codes ;
 - s'inscrire à une session (4 joueurs par terrain), seul ou avec des invités sans compte (+1, +2…), avec liste d'attente et e-mail quand une place se libère ;
 - prévenir le groupe WhatsApp des terrains réservés ou annulés et des inscriptions, rappeler 72h avant une session où il manque au moins 4 joueurs, et poster chaque lundi soir le récap des comptes ;
-- tenir les comptes en temps réel (qui doit combien à qui), avec une page qui explique le calcul ;
+- tenir les comptes en temps réel (qui doit combien à qui) à partir des sessions terminées, avec une page qui explique le calcul ;
 - signaler un remboursement, que le bénéficiaire confirme.
 
 Le site s'utilise surtout sur téléphone (icône sur l'écran d'accueil), en thème clair ou sombre.
@@ -55,8 +55,9 @@ Prises sur téléphone avec le jeu de données fictif (`supabase/donnees-test/`)
 - Un remboursement compte dans les soldes une fois confirmé par celui qui le reçoit. S'il est signalé par celui qui reçoit l'argent, il est confirmé d'office.
 - La page Comptes propose la liste de virements la plus courte pour remettre tout le monde à zéro.
 - Solde d'un joueur = ce qu'il a avancé − sa part des soirées + remboursements envoyés − remboursements reçus. Positif : on lui doit de l'argent.
+- Seules les sessions terminées (heure de fin passée) comptent dans les soldes et le récap : jusque-là, les inscriptions peuvent encore changer.
 
-Les montants sont stockés en centimes, les heures sont saisies et affichées à l'heure de Paris. Le calcul est fait par la vue `balances` (voir `supabase/migrations/0001_init.sql`), et expliqué aux joueurs sur la page Comptes > « Comment sont calculés les comptes ? ».
+Les montants sont stockés en centimes, les heures sont saisies et affichées à l'heure de Paris. Le calcul est fait par la vue `balances` (dernière version dans `supabase/migrations/0013_comptes_sessions_passees.sql`), et expliqué aux joueurs sur la page Comptes > « Comment sont calculés les comptes ? ».
 
 ## Mise en route
 
