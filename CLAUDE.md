@@ -32,36 +32,11 @@ Dans le conteneur cloud, lancer `dockerd` s'il ne tourne pas, et passer
 
 ## Exécuter du SQL sur la base de production
 
-Une session cloud ne peut pas joindre le VPS : son proxy n'accepte que le HTTPS et coupe le SSH.
-Il faut passer par le PC d'Antoine, via une session Remote Control dans le dossier
-`D:\_PROJETS\PERSO\badminton_reservations` (son PC doit être allumé, avec l'application Claude ouverte).
-
-- VPS : `root@2.25.6.228`, port 22, clé `C:\Users\ANTOINE_ASUS_ROG\.ssh\id_ed25519_hostinger`.
-- Postgres 18 tourne dans un conteneur Docker Swarm (Dokploy) dont le nom commence par
-  `badminton-bookings-badmintondb` (le suffixe change à chaque redéploiement : le retrouver avec
-  `docker ps -qf name=badminton-bookings-badmintondb`). Port 5432 non publié.
-- Utilisateur `postgres`, base `postgres` (schémas `public` et `auth`). Pas de mot de passe à
-  fournir : on passe par le `psql` du conteneur. `psql` n'est pas installé sur le PC.
-- Aucune table ne trace les migrations jouées : comparer le schéma réel aux fichiers avant d'en jouer une.
-- DBeaver, pour mémoire : tunnel SSH vers le VPS, puis `127.0.0.1:5433` (relais `badminton-db-relais`).
-
-Commandes testées dans PowerShell (chemin de clé avec des `/`, la partie entre apostrophes
-s'exécute sur le VPS). Lecture :
-
-```powershell
-ssh -i C:/Users/ANTOINE_ASUS_ROG/.ssh/id_ed25519_hostinger -o BatchMode=yes root@2.25.6.228 'docker exec -i $(docker ps -qf name=badminton-bookings-badmintondb) psql -U postgres -d postgres -Atc "select version()"'
-```
-
-Fichier de migration : le copier sur le VPS (la redirection `<` n'existe pas dans PowerShell et
-son pipe abîme les accents), puis le jouer en une seule transaction en s'arrêtant à la première erreur :
-
-```powershell
-scp -i C:/Users/ANTOINE_ASUS_ROG/.ssh/id_ed25519_hostinger -o BatchMode=yes supabase/migrations/NNNN_nom.sql root@2.25.6.228:/tmp/
-ssh -i C:/Users/ANTOINE_ASUS_ROG/.ssh/id_ed25519_hostinger -o BatchMode=yes root@2.25.6.228 'docker exec -i $(docker ps -qf name=badminton-bookings-badmintondb) psql -U postgres -d postgres -v ON_ERROR_STOP=1 -1 < /tmp/NNNN_nom.sql && rm /tmp/NNNN_nom.sql'
-```
-
-Ces commandes sont autorisées sans confirmation par `.claude/settings.local.json` sur le PC
-d'Antoine (fichier local, non versionné). L'accord écrit d'Antoine reste exigé avant toute écriture.
+Une session cloud ne peut pas joindre le serveur : son proxy n'accepte que le HTTPS. On passe par une
+session Remote Control sur le PC d'Antoine, avec l'accord écrit d'Antoine avant toute écriture.
+La marche à suivre (connexion, commandes) est dans les fichiers privés du projet Claude :
+`/mnt/project-files/acces-base/executer-sql.md`. Le repo est public : n'y écrire ni adresse,
+ni utilisateur, ni chemin de clé, ni nom de conteneur.
 
 ## Pièges connus
 
