@@ -7,16 +7,52 @@ import { formatDay, formatSlot, formatTime, formatTimes } from "@/lib/format";
 import { sendMail } from "@/lib/mail";
 import { sendToGroup } from "@/lib/whatsapp";
 
-export type Snapshot = { registered: Set<string>; playing: Set<string> };
+// guests : invités de chaque joueur inscrit ; guestsPlaying : ceux d'entre eux qui ont une place.
+export type Snapshot = {
+  registered: Set<string>;
+  playing: Set<string>;
+  guests: Map<string, number>;
+  guestsPlaying: Map<string, number>;
+};
 
 // Inscrits et joueurs effectifs (hors liste d'attente) d'une session, à un instant donné.
 export async function snapshot(db: Db, sessionId: string): Promise<Snapshot> {
-  const data = await db<{ player_id: string; is_playing: boolean }>`
-    select player_id, is_playing from public.session_players where session_id = ${sessionId}`;
+  const data = await db<{ player_id: string; is_playing: boolean; guests: number; guests_waiting: number }>`
+    select player_id, is_playing, guests, guests_waiting from public.session_players where session_id = ${sessionId}`;
   return {
     registered: new Set(data.map((p) => p.player_id)),
     playing: new Set(data.filter((p) => p.is_playing).map((p) => p.player_id)),
+    guests: new Map(data.map((p) => [p.player_id, p.guests])),
+    guestsPlaying: new Map(data.map((p) => [p.player_id, p.guests - p.guests_waiting])),
   };
+}
+
+type WaitingChange = { player_id: string; kind: "promoted" | "demoted"; guests: number; guestsOnly: boolean };
+
+// Passages liste d'attente ↔ joueurs entre deux instants. Un joueur qui passe emmène ses invités
+// qui passent avec lui (guests) ; guestsOnly : le joueur garde sa place, seuls ses invités passent.
+// Les invités d'un joueur dont le nombre d'invités a changé entre-temps (le joueur qui agit) ne
+// comptent pas : ce sont les siens qu'il ajoute ou retire.
+function waitingChanges(before: Snapshot, after: Snapshot): WaitingChange[] {
+  const changes: WaitingChange[] = [];
+  for (const id of after.registered) {
+    if (!before.registered.has(id)) continue;
+    const was = before.playing.has(id);
+    const is = after.playing.has(id);
+    const guestsBefore = before.guestsPlaying.get(id) ?? 0;
+    const guestsAfter = after.guestsPlaying.get(id) ?? 0;
+    if (!was && is) changes.push({ player_id: id, kind: "promoted", guests: guestsAfter, guestsOnly: false });
+    else if (was && !is) changes.push({ player_id: id, kind: "demoted", guests: guestsBefore, guestsOnly: false });
+    else if (was && is && before.guests.get(id) === after.guests.get(id) && guestsAfter !== guestsBefore) {
+      changes.push({
+        player_id: id,
+        kind: guestsAfter > guestsBefore ? "promoted" : "demoted",
+        guests: Math.abs(guestsAfter - guestsBefore),
+        guestsOnly: true,
+      });
+    }
+  }
+  return changes;
 }
 
 // Adresse complète de la page d'une session, sur l'adresse publique du site (src/lib/app-url.ts).
@@ -25,59 +61,59 @@ async function sessionLink(sessionId: string) {
   return origin ? `${origin}/sessions/${sessionId}` : "";
 }
 
-// Note dans l'historique de la session les joueurs passés de la liste d'attente aux joueurs
-// effectifs, ou l'inverse (terrain retiré). Renvoie l'état après le changement.
+// Note dans l'historique de la session les joueurs (ou leurs invités) passés de la liste d'attente
+// aux joueurs effectifs, ou l'inverse (terrain retiré). Renvoie les changements.
 async function logWaitingChanges(db: Db, sessionId: string, before: Snapshot) {
-  const after = await snapshot(db, sessionId);
-  const stayed = [...after.registered].filter((id) => before.registered.has(id));
-  const events = [
-    ...stayed.filter((id) => after.playing.has(id) && !before.playing.has(id)).map((player_id) => ({ player_id, kind: "promoted" as const })),
-    ...stayed.filter((id) => !after.playing.has(id) && before.playing.has(id)).map((player_id) => ({ player_id, kind: "demoted" as const })),
-  ];
+  const events = waitingChanges(before, await snapshot(db, sessionId));
   if (events.length) {
     try {
       await db.tx(async (tx) => {
         for (const e of events) {
-          await tx`insert into public.session_events (session_id, player_id, kind) values (${sessionId}, ${e.player_id}, ${e.kind})`;
+          await tx`
+            select public.log_waiting_change(${sessionId}::uuid, ${e.player_id}::uuid, ${e.kind}, ${e.guests}::integer, ${e.guestsOnly})`;
         }
       });
     } catch (error) {
       console.error("[historique] liste d'attente non notée", error);
     }
   }
-  return after;
+  return events;
 }
 
 // Note dans l'historique les passages liste d'attente ↔ joueurs, et prévient par e-mail les joueurs
-// qui viennent de passer de la liste d'attente aux joueurs effectifs.
+// qui viennent de passer de la liste d'attente aux joueurs effectifs, ou dont un invité vient d'y passer.
 // N'interrompt jamais l'action en cours : une erreur d'envoi est seulement journalisée.
 export async function notifyPromotions(db: Db, sessionId: string, before: Snapshot, actorId: string) {
   try {
-    const after = await logWaitingChanges(db, sessionId, before);
-    // Promus = étaient inscrits mais en liste d'attente, et jouent maintenant.
-    const waiting = [...after.playing]
-      .filter((id) => before.registered.has(id) && !before.playing.has(id) && id !== actorId)
-      .map((player_id) => ({ player_id }));
-    if (waiting.length === 0) return;
+    const changes = await logWaitingChanges(db, sessionId, before);
+    const promoted = changes.filter((c) => c.kind === "promoted" && c.player_id !== actorId);
+    if (promoted.length === 0) return;
     const [session] = await db<Tables<"sessions">>`select * from public.sessions where id = ${sessionId}`;
     if (!session) return;
 
     const link = await sessionLink(sessionId);
     const slot = formatSlot(session.starts_at, session.ends_at);
 
-    for (const { player_id } of waiting) {
+    for (const { player_id, guests, guestsOnly } of promoted) {
       // Les adresses e-mail sont dans auth.users, lisible seulement par le propriétaire de la base.
       const [user] = await adminDb<{ email: string | null }>`select email from auth.users where id = ${player_id}`;
       const email = user?.email;
       if (!email) continue;
+      const them = guests > 1 ? `${guests} de vos invités` : "votre invité";
       await sendMail({
         to: email,
-        subject: `Une place s'est libérée : vous jouez ${slot.toLowerCase()}`,
+        subject: guestsOnly
+          ? `Une place s'est libérée : ${them} joue ${slot.toLowerCase()}`
+          : `Une place s'est libérée : vous jouez ${slot.toLowerCase()}`,
         text:
-          `Bonne nouvelle ! Une place s'est libérée et vous passez de la liste d'attente aux joueurs de la session :\n\n` +
+          (guestsOnly
+            ? `Bonne nouvelle ! Une place s'est libérée et ${them} ${guests > 1 ? "passent" : "passe"} de la liste d'attente aux joueurs de la session :\n\n`
+            : `Bonne nouvelle ! Une place s'est libérée et vous passez de la liste d'attente aux joueurs de la session :\n\n`) +
           `${slot}\n${session.venue}\n\n` +
           (link ? `Voir la session : ${link}\n\n` : "") +
-          `Si vous ne pouvez plus venir, désinscrivez-vous pour laisser la place au suivant.\n`,
+          (guestsOnly
+            ? `Si ${guests > 1 ? "ils ne peuvent" : "il ne peut"} plus venir, retirez-${guests > 1 ? "les" : "le"} pour laisser la place au suivant.\n`
+            : `Si vous ne pouvez plus venir, désinscrivez-vous pour laisser la place au suivant.\n`),
       });
     }
   } catch (error) {
@@ -107,14 +143,16 @@ export async function sessionState(db: Db, sessionId: string): Promise<SessionSt
         select court, starts_at, ends_at from public.court_bookings
         where session_id = ${sessionId} and cancelled_at is null
         order by court, starts_at`,
-      tx<{ is_playing: boolean; spots: number }[]>`
-        select is_playing, spots from public.session_players where session_id = ${sessionId}`,
+      tx<{ is_playing: boolean; spots: number; guests_waiting: number }[]>`
+        select is_playing, spots, guests_waiting from public.session_players where session_id = ${sessionId}`,
     ]),
   );
   if (!session) return null;
   const courts = [...new Set(bookings.map((b) => b.court))].sort((a, b) => a - b);
-  const spots = (playing: boolean) =>
-    players.filter((p) => p.is_playing === playing).reduce((sum, p) => sum + p.spots, 0);
+  // Places prises par ceux qui jouent ; en attente : les joueurs qui attendent et tous les invités
+  // en attente (y compris ceux d'un joueur qui a sa place).
+  const taken = players.reduce((sum, p) => sum + p.spots, 0);
+  const waiting = players.reduce((sum, p) => sum + (p.is_playing ? 0 : 1) + p.guests_waiting, 0);
   return {
     id: session.id,
     venue: session.venue,
@@ -123,8 +161,8 @@ export async function sessionState(db: Db, sessionId: string): Promise<SessionSt
     courts,
     slots: [...bookings],
     capacity: sessionCapacity(bookings),
-    taken: spots(true),
-    waiting: spots(false),
+    taken,
+    waiting,
   };
 }
 
@@ -133,10 +171,11 @@ export type GroupEvent =
   | { kind: "added"; courts: number[]; startsAt: string; endsAt: string; payers: string[] }
   | { kind: "removed"; courts: number[]; startsAt: string; endsAt: string; before: SessionState }
   | { kind: "deleted"; before: SessionState }
-  // Inscription d'un joueur, avec ses invités extérieurs ; playing = false s'il est en liste d'attente.
-  | { kind: "joined"; guests: number; playing: boolean }
+  // Inscription d'un joueur, avec ses invités extérieurs ; playing = false s'il est en liste d'attente ;
+  // guestsWaiting = ceux de ses invités qui sont en liste d'attente alors que lui joue.
+  | { kind: "joined"; guests: number; playing: boolean; guestsWaiting?: number }
   // Un joueur déjà inscrit change son nombre d'invités.
-  | { kind: "guests"; guests: number; playing: boolean }
+  | { kind: "guests"; guests: number; playing: boolean; guestsWaiting?: number }
   // Désinscription d'un joueur (et de ses invités) ; playing = false s'il était en liste d'attente.
   | { kind: "left"; guests: number; playing: boolean };
 
@@ -181,6 +220,15 @@ function sessionLines(s: SessionState, link: string, { courts = true } = {}) {
   ];
 }
 
+// « (en liste d'attente) » pour un joueur qui attend, « (son invité en liste d'attente) » quand
+// il joue mais pas ses invités, « (1 en liste d'attente) » quand une partie d'entre eux attend.
+function waitingText(event: { playing: boolean; guests: number; guestsWaiting?: number }) {
+  if (!event.playing) return " (en liste d'attente)";
+  const n = event.guestsWaiting ?? 0;
+  if (n === 0) return "";
+  return n === event.guests ? ` (${n > 1 ? "ses invités" : "son invité"} en liste d'attente)` : ` (${n} en liste d'attente)`;
+}
+
 // Barre verticale devant chaque ligne du détail d'une réservation ou annulation.
 const BAR = "▎ ";
 
@@ -205,7 +253,7 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
   }
   if (event.kind === "joined") {
     const guests = event.guests ? ` avec ${event.guests} invité${event.guests > 1 ? "s" : ""}` : "";
-    const waiting = event.playing ? "" : " (en liste d'attente)";
+    const waiting = waitingText(event);
     return [`🙋 ${actor} s'inscrit${guests}${waiting}`, ...sessionLines(ref, link, { courts: false })].join("\n");
   }
   if (event.kind === "left") {
@@ -215,7 +263,7 @@ export function groupMessage(names: string[], event: GroupEvent, current: Sessio
   }
   if (event.kind === "guests") {
     const guests = event.guests ? `avec ${event.guests} invité${event.guests > 1 ? "s" : ""}` : "sans invité";
-    const waiting = event.playing ? "" : " (en liste d'attente)";
+    const waiting = waitingText(event);
     return [`🙋 ${actor} vient ${guests}${waiting}`, ...sessionLines(ref, link, { courts: false })].join("\n");
   }
   // Heures du terrain, seulement si elles diffèrent de celles de la session.
