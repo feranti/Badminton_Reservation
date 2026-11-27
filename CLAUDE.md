@@ -45,20 +45,23 @@ Il faut passer par le PC d'Antoine, via une session Remote Control dans le dossi
 - Aucune table ne trace les migrations jouées : comparer le schéma réel aux fichiers avant d'en jouer une.
 - DBeaver, pour mémoire : tunnel SSH vers le VPS, puis `127.0.0.1:5433` (relais `badminton-db-relais`).
 
-Lecture :
+Commandes testées dans PowerShell (chemin de clé avec des `/`, la partie entre apostrophes
+s'exécute sur le VPS). Lecture :
 
-```sh
-ssh -i C:\Users\ANTOINE_ASUS_ROG\.ssh\id_ed25519_hostinger -o BatchMode=yes root@2.25.6.228 \
-  "docker exec -i \$(docker ps -qf name=badminton-bookings-badmintondb) psql -U postgres -d postgres -Atc 'select version()'"
+```powershell
+ssh -i C:/Users/ANTOINE_ASUS_ROG/.ssh/id_ed25519_hostinger -o BatchMode=yes root@2.25.6.228 'docker exec -i $(docker ps -qf name=badminton-bookings-badmintondb) psql -U postgres -d postgres -Atc "select version()"'
 ```
 
-Fichier de migration, en une seule transaction et en s'arrêtant à la première erreur :
+Fichier de migration : le copier sur le VPS (la redirection `<` n'existe pas dans PowerShell et
+son pipe abîme les accents), puis le jouer en une seule transaction en s'arrêtant à la première erreur :
 
-```sh
-ssh -i C:\Users\ANTOINE_ASUS_ROG\.ssh\id_ed25519_hostinger -o BatchMode=yes root@2.25.6.228 \
-  "docker exec -i \$(docker ps -qf name=badminton-bookings-badmintondb) psql -U postgres -d postgres -v ON_ERROR_STOP=1 -1" \
-  < supabase/migrations/NNNN_nom.sql
+```powershell
+scp -i C:/Users/ANTOINE_ASUS_ROG/.ssh/id_ed25519_hostinger -o BatchMode=yes supabase/migrations/NNNN_nom.sql root@2.25.6.228:/tmp/
+ssh -i C:/Users/ANTOINE_ASUS_ROG/.ssh/id_ed25519_hostinger -o BatchMode=yes root@2.25.6.228 'docker exec -i $(docker ps -qf name=badminton-bookings-badmintondb) psql -U postgres -d postgres -v ON_ERROR_STOP=1 -1 < /tmp/NNNN_nom.sql && rm /tmp/NNNN_nom.sql'
 ```
+
+Ces commandes sont autorisées sans confirmation par `.claude/settings.local.json` sur le PC
+d'Antoine (fichier local, non versionné). L'accord écrit d'Antoine reste exigé avant toute écriture.
 
 ## Pièges connus
 
