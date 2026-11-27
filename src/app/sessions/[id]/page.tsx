@@ -35,7 +35,9 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
   const s = session;
   const playersById = new Map(players.map((p) => [p.id, p]));
   const name = (pid: string) => (pid === userId ? "vous" : (playersById.get(pid)?.display_name ?? "?"));
-  const { playing, me, guests } = sessionStatus(s, userId);
+  const { playing, me, guests, guestsWaiting } = sessionStatus(s, userId);
+  // Seuls les invités qui jouent sont payés ; ceux en liste d'attente ne coûtent rien.
+  const paidGuests = guests - guestsWaiting;
   const share = playing > 0 ? shareCents(s.totalCents, playing) : 0;
   const courts = groupByCourt(s.bookings);
   // Une session annulée reste consultable, sans rien pour la modifier ni s'y inscrire.
@@ -96,10 +98,10 @@ async function SessionDetails({ params }: { params: PageProps<"/sessions/[id]">[
         <h2 className={sectionTitle}>Joueurs</h2>
         <SessionPlayers session={s} players={playersById} userId={userId} />
         {me && !readOnly && <GuestsForm sessionId={s.id} guests={guests} />}
-        {me === "playing" && guests > 0 && (
+        {me === "playing" && paidGuests > 0 && (
           <p className="text-sm text-muted">
-            Vous payez aussi la part de vos invités : {1 + guests} × {formatEuros(share)} ={" "}
-            {formatEuros(share * (1 + guests))}.
+            Vous payez aussi la part de vos invités : {1 + paidGuests} × {formatEuros(share)} ={" "}
+            {formatEuros(share * (1 + paidGuests))}.
           </p>
         )}
       </section>

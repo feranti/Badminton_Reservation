@@ -38,6 +38,16 @@ async function waitWhatsApp(...parts) {
   throw new Error(`Aucun message WhatsApp avec « ${parts.join(" », « ")} ». Reçus :\n${whatsapp.map((m) => m.message).join("\n---\n")}`);
 }
 
+// Attend un e-mail pour cette adresse dont l'objet contient le texte donné.
+async function waitMail(email, subject) {
+  for (let i = 0; i < 20; i++) {
+    const list = await (await fetch(`${MAIL}/api/v1/search?query=to:${email}`)).json();
+    if (list.messages?.some((m) => m.Subject.includes(subject))) return;
+    await sleep(500);
+  }
+  throw new Error(`${email} n'a pas reçu l'e-mail « ${subject} »`);
+}
+
 async function loginMail(email) {
   for (let i = 0; i < 20; i++) {
     const list = await (await fetch(`${MAIL}/api/v1/search?query=to:${email}`)).json();
@@ -511,42 +521,51 @@ try {
   );
   ok("le groupe WhatsApp annonce les inscriptions faites depuis Gérer, et celle de bob avec son invité en liste d'attente");
 
-  // Une place libre ne suffit pas à bob et son invité : ils attendent ensemble.
+  // Une seule place libre : bob la prend, son invité reste en liste d'attente.
   await fetch(`${MAIL}/api/v1/messages`, { method: "DELETE" });
   await alice.click('button[aria-label="Retirer carol"]');
-  await alice.waitForSelector("text=Joueurs · 3 / 4");
-  await sleep(1500);
-  await bob.waitForSelector("text=Vous êtes n°1 sur la liste d'attente");
-  ok("carol se désiste : une seule place, bob et son invité restent en attente");
+  await alice.waitForSelector("text=Joueurs · 4 / 4");
+  await alice.waitForSelector("text=· 1 invité en attente");
+  await bob.waitForSelector("text=Votre invité est n°1 sur la liste d'attente", { timeout: 10000 });
+  await bob.getByRole("list", { name: "Joueurs inscrits" }).getByText("bob", { exact: true }).waitFor();
+  await bob.getByRole("list", { name: "Liste d'attente" }).getByText("invité de bob").waitFor();
+  await stat(bob, "Joueurs", "4 / 4").waitFor();
+  await waitMail("bob@test.fr", "Une place s'est libérée : vous jouez");
+  ok("carol se désiste : une seule place, bob la prend et reçoit un e-mail, son invité reste en attente");
 
   await alice.click('button[aria-label="Retirer eve"]');
   await bob.locator("text=sur la liste d'attente").waitFor({ state: "detached", timeout: 10000 });
   await stat(bob, "Joueurs", "4 / 4").waitFor();
   await bob.getByRole("list", { name: "Joueurs inscrits" }).getByText("bob +1").waitFor();
   await bob.waitForSelector("text=Vous payez aussi la part de vos invités : 2 × 2,00 € = 4,00 €");
-  let promoted = null;
-  for (let i = 0; i < 20 && !promoted; i++) {
-    const list = await (await fetch(`${MAIL}/api/v1/search?query=to:bob@test.fr`)).json();
-    promoted = list.messages?.find((m) => m.Subject.includes("Une place s'est libérée"));
-    if (!promoted) await sleep(500);
-  }
-  if (!promoted) throw new Error("bob n'a pas reçu l'e-mail de place libérée");
-  ok("eve se désiste aussi : bob et son invité jouent (4/4), bob paie 2 parts et reçoit un e-mail");
+  await waitMail("bob@test.fr", "Une place s'est libérée : votre invité joue");
+  ok("eve se désiste aussi : l'invité de bob joue (4/4), bob paie 2 parts et reçoit un e-mail");
   await bob.reload();
   const historiqueMidi = bob.locator("section", { has: bob.locator('h2:text-is("Historique")') });
-  await historiqueMidi.getByText("bob passe de la liste d'attente aux joueurs").waitFor();
+  await historiqueMidi.getByText("bob passe de la liste d'attente aux joueurs", { exact: true }).waitFor();
+  await historiqueMidi.getByText("L'invité de bob passe de la liste d'attente aux joueurs").waitFor();
   await historiqueMidi.getByText("alice a retiré eve").waitFor();
   await historiqueMidi.getByText("alice a retiré carol").waitFor();
-  ok("l'historique note les joueurs retirés par alice et le passage de bob de la liste d'attente aux joueurs");
+  ok("l'historique note les joueurs retirés par alice, et le passage de bob puis de son invité aux joueurs");
 
+  // Session complète : un 2e invité de bob va en fin de liste d'attente, bob garde sa place.
   await bob.selectOption('select[name="guests"]', "2");
-  await bob.waitForSelector("text=La session est complète : impossible d'ajouter un invité.");
-  if ((await bob.inputValue('select[name="guests"]')) !== "1") throw new Error("Le nombre d'invités refusé est resté affiché");
+  await bob.waitForSelector("text=Votre invité est n°1 sur la liste d'attente");
+  if ((await bob.inputValue('select[name="guests"]')) !== "2") throw new Error("Le 2e invité de bob aurait dû être accepté");
+  await bob.getByRole("list", { name: "Joueurs inscrits" }).getByText("bob +1").waitFor();
+  await bob.getByRole("list", { name: "Liste d'attente" }).getByText("invité de bob").waitFor();
+  await bob.waitForSelector("text=Vous payez aussi la part de vos invités : 2 × 2,00 € = 4,00 €");
   await stat(bob, "Joueurs", "4 / 4").waitFor();
-  ok("bob ne peut pas ajouter un 2e invité dans une session complète");
+  await waitWhatsApp(
+    "🙋 bob vient avec 2 invités (1 en liste d'attente)\n",
+    ", 12:00 – 13:00 · ",
+    "Places restantes : 0 (1 en liste d'attente)\n",
+    midday,
+  );
+  ok("session complète : le 2e invité de bob passe en liste d'attente, bob et son 1er invité gardent leur place");
 
   // Comptes. Soir : 40 € pour alice et bob, 20 € chacun ; alice a avancé 35 €, bob 5 €.
-  // Midi : 8 € pour dave, frank, bob et son invité, 2 € la place, avancés par alice.
+  // Midi : 8 € pour dave, frank, bob et son 1er invité (le 2e attend), 2 € la place, avancés par alice.
   // → bob doit 15 + 2 × 2 = 19 € à alice ; dave et frank lui doivent 2 € chacun.
   // Tant que ces sessions sont à venir, elles ne comptent pas : tout le monde est à jour.
   await bob.goto(APP + "/comptes");

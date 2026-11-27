@@ -90,6 +90,7 @@ export type Database = {
           player_id: string;
           added_at: string;
           guests: number;
+          guests_added_at: string[];
           left_at: string | null;
           left_by: string | null;
         };
@@ -150,6 +151,8 @@ export type Database = {
           capacity: number;
           guests: number;
           spots: number;
+          guests_waiting: number;
+          waiting_rank: number | null;
         };
         Relationships: [];
       };

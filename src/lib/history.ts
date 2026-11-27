@@ -89,6 +89,7 @@ export function describeEvent(e: HistoryEvent, nameOf: (id: string | null) => st
       return line("🙋", "neutral", self ? [player, " s'est inscrit"] : [actor, " a inscrit ", player], [
         num(d.guests) > 0 && `avec ${guestsText(num(d.guests))}`,
         d.waiting === true && "en liste d'attente",
+        d.waiting !== true && num(d.guests_waiting) > 0 && `dont ${num(d.guests_waiting)} en liste d'attente`,
       ]);
     case "guests": {
       const to = num(d.to);
@@ -96,6 +97,7 @@ export function describeEvent(e: HistoryEvent, nameOf: (id: string | null) => st
       return line("🙋", "neutral", [player, to ? ` vient avec ${guestsText(to)}` : " vient sans invité"], [
         `avant : ${from ? guestsText(from) : "sans invité"}`,
         d.waiting === true && "en liste d'attente",
+        d.waiting !== true && num(d.guests_waiting) > 0 && `dont ${num(d.guests_waiting)} en liste d'attente`,
       ]);
     }
     case "left":
@@ -104,9 +106,21 @@ export function describeEvent(e: HistoryEvent, nameOf: (id: string | null) => st
         d.waiting === true && "était en liste d'attente",
       ]);
     case "promoted":
-      return line("⏫", "green", [player, " passe de la liste d'attente aux joueurs"], ["automatique"]);
+      if (num(d.invites) > 0)
+        return line("⏫", "green", [`${num(d.invites) > 1 ? `${num(d.invites)} invités` : "L'invité"} de `, player, " passe de la liste d'attente aux joueurs"], ["automatique"]);
+      return line("⏫", "green", [player, " passe de la liste d'attente aux joueurs"], [
+        num(d.guests) > 0 && `avec ${guestsText(num(d.guests))}`,
+        "automatique",
+      ]);
     case "demoted":
-      return line("⏬", "yellow", [player, " passe en liste d'attente"], ["automatique, une place en moins"]);
+      if (num(d.invites) > 0)
+        return line("⏬", "yellow", [`${num(d.invites) > 1 ? `${num(d.invites)} invités` : "L'invité"} de `, player, " passe en liste d'attente"], [
+          "automatique, une place en moins",
+        ]);
+      return line("⏬", "yellow", [player, " passe en liste d'attente"], [
+        num(d.guests) > 0 && `avec ${guestsText(num(d.guests))}`,
+        "automatique, une place en moins",
+      ]);
     default:
       return line("•", "neutral", ["Changement"]);
   }

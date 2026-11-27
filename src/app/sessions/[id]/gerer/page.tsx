@@ -203,6 +203,12 @@ async function ManageSession({ params }: { params: PageProps<"/sessions/[id]/ger
                 )}
                 {p.player_id === userId && <span className="text-muted"> (vous)</span>}
                 {!p.is_playing && <span className="text-sm text-warn"> · en attente</span>}
+                {p.is_playing && p.guests_waiting > 0 && (
+                  <span className="text-sm text-warn">
+                    {" "}
+                    · {p.guests_waiting} invité{p.guests_waiting > 1 ? "s" : ""} en attente
+                  </span>
+                )}
               </span>
               <form action={removeParticipant.bind(null, s.id, p.player_id)}>
                 <button type="submit" className={quietButton} aria-label={`Retirer ${name(p.player_id)}`}>

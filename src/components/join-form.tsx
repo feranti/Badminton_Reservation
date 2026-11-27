@@ -15,17 +15,20 @@ function guestsLabel(n: number) {
   return n === 0 ? "aucun invité" : `${n} invité${n > 1 ? "s" : ""}`;
 }
 
-// Inscription, seul ou avec des invités extérieurs (+1, +2…). Le groupe joue ou attend ensemble.
+// Inscription, seul ou avec des invités extérieurs (+1, +2…). Le joueur passe avant ses invités :
+// s'il ne reste pas de place pour tous, les invités en trop vont en liste d'attente.
 export function JoinForm({ sessionId, free }: { sessionId: string; free: number }) {
   const { state, pending, onSubmit } = useFormAction<FormState>(joinSession.bind(null, sessionId), {});
   const [guests, setCount] = useState(0);
   const fits = free >= 1 + guests;
+  // Personne ne joue sans place pour le joueur lui-même.
+  const waits = free === 0;
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-2">
       {free > 0 && !fits && (
         <p className="text-center text-sm text-warn">
-          Il reste {free} place{free > 1 ? "s" : ""} : vous et vos invités passerez ensemble en liste d&apos;attente.
+          Il reste {free} place{free > 1 ? "s" : ""} : vous jouez, {1 + guests - free > 1 ? `${1 + guests - free} de vos invités passeront` : "un de vos invités passera"} en liste d&apos;attente.
         </p>
       )}
       {state.error && (
@@ -35,7 +38,7 @@ export function JoinForm({ sessionId, free }: { sessionId: string; free: number 
       )}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={`${primaryButton} min-h-13 min-w-0 flex-1 text-base`}>
-          {fits ? (guests > 0 ? `Je m'inscris +${guests}` : "Je m'inscris") : "M'inscrire en liste d'attente"}
+          {waits ? "M'inscrire en liste d'attente" : guests > 0 ? `Je m'inscris +${guests}` : "Je m'inscris"}
         </button>
         <select
           name="guests"

@@ -6,8 +6,18 @@ export type Player = Tables<"profiles">;
 // Un QR code par heure de la réservation (hour = 0 pour la première heure).
 export type BookingQr = { hour: number; path: string; url: string | null };
 export type CourtBooking = Tables<"court_bookings"> & { qrs: BookingQr[] };
-// guests = invités extérieurs amenés par le joueur ; spots = places prises (lui compris).
-export type SessionPlayer = { player_id: string; position: number; is_playing: boolean; guests: number; spots: number };
+// guests = invités extérieurs amenés par le joueur ; spots = places prises par lui et ses invités
+// qui jouent (0 s'il attend) ; guests_waiting = ses invités en liste d'attente ; waiting_rank = rang
+// de sa première place en liste d'attente (null si personne du groupe n'attend).
+export type SessionPlayer = {
+  player_id: string;
+  position: number;
+  is_playing: boolean;
+  guests: number;
+  spots: number;
+  guests_waiting: number;
+  waiting_rank: number | null;
+};
 export type Session = Tables<"sessions"> & {
   bookings: CourtBooking[];
   players: SessionPlayer[];
@@ -32,7 +42,7 @@ async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = 
         where session_id = any(${ids}::uuid[]) and cancelled_at is null
         order by court, starts_at`,
       tx<(SessionPlayer & { session_id: string })[]>`
-        select session_id, player_id, position, is_playing, guests, spots from public.session_players
+        select session_id, player_id, position, is_playing, guests, spots, guests_waiting, waiting_rank from public.session_players
         where session_id = any(${ids}::uuid[])
         order by position`,
     ]);
@@ -62,7 +72,15 @@ async function withDetails(sessions: Tables<"sessions">[], { qrUrls = false } = 
       bookings: sessionBookings,
       players: players
         .filter((p) => p.session_id === s.id)
-        .map(({ player_id, position, is_playing, guests, spots }) => ({ player_id, position, is_playing, guests, spots })),
+        .map(({ player_id, position, is_playing, guests, spots, guests_waiting, waiting_rank }) => ({
+          player_id,
+          position,
+          is_playing,
+          guests,
+          spots,
+          guests_waiting,
+          waiting_rank,
+        })),
       capacity: sessionCapacity(sessionBookings),
       totalCents: sessionBookings.reduce((sum, b) => sum + b.price_cents, 0),
     };

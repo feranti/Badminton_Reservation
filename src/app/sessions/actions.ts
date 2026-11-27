@@ -317,9 +317,14 @@ export async function addParticipant(sessionId: string, playerId: string, guests
   if (error) console.error("[inscription] impossible", error);
   // Rien de renvoyé = le joueur était déjà inscrit : pas de nouveau message.
   if (added?.length) {
-    const [me] = await db<{ is_playing: boolean }>`
-      select is_playing from public.session_players where session_id = ${sessionId} and player_id = ${playerId}`;
-    await notifyGroup(db, playerId, sessionId, { kind: "joined", guests, playing: me?.is_playing ?? true });
+    const [me] = await db<{ is_playing: boolean; guests_waiting: number }>`
+      select is_playing, guests_waiting from public.session_players where session_id = ${sessionId} and player_id = ${playerId}`;
+    await notifyGroup(db, playerId, sessionId, {
+      kind: "joined",
+      guests,
+      playing: me?.is_playing ?? true,
+      guestsWaiting: me?.guests_waiting ?? 0,
+    });
   }
   refresh();
 }
@@ -339,28 +344,15 @@ export async function joinSession(sessionId: string, _prev: FormState, formData:
   return {};
 }
 
-// Change le nombre d'invités du joueur connecté. Un joueur qui a déjà sa place ne peut ajouter
-// des invités que dans les places libres : il ne fait pas passer les autres en liste d'attente.
+// Change le nombre d'invités du joueur connecté. Un invité ajouté alors que la session est pleine
+// va en fin de liste d'attente (règle de la vue session_players) : il ne prend la place de personne.
 export async function setGuests(sessionId: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const { db, userId } = await requirePlayer();
   const guests = readGuests(formData);
   if (guests === null) return { error: "Nombre d'invités incorrect." };
-  const players = await db<{ player_id: string; is_playing: boolean; guests: number; spots: number; capacity: number }>`
-    select player_id, is_playing, guests, spots, capacity from public.session_players where session_id = ${sessionId}`;
-  const me = players.find((p) => p.player_id === userId);
+  const [me] = await db<{ guests: number }>`
+    select guests from public.session_players where session_id = ${sessionId} and player_id = ${userId}`;
   if (!me) return { error: "Vous n'êtes plus inscrit à cette session." };
-  if (me.is_playing && guests > me.guests) {
-    const used = players.filter((p) => p.is_playing).reduce((sum, p) => sum + p.spots, 0);
-    const free = Math.max(me.capacity - used, 0);
-    if (guests - me.guests > free) {
-      return {
-        error:
-          free === 0
-            ? "La session est complète : impossible d'ajouter un invité."
-            : `Il ne reste que ${free} place${free > 1 ? "s" : ""} libre${free > 1 ? "s" : ""}.`,
-      };
-    }
-  }
 
   const before = await snapshot(db, sessionId);
   const { error } = await attempt(db`
@@ -371,9 +363,14 @@ export async function setGuests(sessionId: string, _prev: FormState, formData: F
   await notifyPromotions(db, sessionId, before, userId);
   // Le groupe voit les places restantes avec les invités ajoutés ou retirés.
   if (guests !== me.guests) {
-    const [now] = await db<{ is_playing: boolean }>`
-      select is_playing from public.session_players where session_id = ${sessionId} and player_id = ${userId}`;
-    await notifyGroup(db, userId, sessionId, { kind: "guests", guests, playing: now?.is_playing ?? true });
+    const [now] = await db<{ is_playing: boolean; guests_waiting: number }>`
+      select is_playing, guests_waiting from public.session_players where session_id = ${sessionId} and player_id = ${userId}`;
+    await notifyGroup(db, userId, sessionId, {
+      kind: "guests",
+      guests,
+      playing: now?.is_playing ?? true,
+      guestsWaiting: now?.guests_waiting ?? 0,
+    });
   }
   refresh();
   return {};

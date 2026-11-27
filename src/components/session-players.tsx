@@ -2,15 +2,25 @@ import { removeParticipant } from "@/app/sessions/actions";
 import { ConfirmButton } from "./confirm-button";
 import { JoinForm } from "./join-form";
 import type { Player, Session } from "@/lib/data";
-import { sessionStatus } from "./session-card";
+import { sessionStatus, waitingList } from "./session-card";
 import { secondaryButton } from "./ui";
 
-// « bob +2 » : un joueur et ses invités extérieurs.
-function Chip({ name, guests, me }: { name: string; guests: number; me: boolean }) {
+// « bob +2 » : un joueur et ses invités extérieurs ; « invité de bob » : les invités seuls, quand
+// bob a sa place mais pas eux.
+function Chip({ name, guests, me, guestsOnly = false }: { name: string; guests: number; me: boolean; guestsOnly?: boolean }) {
   return (
     <li className={`rounded-full px-3.5 py-2 text-[15px] ${me ? "bg-accent-tint font-medium text-accent-ink" : "bg-chip"}`}>
-      {name}
-      {guests > 0 && <span className={me ? "" : "text-muted"}> +{guests}</span>}
+      {guestsOnly ? (
+        <>
+          <span className={me ? "" : "text-muted"}>{guests > 1 ? `${guests} invités de ` : "invité de "}</span>
+          {name}
+        </>
+      ) : (
+        <>
+          {name}
+          {guests > 0 && <span className={me ? "" : "text-muted"}> +{guests}</span>}
+        </>
+      )}
     </li>
   );
 }
@@ -19,14 +29,14 @@ function Chip({ name, guests, me }: { name: string; guests: number; me: boolean 
 export function SessionPlayers({ session: s, players, userId }: { session: Session; players: Map<string, Player>; userId: string }) {
   const name = (id: string) => players.get(id)?.display_name ?? "?";
   const playing = s.players.filter((p) => p.is_playing);
-  const waiting = s.players.filter((p) => !p.is_playing);
+  const waiting = waitingList(s);
   const { free } = sessionStatus(s, userId);
 
   return (
     <div className="flex flex-col gap-3">
       <ul className="flex flex-wrap gap-2" aria-label="Joueurs inscrits">
         {playing.map((p) => (
-          <Chip key={p.player_id} name={name(p.player_id)} guests={p.guests} me={p.player_id === userId} />
+          <Chip key={p.player_id} name={name(p.player_id)} guests={p.guests - p.guests_waiting} me={p.player_id === userId} />
         ))}
         {free > 0 && (
           <li className="rounded-full border border-dashed border-dash px-3.5 py-2 text-[15px] text-muted">
@@ -39,7 +49,13 @@ export function SessionPlayers({ session: s, players, userId }: { session: Sessi
           <span className="text-sm text-muted">Liste d&apos;attente</span>
           <ul className="flex flex-wrap gap-2" aria-label="Liste d'attente">
             {waiting.map((p) => (
-              <Chip key={p.player_id} name={name(p.player_id)} guests={p.guests} me={p.player_id === userId} />
+              <Chip
+                key={p.player_id}
+                name={name(p.player_id)}
+                guests={p.guests_waiting}
+                me={p.player_id === userId}
+                guestsOnly={p.is_playing}
+              />
             ))}
           </ul>
         </div>
@@ -56,6 +72,12 @@ export function JoinButton({ session: s, userId }: { session: Session; userId: s
       {status.me === "waiting" && (
         <p className="text-center text-sm text-warn">
           Vous êtes n°{status.rank} sur la liste d&apos;attente. Un e-mail vous préviendra si une place se libère.
+        </p>
+      )}
+      {status.me === "playing" && status.guestsWaiting > 0 && (
+        <p className="text-center text-sm text-warn">
+          {status.guestsWaiting > 1 ? `Vos ${status.guestsWaiting} invités sont` : "Votre invité est"} n°{status.rank} sur la
+          liste d&apos;attente. Un e-mail vous préviendra si une place se libère.
         </p>
       )}
       {status.me ? (
@@ -75,7 +97,7 @@ export function JoinButton({ session: s, userId }: { session: Session; userId: s
 function leaveMessage(s: Session, me: "playing" | "waiting", guests: number) {
   if (me === "waiting") return guests > 0 ? "Quitter la liste d'attente avec vos invités ?" : "Quitter la liste d'attente de cette session ?";
   if (guests > 0) return "Vous désinscrire de cette session avec vos invités ? La part des autres joueurs sera recalculée.";
-  const waiting = s.players.some((p) => !p.is_playing);
+  const waiting = s.players.some((p) => p.waiting_rank !== null);
   return waiting
     ? "Vous désinscrire de cette session ? Votre place ira au premier de la liste d'attente."
     : "Vous désinscrire de cette session ? La part des autres joueurs sera recalculée.";
